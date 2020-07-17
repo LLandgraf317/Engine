@@ -1,0 +1,3 @@
+[submodule "include/nvmdatastructures"]
+	path = include/nvmdatastructures
+	url = https://github.com/LLandgraf317/nvmdstuilmenau.git
