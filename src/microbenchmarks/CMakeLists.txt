@@ -88,4 +88,12 @@ if( BUILD_ALL OR BUILD_MICROBMS )
                             #$<$<CONFIG:DEBUG>:-DDEBUG>
     )
     target_link_libraries( select_sum_benchmark PRIVATE "-ldl" )
+
+    add_executable( nvmds_bench nvmds_bench.cc)
+    target_compile_options( nvmds_bench PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        nvmds_bench PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+
 endif( BUILD_ALL OR BUILD_MICROBMS )

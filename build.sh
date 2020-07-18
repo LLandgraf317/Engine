@@ -221,6 +221,11 @@ case $key in
 	shift
 	shift
 	;;
+    -c|--clean)
+    rm /mnt/pmem0/test/NVMDSBench
+    rm /mnt/pmem1/test/NVMDSBench
+    shift
+    ;;
 	-deb|--debug)
 	buildModeSet=$((buildModeSet + 1))
 	buildMode="-DCMAKE_BUILD_TYPE=Debug"

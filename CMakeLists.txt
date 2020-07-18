@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.10 )
 project( MorphStore )
 
-set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_CXX_STANDARD 17 )
 
 macro(morph_flag)
 	add_definitions(${ARGN})
@@ -89,6 +89,12 @@ IF(CODROID)
     morph_flag(-DODROID)
 ENDIF(CODROID)
 
+if(NOT PMEM_MNT_PATH0)
+  set(PMEM_MNT_PATH0 "/mnt/pmem0/test")
+endif()
+if(NOT PMEM_MNT_PATH1)
+  set(PMEM_MNT_PATH1 "/mnt/pmem1/test")
+endif()
 
 # remove build type to allow for custom flag handling
 set(CMAKE_BUILD_TYPE "")
@@ -241,6 +247,67 @@ configure_file(
    ${CMAKE_SOURCE_DIR}/include/core/utils/cmake_template.h.in
    ${CMAKE_BINARY_DIR}/generated/cmake_template.h
 )
+
+#TU Ilmenau NVM DS configs ###########################################
+
+if (DEFINED ENV{COLUMN_SIZE})
+    message("Setting column size to $ENV{COLUMN_SIZE}")
+    add_definitions( -DCOLUMN_SIZE=$ENV{COLUMN_SIZE})
+else()
+    message("Setting column size to 7200000")
+    add_definitions( -DCOLUMN_SIZE=100000)
+endif()
+
+if (DEFINED ENV{SELECTION_THREADS})
+    add_definitions( -DSELECTION_THREADS=$ENV{SELECTION_THREADS})
+else()
+    add_definitions( -DSELECTION_THREADS=16)
+endif()
+
+if (DEFINED ENV{SELECTION_IT})
+    add_definitions( -DSELECTION_IT=$ENV{SELECTION_IT})
+else()
+    add_definitions( -DSELECTION_IT=100)
+endif()
+
+if (DEFINED ENV{SELECTION_SIZE})
+    add_definitions( -DSELECTION_SIZE=$ENV{SELECTION_SIZE})
+else()
+    add_definitions( -DSELECTION_SIZE=1000)
+endif()
+
+if (DEFINED ENV{TRACE_LEVEL})
+    message("Setting trace level to --[$ENV{TRACE_LEVEL}]--")
+    add_definitions( -DTRACE_LEVEL=$ENV{TRACE_LEVEL})
+else()
+    message("Using standard trace level")
+    add_definitions( -DTRACE_LEVEL=2)
+endif()
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+include(Fetch3rdParty)
+
+configure_file(
+  ${CMAKE_SOURCE_DIR}/include/core/utils/config.h.in
+  ${CMAKE_BINARY_DIR}/include/nvmdatastructures/generated/config.h
+)
+
+set(PROJECT_INCLUDES_D ${PROJECT_INCLUDES_D}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/nvmdatastructures/src/utils)
+set(PROJECT_INCLUDES_F ${PROJECT_INCLUDES_F}
+  ${CMAKE_CURRENT_BINARY_DIR}/src/nvmdatastructures/generated/config.h)
+
+include_directories(${PROJECT_SOURCE_DIR}/include/nvmdatastructures/src
+                    ${THIRD_PARTY_DIR}
+                    ${CMAKE_BINARY_DIR}/include/nvmdatastructures/generated
+)
+
+add_subdirectory(include/nvmdatastructures/src/pbptrees) # Persistent versions of B⁺-Tree, contains also:
+                               # - Remake of the FPTree
+                               # - Remake of the wB+Tree
+#add_subdirectory(src/nvmdatastructures/src/ptable)  # BDCC-based analytical table structure
+add_subdirectory(include/nvmdatastructures/src/pskiplists)
+#######################################################################
 
 execute_process(
         COMMAND python3 vbp_routine_gen.py

@@ -1,0 +1,18 @@
+#ifndef DBIS_CONFIG_H
+#define DBIS_CONFIG_H
+
+#ifdef ENABLE_LOG
+#include <iostream>
+#define LOG(msg) std::cout << "[DBIS:NVM_DS] " << msg << '\n';
+#else
+#define LOG(msg)
+#endif
+
+#include <assert.h>
+#include <string>
+namespace dbis {
+  const std::string gPmemPath0("@PMEM_MNT_PATH0@/");
+  const std::string gPmemPath1("@PMEM_MNT_PATH1@/");
+}
+
+#endif /* DBIS_CONFIG_H */
