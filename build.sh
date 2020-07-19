@@ -229,6 +229,7 @@ case $key in
 	-deb|--debug)
 	buildModeSet=$((buildModeSet + 1))
 	buildMode="-DCMAKE_BUILD_TYPE=Debug"
+    export TRACE_LEVEL=-1
 	shift # past argument
 	;;
 	-rel|--release)

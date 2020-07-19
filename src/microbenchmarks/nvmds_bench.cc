@@ -1,13 +1,6 @@
+//#include <core/memory/mm_glob.h>
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
-
-#include <iostream>
-#include <unistd.h>
-#include <random>
-#include <numeric>
-#include <functional>
-#include <thread>
-#include <list>
 
 #include <core/index/TreeDef.h>
 #include <core/access/root.h>
@@ -26,6 +19,14 @@
 #include <libpmemobj++/transaction.hpp>
 
 #include <numa.h>
+#include <iostream>
+#include <unistd.h>
+#include <random>
+#include <numeric>
+#include <functional>
+#include <thread>
+#include <list>
+#include <memory>
 
 //Describes our tree, is set to be PBPTree
 //#include "common.hpp"
@@ -107,7 +108,7 @@ void initTreeRoot(int pMemNode)
 
 }
 
-void delete_from_tree(uint64_t start, uint64_t end, TreeType* tree)
+void delete_from_tree(uint64_t start, uint64_t end, pptr<TreeType> tree)
 {
     trace_l(T_DEBUG, "Deleting ", (end - start), " entries from tree");
     for (auto i = start; i < end; i++)
@@ -115,7 +116,7 @@ void delete_from_tree(uint64_t start, uint64_t end, TreeType* tree)
 }
 
 // Prepare the persistent B Tree for benchmarks
-void preparePersistentTree( persistent_ptr<TreeType> tree, VolatileColumn* primary, VolatileColumn* values)
+void preparePersistentTree( pptr<TreeType> tree, std::shared_ptr<VolatileColumn> primary, std::shared_ptr<VolatileColumn> values)
 {
     TreeType& treeRef = *tree;
 
@@ -187,7 +188,7 @@ void seq_insert_col( T primCol, T valCol, T delCol)
     }
 }
 
-void seq_insert_tree(TreeType* tree)
+void seq_insert_tree(pptr<TreeType> tree)
 {
     uint64_t resMax = 0;
     // scan for largest key
@@ -230,9 +231,11 @@ void aggregateCol(T col)
 
     for (; amount_data > 0; amount_data--)
         sum += *valData++;
+
+    trace_l(T_DEBUG, "End of thread");
 }
 
-const size_t NUM_THREADS = 6;
+const size_t NUM_THREADS = 1;
 
 template<class T>
 void parallel_aggregate_col(T col)
@@ -246,8 +249,11 @@ void parallel_aggregate_col(T col)
     }
 
     for (size_t t = 0; t < NUM_THREADS; t++) {
+        trace_l(T_DEBUG, "Joining thread ", t);
         threads[t].join();
     }
+
+    trace_l(T_DEBUG, "End parallel aggregate");
 }
 
 void parallel_aggregate_tree(TreeType* tree)
@@ -274,10 +280,10 @@ void random_select_col(T prim, T val, int seed_add)
     // Lets just implement a selection on primary keys for the attribute values of val
     // Lets assume the rows are not sorted for their primary keys 
     std::srand(SEED + seed_add);
-    VolatileColumn* col = nullptr;
+    std::shared_ptr<VolatileColumn> col = nullptr;
 
     for (int sel = 0; sel < SELECT_ITERATIONS; sel++) {
-        col = new VolatileColumn(SELECTIVITY_SIZE * sizeof(uint64_t), 0);
+        col = std::shared_ptr<VolatileColumn>(new VolatileColumn(SELECTIVITY_SIZE * sizeof(uint64_t), 0));
 
         uint64_t random_select_start = std::rand() / RAND_MAX * prim->get_count_values();
         uint64_t random_select_end = random_select_start + SELECTIVITY_SIZE - 1;
@@ -305,8 +311,6 @@ void random_select_col(T prim, T val, int seed_add)
             index++;
             data++;
         }
-
-        delete col;
     }
 }
 
@@ -372,9 +376,9 @@ int main(int /*argc*/, char** /*argv*/)
     RootManager& root_mgr = RootManager::getInstance();
     root_retrieval retr;
 
-    ArrayList<VolatileColumn*> primColNode;
-    ArrayList<VolatileColumn*> valColNode;
-    ArrayList<VolatileColumn*> delColNode;
+    ArrayList<std::shared_ptr<VolatileColumn>> primColNode;
+    ArrayList<std::shared_ptr<VolatileColumn>> valColNode;
+    ArrayList<std::shared_ptr<VolatileColumn>> delColNode;
 
     ArrayList<pptr<PersistentColumn>> primColPers;
     ArrayList<pptr<PersistentColumn>> valColPers;
@@ -430,8 +434,8 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Durations of seq insert on volatile columns: ",
-                seq_insert_col<VolatileColumn*>, primColNode[i], valColNode[i], delColNode[i]);
-        measure("Duration of seq insert on local pers tree: ", seq_insert_tree, &(*trees[i]));
+                seq_insert_col<std::shared_ptr<VolatileColumn>>, primColNode[i], valColNode[i], delColNode[i]);
+        measure("Duration of seq insert on local pers tree: ", seq_insert_tree, trees[i]);
         measure("Duration of seq insert on local pers column: ",
                 seq_insert_col<pptr<PersistentColumn>>, primColPers[i],
                 valColPers[i], delColPers[i]);
@@ -442,8 +446,8 @@ int main(int /*argc*/, char** /*argv*/)
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
-    select_t<PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
-    select_col_t<VolatileColumn*, std::equal_to> select_col_vol;
+    select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
+    select_col_t<std::shared_ptr<VolatileColumn>, std::equal_to> select_col_vol;
     select_col_t<pptr<PersistentColumn>, std::equal_to> select_col_pers;
 
     //std::cout << "Measuring select times..." << std::endl;
@@ -467,7 +471,7 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<VolatileColumn*>, valColNode[i]);
+                parallel_aggregate_col<std::shared_ptr<VolatileColumn>>, valColNode[i]);
         measure("Duration of aggregation on persistent tree: ",
                 parallel_aggregate_tree, &(*trees[i]));
         measure("Duration of aggregation on volatile column: ",
@@ -479,7 +483,7 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of random deterministic selection on volatile column: ",
-                random_select_col_threads<VolatileColumn*>, primColNode[i], valColNode[i]);
+                random_select_col_threads<std::shared_ptr<VolatileColumn>>, primColNode[i], valColNode[i]);
         measure("Duration of random deterministic selection on persistent tree: ", random_select_tree,
                 primColNode[0]->get_count_values(), &(*trees[i]));
         measure("Duration of random deterministic selection on persistent column: ",

@@ -51,7 +51,7 @@ using storage::PersistentColumn;
  * @return An uncompressed VolatileColumn containing a copy of the data in the given
  * vector.
  */
- VolatileColumn * make_Column( std::vector<uint64_t> & vec) {
+ std::shared_ptr<VolatileColumn> make_Column( std::vector<uint64_t> & vec) {
      size_t count = vec.size();
     if(count > 20)
         throw std::runtime_error(
@@ -59,20 +59,20 @@ using storage::PersistentColumn;
                 "should only be used for very small Columns"
         );
      size_t size = count * sizeof(uint64_t);
-    auto resCol = new VolatileColumn(size, 0);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(size, 0));
     memcpy(resCol->get_data(), vec.data(), size);
     resCol->set_meta_data(count, size);
     return resCol;
 }
 
- VolatileColumn * make_Column(uint64_t  *  vec, size_t count) {
+ std::shared_ptr<VolatileColumn> make_Column(uint64_t  *  vec, size_t count) {
    if(count > 400)
       throw std::runtime_error(
          "make_Column() is an inefficient convenience function and "
          "should only be used for very small Columns"
       );
     size_t size = count * sizeof(uint64_t);
-   auto resCol = new VolatileColumn(size, 0);
+   auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(size, 0));
    memcpy(resCol->get_data(), vec, size);
    resCol->set_meta_data(count, size);
    return resCol;
@@ -88,7 +88,7 @@ using storage::PersistentColumn;
  * @param step The difference between two consecutive data elements.
  * @return A VolatileColumn whose i-th data element is start + i * step .
  */
- VolatileColumn * generate_sorted_unique(
+ std::shared_ptr<VolatileColumn> generate_sorted_unique(
         size_t countValues,
         int numa_node_number,
         uint64_t start = 0,
@@ -96,10 +96,9 @@ using storage::PersistentColumn;
 ) {
     size_t allocationSize = countValues * sizeof(uint64_t);
 
-    VolatileColumn* resCol;
     uint64_t * res = nullptr;
 
-    resCol = new VolatileColumn(allocationSize, numa_node_number);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, numa_node_number));
     res = resCol->get_data();
 
     for(uint64_t i = 0; i < countValues; i++)
@@ -152,12 +151,12 @@ pptr<PersistentColumn> generate_sorted_unique_pers(
     return persCol;
 }
 
-VolatileColumn * generate_boolean_col(
+std::shared_ptr<VolatileColumn> generate_boolean_col(
         size_t countValues,
         int numa_node_number)
 {
     size_t allocationSize = countValues * sizeof(bool);
-    auto resCol = new VolatileColumn(allocationSize, numa_node_number);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, numa_node_number));
     bool * res = reinterpret_cast<bool*>(resCol->get_data());
 
     for (uint32_t i = 0; i < countValues; i++)
@@ -209,12 +208,12 @@ pptr<PersistentColumn> generate_boolean_col_pers(
  * @return A sorted VolatileColumn containing p_CountValues uniques data elements from
  * the range [0, p_CountPopulation - 1].
  */
- VolatileColumn * generate_sorted_unique_extraction(
+ std::shared_ptr<VolatileColumn> generate_sorted_unique_extraction(
         size_t p_CountValues,
         size_t p_CountPopulation
 ) {
      size_t allocationSize = p_CountValues * sizeof(uint64_t);
-    auto resCol = new VolatileColumn(allocationSize, 0);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, 0));
     uint64_t * res = resCol->get_data();
     
     std::default_random_engine gen;
@@ -309,7 +308,7 @@ class two_value_distribution {
  * `std::normal_distribution`.
  */
 template<template<typename> class t_distr>
-VolatileColumn * generate_with_distr(
+std::shared_ptr<VolatileColumn> generate_with_distr(
         size_t countValues,
         t_distr<uint64_t> distr,
         bool sorted,
@@ -317,7 +316,7 @@ VolatileColumn * generate_with_distr(
         size_t seed = 0
 ) {
     size_t allocationSize = countValues * sizeof(uint64_t);
-    auto resCol = new VolatileColumn(allocationSize, numa_node_number);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, numa_node_number));
     uint64_t *  res = resCol->get_data();
     if( seed == 0 ) {
        seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -391,7 +390,7 @@ pptr<PersistentColumn> generate_with_distr_pers(
  * @param p_Seed The seed to use for the pseudo random number generator.
  * @return An uncompressed VolatileColumn containing the generated data elements.
  */
- VolatileColumn * generate_exact_number(
+ std::shared_ptr<VolatileColumn> generate_exact_number(
         size_t p_CountValues,
         size_t p_CountMatches,
         uint64_t p_ValMatch,
@@ -419,7 +418,7 @@ pptr<PersistentColumn> generate_with_distr_pers(
         );
     
      size_t allocationSize = p_CountValues * sizeof(uint64_t);
-    auto resCol = new VolatileColumn(allocationSize, 0);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, 0));
     uint64_t *  res = resCol->get_data();
     
     for(size_t i = 0; i < p_CountValues; i++)
@@ -444,7 +443,7 @@ pptr<PersistentColumn> generate_with_distr_pers(
     return resCol;
 }
 
- VolatileColumn * generate_with_outliers_and_selectivity(
+ std::shared_ptr<VolatileColumn> generate_with_outliers_and_selectivity(
         size_t p_CountValues,
         uint64_t p_MainMin, uint64_t p_MainMax,
         double p_SelectedShare,
@@ -478,7 +477,7 @@ pptr<PersistentColumn> generate_with_distr_pers(
         );
     
     size_t allocationSize = p_CountValues * sizeof(uint64_t);
-    auto resCol = new VolatileColumn(allocationSize, 0);
+    auto resCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(allocationSize, 0));
     uint64_t *  res = resCol->get_data();
     
     if(p_Seed == 0)

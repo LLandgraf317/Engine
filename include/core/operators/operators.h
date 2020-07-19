@@ -4,17 +4,18 @@
 #include <tuple>
 #include <unordered_map>
 #include <map>
+#include <memory>
 
 using storage::VolatileColumn;
 
 template<class ColPtr, template<typename> class t_op>
 struct select_col_t {
-    static VolatileColumn * apply( ColPtr  inDataCol,  uint64_t value)
+    static std::shared_ptr<VolatileColumn> apply( ColPtr  inDataCol,  uint64_t value)
     {
          size_t inDataCount = inDataCol->get_count_values();
          uint64_t *  inData = inDataCol->get_data();
 
-        auto outPosCol = new VolatileColumn(inDataCol->get_size(), 0);
+        auto outPosCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(inDataCol->get_size(), 0));
 
         uint64_t* outpos = outPosCol->get_data();
          uint64_t* initOutPos = outpos;
@@ -35,7 +36,7 @@ struct select_col_t {
 };
 
 template<class ColPtrL, class ColPtrR>
-VolatileColumn * project( ColPtrL inPosCol, ColPtrR inDataCol)
+std::shared_ptr<VolatileColumn> project( ColPtrL inPosCol, ColPtrR inDataCol)
 {
 	 size_t inPosCount = inPosCol->get_count_values();
 	 uint64_t *  inData = inDataCol->get_data();
@@ -43,7 +44,7 @@ VolatileColumn * project( ColPtrL inPosCol, ColPtrR inDataCol)
 
 	 size_t inPosSize = inPosCol->get_size_used_byte();
 	// Exact allocation size (for uncompressed data).
-	auto outDataCol = new VolatileColumn(inPosSize, 0);
+	auto outDataCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(inPosSize, 0));
 	uint64_t * outData = outDataCol->get_data();
 
 	for(unsigned i = 0; i < inPosCount; i++) {
@@ -58,8 +59,8 @@ VolatileColumn * project( ColPtrL inPosCol, ColPtrR inDataCol)
 
 template<class ColPtrL, class ColPtrR>
  std::tuple<
-         VolatileColumn *,
-         VolatileColumn *
+         std::shared_ptr<VolatileColumn>,
+         std::shared_ptr<VolatileColumn>
 >
 nested_loop_join( ColPtrL inDataLCol, ColPtrR inDataRCol)
 {
@@ -88,8 +89,8 @@ nested_loop_join( ColPtrL inDataLCol, ColPtrR inDataRCol)
             ? (outCountEstimate * sizeof(uint64_t))
             // use pessimistic estimate
             : (inDataLCount * inDataRCount * sizeof(uint64_t));
-    auto outPosLCol = new VolatileColumn(size, 0);
-    auto outPosRCol = new VolatileColumn(size, 0);
+    auto outPosLCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(size, 0));
+    auto outPosRCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(size, 0));
     uint64_t *  outPosL = outPosLCol->get_data();
     uint64_t *  outPosR = outPosRCol->get_data();
 
@@ -146,8 +147,8 @@ left_semi_nto1_nested_loop_join(
 
 template<class ColPtrL, class ColPtrR>
  std::tuple<
-         VolatileColumn *,
-         VolatileColumn *
+         std::shared_ptr<VolatileColumn>,
+         std::shared_ptr<VolatileColumn>
 >
 group( ColPtrL inGrCol, ColPtrR inDataCol)
 {
@@ -171,16 +172,16 @@ group( ColPtrL inGrCol, ColPtrR inDataCol)
 
      size_t inDataSize = inDataCol->get_size_used_byte();
     // Exact allocation size (for uncompressed data).
-    auto outGrCol = new VolatileColumn(inDataSize, 0);
+    auto outGrCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(inDataSize, 0));
     // If no estimate is provided: Pessimistic allocation size (for
     // uncompressed data), reached only if there are as many groups as data
     // elements.
-    auto outExtCol = new VolatileColumn(
+    auto outExtCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(
             bool(outExtCountEstimate)
             ? (outExtCountEstimate * sizeof(uint64_t)) // use given estimate
             : inDataSize // use pessimistic estimate
             ,0
-    );
+    ));
     uint64_t * outGr = outGrCol->get_data();
     uint64_t * outExt = outExtCol->get_data();
      uint64_t *  initOutExt = outExt;
@@ -230,19 +231,19 @@ group( ColPtrL inGrCol, ColPtrR inDataCol)
     return std::make_tuple(outGrCol, outExtCol);
 }
 
- VolatileColumn * calc( VolatileColumn * /*in*/)
+ std::shared_ptr<VolatileColumn> calc( std::shared_ptr<VolatileColumn> /*in*/)
 {
 
     return nullptr;
 }
 
- VolatileColumn * intersect( VolatileColumn * /* in */)
+ std::shared_ptr<VolatileColumn> intersect( std::shared_ptr<VolatileColumn> /* in */)
 {
 
     return nullptr;
 }
 
- VolatileColumn * merge( VolatileColumn * inPosLCol,  VolatileColumn * inPosRCol)
+ std::shared_ptr<VolatileColumn> merge( std::shared_ptr<VolatileColumn> inPosLCol,  std::shared_ptr<VolatileColumn> inPosRCol)
 {
      uint64_t * inPosL = inPosLCol->get_data();
      uint64_t * inPosR = inPosRCol->get_data();
@@ -251,11 +252,11 @@ group( ColPtrL inGrCol, ColPtrR inDataCol)
 
     // If no estimate is provided: Pessimistic allocation size (for
     // uncompressed data), reached only if the two input columns are disjoint.
-    auto outPosCol = new VolatileColumn(
+    auto outPosCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(
                     inPosLCol->get_size_used_byte() +
                     inPosRCol->get_size_used_byte()
                     ,0
-    );
+    ));
     uint64_t * outPos = outPosCol->get_data();
      uint64_t *  initOutPos = outPos;
 
@@ -294,19 +295,19 @@ group( ColPtrL inGrCol, ColPtrR inDataCol)
     return outPosCol;
 }
 
- VolatileColumn * append( VolatileColumn * /*in1*/,  VolatileColumn * /*n2*/)
+ std::shared_ptr<VolatileColumn> append( std::shared_ptr<VolatileColumn> /*in1*/,  std::shared_ptr<VolatileColumn> /*n2*/)
 {
     //TODO: implement or copy
     return nullptr;
 }
 
- VolatileColumn * agg_sum( VolatileColumn * inDataCol)
+ std::shared_ptr<VolatileColumn> agg_sum( std::shared_ptr<VolatileColumn> inDataCol)
 {
      size_t inDataCount = inDataCol->get_count_values();
      uint64_t *  inData = inDataCol->get_data();
 
     // Exact allocation size (for uncompressed data).
-    auto outDataCol = new VolatileColumn(sizeof(uint64_t), 0);
+    auto outDataCol = std::shared_ptr<VolatileColumn>(new VolatileColumn(sizeof(uint64_t), 0));
     uint64_t *  outData = outDataCol->get_data();
 
     *outData = 0;
