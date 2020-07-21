@@ -1,3 +1,6 @@
 [submodule "include/nvmdatastructures"]
 	path = include/nvmdatastructures
 	url = https://github.com/LLandgraf317/nvmdstuilmenau.git
+[submodule "include/core/index/rtree"]
+	path = include/core/index/rtree
+	url = https://github.com/LLandgraf317/RTree.git
