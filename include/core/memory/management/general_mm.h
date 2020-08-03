@@ -35,6 +35,9 @@
 #include <core/utils/basic_types.h>
 #include <core/utils/helper.h>
 #include <core/utils/preprocessor.h>
+#include <core/access/root.h>
+
+#include <numa.h>
 
 #include <core/memory/management/utils/memory_bin_handler.h>
 
@@ -111,6 +114,39 @@ class general_memory_manager : public abstract_memory_manager {
             trace( "[General Memory Manager] - OUT. ( nullptr )." );
             return nullptr;
          }
+      }
+
+      void* allocateNuma(size_t p_AllocSize, int numa_node) {
+         return numa_alloc_onnode(p_AllocSize, numa_node);
+      }
+
+      void deallocateNuma(void* ptr, size_t p_AllocSize) {
+         return numa_free(ptr, p_AllocSize);
+      }
+
+      template<class T>
+      pptr<T> allocatePersistent(size_t p_AllocSize, int numa_node) {
+         RootManager& mgr = RootManager::getInstance();
+         pool<root> pop = mgr.getPop(numa_node);
+
+         pptr<T> m_persistentData;
+         transaction::run( pop, [&] {
+            m_persistentData = pmemobj_tx_alloc(p_AllocSize, 0);
+         });
+
+         return m_persistentData;
+      }
+
+      template<class T>
+      void deallocatePersistent(pptr<T> ptr, int numa_node) {
+
+         RootManager& mgr = RootManager::getInstance();
+         pool<root> pop = mgr.getPop(numa_node);
+         transaction::run(pop, [&] {
+             delete_persistent<char[]>( ptr );
+         });
+
+         mgr.drainAll();
       }
 
       void *allocate(abstract_memory_manager *const p_Caller, size_t p_AllocSize) override {

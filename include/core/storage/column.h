@@ -39,7 +39,8 @@ namespace morphstore {
 
 enum class storage_persistence_type {
    globalScope,
-   queryScope
+   queryScope,
+   nvmScope
 };
 
 template< class F >
@@ -48,12 +49,23 @@ class column {
       std::is_base_of< format, F >::value,
       "column: template parameter F must be a subclass of format"
    );
+
+   friend class PersistentColumn;
     
    public:
       // Creates an emphemeral column. Intended for intermediate results.
       column( size_t p_SizeAllocatedByte ) : column(
          storage_persistence_type::queryScope,
-         p_SizeAllocatedByte
+         p_SizeAllocatedByte,
+         0
+      ) {
+         //
+      };
+
+      column( size_t p_SizeAllocatedByte, int numa_node ) : column(
+         storage_persistence_type::queryScope,
+         p_SizeAllocatedByte,
+         numa_node
       ) {
          //
       };
@@ -72,6 +84,18 @@ class column {
          }
 #endif
       }
+
+   // Must only be used by PersistentColumn.h
+   protected:
+      column( size_t p_SizeAllocatedByte, int numa_node, voidptr_t data)
+          :
+         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte, false },
+         m_Data(data),
+         m_PersistenceType(storage_persistence_type::nvmScope),
+         m_IsPreparedForRndAccess(true),
+         m_NumaNode(numa_node)
+    {
+    }
       
    private:
       column_meta_data m_MetaData;
@@ -84,12 +108,14 @@ class column {
       storage_persistence_type m_PersistenceType;
       
       mutable bool m_IsPreparedForRndAccess;
+      int m_NumaNode;
       
       column(
          storage_persistence_type p_PersistenceType,
-         size_t p_SizeAllocatedByte
+         size_t p_SizeAllocatedByte,
+         int numa_node
       ) :
-         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte },
+         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte, false },
 #ifdef MSV_NO_SELFMANAGED_MEMORY
          m_DataUnaligned{
             malloc( get_size_with_alignment_padding( p_SizeAllocatedByte ) )
@@ -98,12 +124,13 @@ class column {
 #else
          m_Data{
             ( p_PersistenceType == storage_persistence_type::globalScope )
-            ? general_memory_manager::get_instance( ).allocate( p_SizeAllocatedByte )
+            ? general_memory_manager::get_instance( ).allocateNuma( p_SizeAllocatedByte, numa_node )
             : malloc( p_SizeAllocatedByte )
          },
 #endif
          m_PersistenceType{ p_PersistenceType },
-         m_IsPreparedForRndAccess(false)
+         m_IsPreparedForRndAccess(false),
+         m_NumaNode(numa_node)
       {
          //
       }

@@ -13,7 +13,7 @@ class VolatileColumn /*: public Column*/ {
 public:
     VolatileColumn(
         size_t byteSize, size_t numa_node) :
-        m_MetaData{ 0, 0, 0, byteSize }
+        m_MetaData{ 0, 0, 0, byteSize, false }
     {
         m_byteSize = byteSize;
         m_columnData = numa_alloc_onnode(byteSize, numa_node);

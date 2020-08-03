@@ -7,11 +7,14 @@
 #include <libpmemobj++/transaction.hpp>
 #include <libpmemobj++/utils.hpp>
 
+#include <core/utils/printing.h>
+#include <core/utils/basic_types.h>
+#include <core/utils/helper_types.h>
 #include <core/storage/column_helper.h>
 #include <core/access/root.h>
 #include <core/tracing/trace.h>
 
-namespace storage {
+namespace morphstore {
 
 using pmem::obj::persistent_ptr;
 using pmem::obj::make_persistent;
@@ -19,17 +22,19 @@ using pmem::obj::pool;
 
 using morphstore::column_meta_data;
 
-template <typename Object>
-using pptr = persistent_ptr<Object>;
-
 // No Polymorphism because PMDK disallows it
 class PersistentColumn /*: public Column*/ {
-
 public:
+    PersistentColumn(bool /*isPersistent*/, size_t p_SizeAllocatedByte, int numa_node ) : PersistentColumn(
+            std::string("null"), std::string("null"), p_SizeAllocatedByte, numa_node)
+      {
+         //
+      };
+
     PersistentColumn(
         std::string table_name, std::string attr_name, size_t byteSize, size_t numa_node)
         :
-        m_MetaData{ 0, 0, 0, byteSize }
+        m_MetaData{ 0, 0, 0, byteSize, true }
     {
         RootManager& mgr = RootManager::getInstance();
         trace(T_INFO, "Creating column for table ", table_name, " and attr name ", attr_name);
@@ -43,6 +48,11 @@ public:
 
         m_attribute = make_persistent<char[]>(attr_name.length() + 1);
         pop.memcpy_persist(m_attribute.raw_ptr(), attr_name.c_str(), table_name.length() + 1);
+    }
+
+    const column<uncompr_f>* convert()
+    {
+        return new column<uncompr_f>(this->getAbsoluteSize(), m_numaNode, this->get_data());
     }
 
     void expand(size_t expansionSize)
@@ -70,8 +80,7 @@ public:
         });
     }
 
-    inline uint64_t* get_data()
-    {
+    inline voidptr_t get_data( void ) const {
         //TODO: fix this you lazy code monkey
         // type safety issues etc
         return &(m_persistentData[0]);
@@ -126,3 +135,4 @@ private:
 };
 
 }
+

@@ -25,6 +25,7 @@
 #define MORPHSTORE_CORE_STORAGE_COLUMN_GEN_H
 
 #include <core/storage/column.h>
+#include <core/storage/PersistentColumn.h>
 #include <core/morphing/format.h>
 #include <core/utils/basic_types.h>
 
@@ -58,7 +59,7 @@ const column<uncompr_f> * make_column(const std::vector<uint64_t> & vec) {
                 "should only be used for very small columns"
         );
     const size_t size = count * sizeof(uint64_t);
-    auto resCol = new column<uncompr_f>(size);
+    auto resCol = new column<uncompr_f>(size, 0);
     memcpy(resCol->get_data(), vec.data(), size);
     resCol->set_meta_data(count, size);
     return resCol;
@@ -71,7 +72,7 @@ const column<uncompr_f> * make_column(uint64_t const * const vec, size_t count) 
          "should only be used for very small columns"
       );
    const size_t size = count * sizeof(uint64_t);
-   auto resCol = new column<uncompr_f>(size);
+   auto resCol = new column<uncompr_f>(size, 0);
    memcpy(resCol->get_data(), vec, size);
    resCol->set_meta_data(count, size);
    return resCol;
@@ -89,11 +90,12 @@ const column<uncompr_f> * make_column(uint64_t const * const vec, size_t count) 
  */
 const column<uncompr_f> * generate_sorted_unique(
         size_t countValues,
+        int node_number,
         uint64_t start = 0,
         uint64_t step = 1
 ) {
     const size_t allocationSize = countValues * sizeof(uint64_t);
-    auto resCol = new column<uncompr_f>(allocationSize);
+    auto resCol = new column<uncompr_f>(allocationSize, node_number);
     uint64_t * const res = resCol->get_data();
     
     for(unsigned i = 0; i < countValues; i++)
@@ -101,6 +103,78 @@ const column<uncompr_f> * generate_sorted_unique(
     
     resCol->set_meta_data(countValues, allocationSize);
     
+    return resCol;
+}
+
+//TODO: somehow remove code duplication
+pptr<PersistentColumn> generate_sorted_unique_pers(
+        size_t countValues,
+        int numa_node_number,
+        uint64_t start = 0,
+        uint64_t step = 1
+) {
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node_number);
+
+    const size_t allocationSize = countValues * sizeof(uint64_t);
+    pptr<PersistentColumn> resCol;
+    transaction::run(pop, [&] {
+        resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
+    });
+    uint64_t * const res = resCol->get_data();
+   
+    //TODO: transaction semantics for persistent memory 
+    for(unsigned i = 0; i < countValues; i++)
+        res[i] = start + i * step;
+    
+    resCol->set_meta_data(countValues, allocationSize);
+    
+    return resCol;
+}
+
+const column<uncompr_f> * generate_boolean_col(
+        size_t countValues,
+        int numa_node_number)
+{
+    size_t allocationSize = countValues * sizeof(bool);
+    auto resCol = new column<uncompr_f>(allocationSize, numa_node_number);
+
+    bool * const res = resCol->get_data();
+
+    for (uint32_t i = 0; i < countValues; i++)
+        res[i] = true;
+
+    resCol->set_meta_data(countValues, allocationSize);
+
+    return resCol;
+}
+
+pptr<PersistentColumn> generate_boolean_col_pers(
+        size_t countValues,
+        int numa_node_number)
+{
+    size_t allocationSize = countValues * sizeof(bool);
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node_number);
+
+    std::string table_name = "table_";
+    table_name += std::to_string(numa_node_number);
+    std::string attr_name = "gen_boolean_col_";
+    attr_name += std::to_string(numa_node_number);
+
+    pptr<PersistentColumn> resCol;
+
+    transaction::run(pop, [&] {
+        resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
+    });
+
+    bool * res = resCol->get_data();
+
+    for (uint32_t i = 0; i < countValues; i++)
+        res[i] = true;
+
+    resCol->set_meta_data(countValues, allocationSize);
+
     return resCol;
 }
 
@@ -223,10 +297,45 @@ const column<uncompr_f> * generate_with_distr(
         size_t countValues,
         t_distr<uint64_t> distr,
         bool sorted,
+        int numa_node,
         size_t seed = 0
 ) {
     const size_t allocationSize = countValues * sizeof(uint64_t);
-    auto resCol = new column<uncompr_f>(allocationSize);
+    auto resCol = new column<uncompr_f>(allocationSize, numa_node);
+    uint64_t * const res = resCol->get_data();
+    if( seed == 0 ) {
+       seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    }
+    std::default_random_engine generator(
+         seed
+    );
+    for(unsigned i = 0; i < countValues; i++)
+        res[i] = distr(generator);
+    
+    resCol->set_meta_data(countValues, allocationSize);
+    
+    if(sorted)
+        std::sort(res, res + countValues);
+    
+    return resCol;
+}
+
+template<template<typename> class t_distr>
+pptr<PersistentColumn> generate_with_distr_pers(
+        size_t countValues,
+        t_distr<uint64_t> distr,
+        bool sorted,
+        int numa_node_number,
+        size_t seed = 0
+) {
+    const size_t allocationSize = countValues * sizeof(uint64_t);
+    pptr<PersistentColumn> resCol;
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node_number);
+
+    transaction::run(pop, [&] {
+        resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
+    });
     uint64_t * const res = resCol->get_data();
     if( seed == 0 ) {
        seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();

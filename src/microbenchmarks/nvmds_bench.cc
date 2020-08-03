@@ -7,7 +7,7 @@
 #include <core/storage/PersistentColumn.h>
 #include <core/operators/operators.h>
 #include <core/operators/operators_ds.h>
-#include <core/storage/column_gen_add.h>
+#include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/utils/measure.h>
 
@@ -17,6 +17,8 @@
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/transaction.hpp>
+
+#include <core/operators/general_vectorized/between_compr.h>
 
 #include <numa.h>
 #include <iostream>
@@ -36,14 +38,14 @@
 #include <nvmdatastructures/src/pbptrees/PBPTree.hpp>
 
 using namespace dbis::pbptrees;
+using namespace morphstore;
+using namespace vectorlib;
 
 using pmem::obj::delete_persistent;
 using pmem::obj::make_persistent;
 using pmem::obj::persistent_ptr;
 using pmem::obj::pool;
 using pmem::obj::transaction;
-
-using storage::PersistentColumn;
 
 //TODO: Figure out way to abstract this
 // Parametrization of PBPTree
@@ -116,16 +118,19 @@ void delete_from_tree(uint64_t start, uint64_t end, pptr<TreeType> tree)
 }
 
 // Prepare the persistent B Tree for benchmarks
-void preparePersistentTree( pptr<TreeType> tree, std::shared_ptr<VolatileColumn> primary, std::shared_ptr<VolatileColumn> values)
+template<class T>
+void preparePersistentTree( pptr<TreeType> tree, std::shared_ptr<const column<T>> primary, std::shared_ptr<const column<T>> values)
 {
     TreeType& treeRef = *tree;
 
     //Anonymous function for insertion
     uint64_t countValues = primary->get_count_values();
     trace_l(T_DEBUG, "count of values is ", countValues);
+    const uint64_t * const inData = values->get_data();
+
     auto insertLoop = [&]( uint64_t start, uint64_t end) {
         for (auto j = start; j < end + 1; ++j) {
-            auto tup = CustomTuple(values->get_data()[j]);
+            auto tup = CustomTuple(inData[j]);
             if (j % 100000 == 0) trace_l(T_DEBUG, "Inserting ", j, " and ", std::get<0>(tup));
             treeRef.insert(j, tup);
         }
@@ -143,8 +148,9 @@ bool numa_prechecks()
 const size_t INSERTCOUNT = 4000;
 
 template<class T>
-void seq_insert_col( T primCol, T valCol, T delCol)
+void seq_insert_col( T /*primCol*/, T /*valCol*/, T /*delCol*/)
 {
+    /*
     auto val_count = primCol->get_count_values();
     uint64_t max = 0;
     uint64_t* outPos = primCol->get_data();
@@ -185,7 +191,7 @@ void seq_insert_col( T primCol, T valCol, T delCol)
         valPos++;
         *delPos = true;
         delPos++;
-    }
+    }*/
 }
 
 void seq_insert_tree(pptr<TreeType> tree)
@@ -277,40 +283,19 @@ const int SELECTIVITY_PARALLEL = SELECTION_THREADS;
 template<class T>
 void random_select_col(T prim, T val, int seed_add)
 {
+    using ps = scalar<v64<uint64_t>>;
     // Lets just implement a selection on primary keys for the attribute values of val
     // Lets assume the rows are not sorted for their primary keys 
     std::srand(SEED + seed_add);
     std::shared_ptr<VolatileColumn> col = nullptr;
 
     for (int sel = 0; sel < SELECT_ITERATIONS; sel++) {
-        col = std::shared_ptr<VolatileColumn>(new VolatileColumn(SELECTIVITY_SIZE * sizeof(uint64_t), 0));
 
         uint64_t random_select_start = std::rand() / RAND_MAX * prim->get_count_values();
         uint64_t random_select_end = random_select_start + SELECTIVITY_SIZE - 1;
 
-        uint64_t* index = prim->get_data();
-        //trace_l(T_DEBUG, "Index starts at ", index, ", ends at ", index + prim->get_count_values()*sizeof(uint64_t));
-        uint64_t* data = val->get_data();
-
-        uint64_t* out_col = col->get_data();
-
-        size_t j = 0;
-        size_t prim_val = -1;
-        for (size_t i = 0; i < prim->get_count_values(); i++) {
-            // we assume that the prim col has incremental values
-            if (*index - 1 != prim_val)
-                throw std::exception();
-            prim_val = *index;
-            if (prim_val >= random_select_start && prim_val < random_select_end) {
-                *out_col = *data;
-                out_col++;
-                j++;
-                if (j > SELECTIVITY_SIZE)
-                    throw std::exception();
-            }
-            index++;
-            data++;
-        }
+        auto out_col = my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+            ::apply(prim, random_select_start, random_select_end);
     }
 }
 
@@ -376,13 +361,17 @@ int main(int /*argc*/, char** /*argv*/)
     RootManager& root_mgr = RootManager::getInstance();
     root_retrieval retr;
 
-    ArrayList<std::shared_ptr<VolatileColumn>> primColNode;
-    ArrayList<std::shared_ptr<VolatileColumn>> valColNode;
-    ArrayList<std::shared_ptr<VolatileColumn>> delColNode;
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> delColNode;
 
     ArrayList<pptr<PersistentColumn>> primColPers;
     ArrayList<pptr<PersistentColumn>> valColPers;
     ArrayList<pptr<PersistentColumn>> delColPers;
+
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> primColPersConv;
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> valColPersConv;
+    ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
     ArrayList<pptr<TreeType>> trees;
 
@@ -390,23 +379,27 @@ int main(int /*argc*/, char** /*argv*/)
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (int i = 0; i < node_number; i++) {
-        /*delColNode[i] = generate_boolean_col(ARRAY_SIZE, i);
-        primColNode[i] = generate_sorted_unique(ARRAY_SIZE, i);
-        valColNode[i] = generate_with_distr(ARRAY_SIZE,
-                std::poisson_distribution<uint64_t>(20), false, i, SEED);*/
-        delColNode.push_back(generate_boolean_col(ARRAY_SIZE, i));
-        primColNode.push_back(generate_sorted_unique(ARRAY_SIZE, i));
-        valColNode.push_back(generate_with_distr(ARRAY_SIZE,
-                std::poisson_distribution<uint64_t>(20), false, i, SEED));
+        delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
+        primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(ARRAY_SIZE, i)));
+        valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_with_distr(ARRAY_SIZE,
+                std::poisson_distribution<uint64_t>(20), false, i, SEED)));
 
         trace_l(T_INFO, "Columns for node ", i, " generated");
         retr = getPoolRoot(i);
         root_mgr.add(retr.pop);
 
-        delColPers.push_back(generate_boolean_col_pers(ARRAY_SIZE, i));
-        valColPers.push_back(generate_with_distr_pers(ARRAY_SIZE,
-                std::poisson_distribution<uint64_t>(20), false, i, SEED));
-        primColPers.push_back(generate_sorted_unique_pers(ARRAY_SIZE, i));
+        auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
+        auto valCol = generate_with_distr_pers(ARRAY_SIZE,
+                std::poisson_distribution<uint64_t>(20), false, i, SEED);
+        auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
+
+        delColPers.push_back(delCol);
+        valColPers.push_back(valCol);
+        primColPers.push_back(primCol);
+
+        delColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(delCol->convert()));
+        valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
+        primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
 
         initTreeRoot(i);
 
@@ -434,7 +427,7 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Durations of seq insert on volatile columns: ",
-                seq_insert_col<std::shared_ptr<VolatileColumn>>, primColNode[i], valColNode[i], delColNode[i]);
+                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i], delColNode[i]);
         measure("Duration of seq insert on local pers tree: ", seq_insert_tree, trees[i]);
         measure("Duration of seq insert on local pers column: ",
                 seq_insert_col<pptr<PersistentColumn>>, primColPers[i],
@@ -447,15 +440,15 @@ int main(int /*argc*/, char** /*argv*/)
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
     select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
-    select_col_t<std::shared_ptr<VolatileColumn>, std::equal_to> select_col_vol;
-    select_col_t<pptr<PersistentColumn>, std::equal_to> select_col_pers;
+    //select_col_t<std::shared_ptr<const column<uncompr_f>>, std::equal_to> select_col_vol;
+    //select_col_t<pptr<const column<uncompr_f>>, std::equal_to> select_col_pers;
 
     //std::cout << "Measuring select times..." << std::endl;
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
-        measure("Duration of selection on volatile columns: ", select_col_vol.apply, valColNode[i], 10);
+        //measure("Duration of selection on volatile columns: ", select_col_vol.apply, valColNode[i], 10);
         measure("Duration of selection on persistent tree: ", select.apply, &(*trees[i]), 10);
-        measure("Duration of selection on volatile columns: ", select_col_pers.apply, valColPers[i], 10);
+        //measure("Duration of selection on volatile columns: ", select_col_pers.apply, valColPers[i], 10);
     }
 
     // Benchmark: deletion
@@ -471,7 +464,7 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<std::shared_ptr<VolatileColumn>>, valColNode[i]);
+                parallel_aggregate_col<std::shared_ptr<const column<uncompr_f>>>, valColNode[i]);
         measure("Duration of aggregation on persistent tree: ",
                 parallel_aggregate_tree, &(*trees[i]));
         measure("Duration of aggregation on volatile column: ",
@@ -482,12 +475,12 @@ int main(int /*argc*/, char** /*argv*/)
 
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
-        measure("Duration of random deterministic selection on volatile column: ",
-                random_select_col_threads<std::shared_ptr<VolatileColumn>>, primColNode[i], valColNode[i]);
+        //measure("Duration of random deterministic selection on volatile column: ",
+        //        random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
         measure("Duration of random deterministic selection on persistent tree: ", random_select_tree,
                 primColNode[0]->get_count_values(), &(*trees[i]));
-        measure("Duration of random deterministic selection on persistent column: ",
-                random_select_col_threads<pptr<PersistentColumn>>, primColPers[i], valColPers[i]);
+        //measure("Duration of random deterministic selection on persistent column: ",
+        //        random_select_col_threads<pptr<const column<uncompr_f>>>, primColPers[i], valColPers[i]);
     }
 
     trace_l(T_INFO, "Doing cleanup for tree NVM DS...");
