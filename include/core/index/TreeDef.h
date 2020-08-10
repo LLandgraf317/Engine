@@ -2,12 +2,18 @@
 
 #include <nvmdatastructures/src/pbptrees/PBPTree.hpp>
 
+#include <core/index/NodeBucketList.h>
+
+#include <list>
+
 using namespace dbis::pbptrees;
 
 //TODO: Figure out way to abstract this
 // Parametrization of PBPTree
 using CustomKey = uint64_t;
 using CustomTuple = std::tuple<uint64_t>;
+
+using MultiVal = std::list< uint64_t >;
 
 constexpr auto TARGET_BRANCH_SIZE = 512;
 constexpr auto TARGET_LEAF_SIZE = 512;
@@ -30,3 +36,4 @@ constexpr auto BRANCHKEYS = getBranchKeysPBPTree() & ~1;  ///< make this one eve
 constexpr auto ELEMENTS = LEAFKEYS * ipow(BRANCHKEYS + 1, TARGET_DEPTH);
 
 using TreeType = PBPTree<CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS>;
+using MultiValTree = PBPTree<CustomKey, pptr<NodeBucketList<uint64_t>>, BRANCHKEYS, LEAFKEYS>;

@@ -11,6 +11,11 @@
 #include <core/tracing/trace.h>
 #include <core/utils/measure.h>
 
+#include <core/morphing/format.h>
+#include <core/morphing/uncompr.h>
+#include <core/operators/general_vectorized/agg_sum_compr.h>
+#include <core/operators/general_vectorized/select_compr.h>
+
 #include <libpmempool.h>
 #include <libpmemobj++/container/array.hpp>
 #include <libpmemobj++/make_persistent.hpp>
@@ -21,12 +26,13 @@
 #include <core/operators/general_vectorized/between_compr.h>
 
 #include <numa.h>
-#include <iostream>
+#include <pthread.h>
 #include <unistd.h>
+
+#include <iostream>
 #include <random>
 #include <numeric>
 #include <functional>
-#include <thread>
 #include <list>
 #include <memory>
 
@@ -51,6 +57,8 @@ using pmem::obj::transaction;
 // Parametrization of PBPTree
 using CustomKey = uint64_t;
 using CustomTuple = std::tuple<uint64_t>;
+
+using ps = scalar<v64<uint64_t>>;
 
 constexpr auto L3 = 14080 * 1024;
 constexpr auto LAYOUT = "NVMDS";
@@ -216,8 +224,20 @@ void seq_insert_tree(pptr<TreeType> tree)
     }
 }
 
-void aggregateTree(TreeType* tree)
+template< class T >
+struct ThreadSelect {
+public:
+    pthread_t thread;
+    T prim;
+    T val;
+    TreeType* tree;
+    int thread_num;
+};
+
+void* aggregateTree(void* ptr)
 {
+    ThreadSelect<column<uncompr_f>*>* t = reinterpret_cast<ThreadSelect<column<uncompr_f>*>*>(ptr);
+    TreeType* tree = t->tree;
     auto iter = tree->begin();
     uint64_t sum = 0;
 
@@ -225,20 +245,19 @@ void aggregateTree(TreeType* tree)
         sum += std::get<0>((*iter).second);
         iter++;
     }
+
+    return nullptr;
 }
 
 template<class T>
-void aggregateCol(T col)
+void* aggregateCol(void* ptr)
 {
-    uint64_t* valData = col->get_data();
-    size_t amount_data = col->get_count_values();
-
-    uint64_t sum = 0;
-
-    for (; amount_data > 0; amount_data--)
-        sum += *valData++;
+    ThreadSelect<T>* t = reinterpret_cast<ThreadSelect<T>*>(ptr);
+    agg_sum<ps, uncompr_f >(t->prim);
 
     trace_l(T_DEBUG, "End of thread");
+    
+    return nullptr;
 }
 
 const size_t NUM_THREADS = 1;
@@ -247,16 +266,18 @@ template<class T>
 void parallel_aggregate_col(T col)
 {
     trace_l(T_DEBUG, "Aggregate col ");
-    std::thread threads[NUM_THREADS];
+    ThreadSelect<T> threads[NUM_THREADS];
 
-    for (size_t t = 0; t < NUM_THREADS; t++) {
-        trace_l(T_DEBUG, "Started Thread t = ", t);
-        threads[t] = std::thread(aggregateCol<T>, col);
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        trace_l(T_DEBUG, "Started Thread t = ", i);
+        threads[i].prim = col;
+        threads[i].thread_num = i;
+        pthread_create(&threads[i].thread, nullptr, aggregateCol<T>, &threads[i]);
     }
 
-    for (size_t t = 0; t < NUM_THREADS; t++) {
-        trace_l(T_DEBUG, "Joining thread ", t);
-        threads[t].join();
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        trace_l(T_DEBUG, "Joining thread ", i);
+        pthread_join(threads[i].thread, nullptr);
     }
 
     trace_l(T_DEBUG, "End parallel aggregate");
@@ -264,14 +285,16 @@ void parallel_aggregate_col(T col)
 
 void parallel_aggregate_tree(TreeType* tree)
 {
-    std::thread threads[NUM_THREADS];
+    ThreadSelect<column<uncompr_f>*> thread_infos[NUM_THREADS];
 
-    for (size_t t = 0; t < NUM_THREADS; t++) {
-        threads[t] = std::thread(aggregateTree, tree);
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        thread_infos[i].tree = tree;
+        thread_infos[i].thread_num = i;
+        pthread_create(&thread_infos[i].thread, nullptr, aggregateTree, &thread_infos[i]);
     }
 
-    for (size_t t = 0; t < NUM_THREADS; t++) {
-        threads[t].join();
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        pthread_join(thread_infos[i].thread, nullptr);
     }
 }
 
@@ -281,35 +304,45 @@ const int SELECTIVITY_PARALLEL = SELECTION_THREADS;
 
 /* T must be a pointer type */
 template<class T>
-void random_select_col(T prim, T val, int seed_add)
+void* random_select_col(void* ptr)
 {
-    using ps = scalar<v64<uint64_t>>;
+    ThreadSelect<T>* data = reinterpret_cast<ThreadSelect<T>*>(ptr);
+    auto seed_add = data->thread_num;
+    auto prim = data->prim;
     // Lets just implement a selection on primary keys for the attribute values of val
     // Lets assume the rows are not sorted for their primary keys 
     std::srand(SEED + seed_add);
-    std::shared_ptr<VolatileColumn> col = nullptr;
 
     for (int sel = 0; sel < SELECT_ITERATIONS; sel++) {
 
         uint64_t random_select_start = std::rand() / RAND_MAX * prim->get_count_values();
         uint64_t random_select_end = random_select_start + SELECTIVITY_SIZE - 1;
 
-        auto out_col = my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-            ::apply(prim, random_select_start, random_select_end);
+        my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+            ::apply(prim.get(), random_select_start, random_select_end);
     }
+
+    trace_l(T_DEBUG, "Returning thread ", data->thread_num);
+    return nullptr;
 }
 
 template<class T>
 void random_select_col_threads(T prim, T val)
 {
-    std::thread t[SELECTIVITY_PARALLEL];
+    ThreadSelect<T> data[SELECTIVITY_PARALLEL];
 
     for (int i = 0; i < SELECTIVITY_PARALLEL; i++) {
-        t[i] = std::thread(random_select_col<T>, prim, val, i);    
+        trace_l(T_DEBUG, "Starting Thread ", i);
+        data[i].prim = prim;
+        data[i].val = val;
+        data[i].thread_num = i;
+        pthread_create(&(data[i].thread), nullptr, random_select_col<T>, &data[i]);    
     }
 
-    for (int i = 0; i < SELECTIVITY_PARALLEL; i++)
-        t[i].join();
+    for (int i = 0; i < SELECTIVITY_PARALLEL; i++) {
+        trace_l(T_DEBUG, "Ending Thread ", i);
+        pthread_join((data[i].thread) , nullptr);
+    }
 }
 
 void random_select_tree(uint64_t highest_key, TreeType* tree)
@@ -422,6 +455,7 @@ int main(int /*argc*/, char** /*argv*/)
     auto status = numa_run_on_node(0);
     trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
 
+#if 0
     uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
 
     for (int i = 0; i < node_number; i++) {
@@ -430,25 +464,26 @@ int main(int /*argc*/, char** /*argv*/)
                 seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i], delColNode[i]);
         measure("Duration of seq insert on local pers tree: ", seq_insert_tree, trees[i]);
         measure("Duration of seq insert on local pers column: ",
-                seq_insert_col<pptr<PersistentColumn>>, primColPers[i],
-                valColPers[i], delColPers[i]);
+                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i],
+                valColPersConv[i], delColPersConv[i]);
     }
 
     uint64_t momentary_max_key = primColNode[0]->get_count_values();
+#endif
 
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
     select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
-    //select_col_t<std::shared_ptr<const column<uncompr_f>>, std::equal_to> select_col_vol;
-    //select_col_t<pptr<const column<uncompr_f>>, std::equal_to> select_col_pers;
 
     //std::cout << "Measuring select times..." << std::endl;
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
-        //measure("Duration of selection on volatile columns: ", select_col_vol.apply, valColNode[i], 10);
+        measure("Duration of selection on volatile columns: ",
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
         measure("Duration of selection on persistent tree: ", select.apply, &(*trees[i]), 10);
-        //measure("Duration of selection on volatile columns: ", select_col_pers.apply, valColPers[i], 10);
+        measure("Duration of selection on volatile columns: ",
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
     }
 
     // Benchmark: deletion
@@ -464,28 +499,34 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<std::shared_ptr<const column<uncompr_f>>>, valColNode[i]);
+                parallel_aggregate_col<const column<uncompr_f>*>, valColNode[i].get());
         measure("Duration of aggregation on persistent tree: ",
                 parallel_aggregate_tree, &(*trees[i]));
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<pptr<PersistentColumn>>, valColPers[i]);
+                parallel_aggregate_col<const column<uncompr_f>*>, valColPersConv[i].get());
     }
 
     // Benchmark: random sequential selection
 
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
-        //measure("Duration of random deterministic selection on volatile column: ",
-        //        random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
+        measure("Duration of random deterministic selection on volatile column: ",
+                //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
+                my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+                    ::apply, primColNode[i].get(), 4000, 6000, 0);
         measure("Duration of random deterministic selection on persistent tree: ", random_select_tree,
                 primColNode[0]->get_count_values(), &(*trees[i]));
-        //measure("Duration of random deterministic selection on persistent column: ",
-        //        random_select_col_threads<pptr<const column<uncompr_f>>>, primColPers[i], valColPers[i]);
+        measure("Duration of random deterministic selection on persistent column: ",
+                my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+                    ::apply, primColPersConv[i].get(), 4000, 6000, 0);
+                //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i], valColPersConv[i]);
     }
 
+#if 0
     trace_l(T_INFO, "Doing cleanup for tree NVM DS...");
     for (int i = 0; i < node_number; i++)
         delete_from_tree(max_primary_key + 1, momentary_max_key, &(*trees[i]));
+#endif
 
     trace_l(T_INFO, "Cleaning persistent columns");
     for (int i = 0; i < node_number; i++) {
