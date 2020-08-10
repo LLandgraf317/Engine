@@ -70,6 +70,15 @@ namespace morphstore {
          uint64_t const val_upper,
          size_t const outPosCountEstimate = 0
       );
+
+      static
+      const column<t_out_pos_f> *
+      apply(
+          pptr<MultiValTreeIndex> index,
+          uint64_t const val_lower,
+          uint64_t const val_upper,
+          size_t const outPosCountEstimate = 0
+      );
    };
 
    template<

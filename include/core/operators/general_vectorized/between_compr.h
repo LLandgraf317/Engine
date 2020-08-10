@@ -30,6 +30,8 @@
 #include <core/morphing/format.h>
 #include <core/morphing/write_iterator.h>
 #include <core/storage/column.h>
+#include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/NodeBucketList.h>
 #include <core/utils/basic_types.h>
 #include <vector/vector_extension_structs.h>
 #include <vector/vector_primitives.h>
@@ -101,6 +103,51 @@ namespace morphstore {
    template<
       template<class, int> class t_compare_lower,
       template<class, int> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f
+   >
+   struct index_between_wit_t {
+      static const column<t_out_pos_f> * apply(
+         pptr<MultiValTreeIndex> inDataIndex,
+         const uint64_t val_lower,
+         const uint64_t val_upper,
+         const size_t outPosCountEstimate = 0
+      ) {
+        // first we collect all buckets with positionals to get a precise count of out values
+        std::list<pptr<NodeBucketList<uint64_t>>> bucket_lists_list;
+        size_t sum_count_values = 0;
+
+        auto materialize_lambda = [&](const uint64_t& /*key*/, const pptr<NodeBucketList<uint64_t>> val)
+        {
+            bucket_lists_list.push_back(val);
+            sum_count_values += val->getCountValues();
+        };
+        inDataIndex->scan(val_lower, val_upper, materialize_lambda);
+ 
+        auto outPosCol = new column<t_out_pos_f>(get_size_max_byte_any_len<t_out_pos_f>(sum_count_values));
+        uint64_t* outPtr = outPosCol->get_data();
+        for (auto listsIter = bucket_lists_list.begin(); listsIter != bucket_lists_list.end(); listsIter++) {
+            // TODO: find a good member function based solution for iterating the bucket list, maybe iterator pattern based?
+            auto buck = (*listsIter)->first;
+            while (buck != nullptr) {
+                for (size_t i = 0; i < buck->fill_count; i++) {
+                    *outPtr = buck->getBucketEntry(i);
+                    outPtr++;
+                }
+                buck = buck->getNext();
+            }
+        }
+         outPosCol->set_meta_data(
+            sum_count_values, sum_count_values * sizeof(uint64_t)
+         );
+
+        return outPosCol;
+      }
+   };
+
+   template<
+      template<class, int> class t_compare_lower,
+      template<class, int> class t_compare_upper,
       class t_vector_extension,
       class t_out_pos_f,
       class t_in_data_f
@@ -115,6 +162,42 @@ namespace morphstore {
       using t_compare_special_upper_ve = t_compare_upper<t_ve, vector_base_t_granularity::value>;
       using t_compare_special_lower_sc = t_compare_lower<vectorlib::scalar<vectorlib::v64<uint64_t>>, vectorlib::scalar<vectorlib::v64<uint64_t>>::vector_helper_t::granularity::value>;
       using t_compare_special_upper_sc = t_compare_upper<vectorlib::scalar<vectorlib::v64<uint64_t>>, vectorlib::scalar<vectorlib::v64<uint64_t>>::vector_helper_t::granularity::value>;
+#endif
+
+#if 0
+      static const column<t_out_pos_f> * apply(
+         pptr<MultiValTreeIndex> inDataIndex,
+         const uint64_t val_lower,
+         const uint64_t val_upper,
+         const size_t outPosCountEstimate = 0
+      ) {
+        // first we collect all buckets with positionals to get a precise count of out values
+        std::list<pptr<NodeBucketList<uint64_t>>> bucket_lists_list;
+        size_t sum_count_values = 0;
+
+        auto materialize_lambda = [&](const uint64_t& /*key*/, const pptr<NodeBucketList<uint64_t>> val)
+        {
+            bucket_lists_list.push_back(val);
+            sum_count_values += val->getCountValues();
+        };
+        inDataIndex->scan(val_lower, val_upper, materialize_lambda);
+ 
+        auto outCol = new column<t_out_pos_f>(get_size_max_byte_any_len<t_out_pos_f>(sum_count_values));
+        uint64_t* outPtr = outCol->get_data();
+        for (auto listsIter = bucket_lists_list.begin(); listsIter != bucket_lists_list.end(); listsIter++) {
+            // TODO: find a good member function based solution for iterating the bucket list, maybe iterator pattern based?
+            auto buck = (*listsIter)->first;
+            while (buck != nullptr) {
+                for (size_t i = 0; i < buck->fill_count; i++) {
+                    *outPtr = buck->getBucketEntry(i);
+                    outPtr++;
+                }
+                buck = buck->getNext();
+            }
+        }
+
+        return outCol;
+      }
 #endif
 
       static const column<t_out_pos_f> * apply(

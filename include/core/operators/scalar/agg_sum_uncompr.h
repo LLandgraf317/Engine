@@ -62,6 +62,34 @@ agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
 }
 
 template<>
+std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
+group_agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
+        const MultiValTreeIndex * const inDataIndex
+) {
+    std::map<uint64_t, uint64_t> bucket_map;
+    auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
+    {
+        size_t sum = val->getSum();
+        bucket_map.insert(key, sum);
+    };
+    inDataIndex->scan(materialize_lambda);
+
+    const column<uncompr_f> * keyCol = new column<uncompr_f>(sizeof(uint64_t) * bucket_map.size());
+    const column<uncompr_f> * sumCol = new column<uncompr_f>(sizeof(uint64_t) * bucket_map.size());
+
+    uint64_t* key_data = keyCol->get_data();
+    uint64_t* sum_data = sumCol->get_data();
+
+    for (auto iter = bucket_map.begin(); iter != bucket_map.end(); iter++) {
+        key_data[i] = iter->first;
+        sum_data[i] = iter->second;
+    }
+
+    return make_tuple<const column<uncompr_f>*, const column<uncompr_f>*>(keyCol, sumCol);
+}
+
+
+template<>
 const column<uncompr_f> *
 agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
         const column<uncompr_f> * const inGrCol,
