@@ -30,6 +30,8 @@
 #include <core/morphing/format.h>
 #include <core/storage/column.h>
 #include <core/utils/basic_types.h>
+#include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/NodeBucketList.h>
 #include <vector/scalar/extension_scalar.h>
 
 #include <cstdint>
@@ -73,6 +75,48 @@ struct select_t<t_op, vectorlib::scalar<vectorlib::v64<uint64_t>>, uncompr_f, un
         outPosCol->set_meta_data(outPosCount, outPosCount * sizeof(uint64_t));
 
         return outPosCol;
+    }
+};
+
+template<template<typename> class t_op,
+        class t_out_pos_f,
+        class t_in_data_f
+>
+struct index_select_wit_t {
+    static
+    const column<t_out_pos_f> * apply(
+            pptr<MultiValTreeIndex> inDataIndex,
+            const uint64_t key
+    ) {
+        std::list<
+            pptr<NodeBucketList<uint64_t>>
+            > bucket_lists_list;
+        size_t sum_count_values = 0;
+        t_op<uint64_t> op;
+
+        //This might be slow, check back with execution times
+        auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
+        {
+            if (op(given_key, key)) {
+                bucket_lists_list.push_back(val);
+                sum_count_values += val->getCountValues();
+            }
+        };
+        inDataIndex->scan(materialize_lambda);
+
+        const column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t* value_data = valueCol->get_data();
+
+        for (auto bucketListIter = bucket_lists_list.begin(); bucketListIter != bucket_lists_list.end(); bucketListIter++) {
+            for (auto iter = (*bucketListIter)->first; iter != nullptr; iter = iter->getNext()) {
+                for (size_t i = 0; i < iter->fill_count; i++) {
+                    *value_data = iter->getBucketEntry(i);
+                    value_data++;
+                }
+            }
+        }
+
+        return valueCol;
     }
 };
 

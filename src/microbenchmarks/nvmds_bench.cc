@@ -9,12 +9,14 @@
 #include <core/operators/operators_ds.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
+#include <core/index/MultiValTreeIndex.hpp>
 #include <core/utils/measure.h>
 
 #include <core/morphing/format.h>
 #include <core/morphing/uncompr.h>
 #include <core/operators/general_vectorized/agg_sum_compr.h>
 #include <core/operators/general_vectorized/select_compr.h>
+#include <core/operators/scalar/select_uncompr.h>
 
 #include <libpmempool.h>
 #include <libpmemobj++/container/array.hpp>
@@ -406,6 +408,7 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColPersConv;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
+    ArrayList<pptr<MultiValTreeIndex>> indexes;
     ArrayList<pptr<TreeType>> trees;
 
     // Generation Phase
@@ -435,6 +438,11 @@ int main(int /*argc*/, char** /*argv*/)
         primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
 
         initTreeRoot(i);
+
+        trace_l(T_INFO, "Constructing MuliValTreeIndex");
+        auto index = make_persistent<MultiValTreeIndex>(i, std::string(""), std::string(""), std::string(""));
+        index->generateKeyToPos(valCol);
+        indexes.push_back(index);
 
         trees.push_back(root_mgr.getPop(i).root()->tree);
         trace_l(T_INFO, "Building tree ", i, " from primary and value columns");
@@ -474,14 +482,16 @@ int main(int /*argc*/, char** /*argv*/)
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
-    select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
+    //select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
+    //select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
 
     //std::cout << "Measuring select times..." << std::endl;
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
-        measure("Duration of selection on persistent tree: ", select.apply, &(*trees[i]), 10);
+        measure("Duration of selection on persistent tree: ", 
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f>::apply, &(*indexes[i]), 10);
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
     }
@@ -513,12 +523,14 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of random deterministic selection on volatile column: ",
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, primColNode[i].get(), 4000, 6000, 0);
-        measure("Duration of random deterministic selection on persistent tree: ", random_select_tree,
-                primColNode[0]->get_count_values(), &(*trees[i]));
+                    ::apply, valColNode[i].get(), 8, 12, 0);
+        measure("Duration of random deterministic selection on persistent tree: ",
+
+                index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f>
+                    ::apply, indexes[i], 8, 12);
         measure("Duration of random deterministic selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, primColPersConv[i].get(), 4000, 6000, 0);
+                    ::apply, valColPersConv[i].get(), 8, 12, 0);
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i], valColPersConv[i]);
     }
 

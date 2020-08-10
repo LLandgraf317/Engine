@@ -19,7 +19,7 @@ class MultiValTreeIndex {
     pobj_alloc_class_desc alloc_class;
 
     bool m_Init;
-
+public:
     MultiValTreeIndex(uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
@@ -69,6 +69,17 @@ class MultiValTreeIndex {
         m_Init = true;
     }
 
+    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
+    {
+        pptr<NodeBucketList<uint64_t>> list;
+        bool success = m_Tree->lookup(key, &list);
+       
+        if (success)
+           return list;
+        else
+           return nullptr; 
+    }
+
     void insert(uint64_t key, uint64_t value)
     {
         pptr<NodeBucketList<uint64_t>> list;
@@ -95,6 +106,10 @@ class MultiValTreeIndex {
     using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
     void scan(const uint64_t &minKey, const uint64_t &maxKey, ScanFunc func) const {
         m_Tree->scan(minKey, maxKey, func);
+    }
+
+    void scan(ScanFunc func) const {
+        m_Tree->scan(func);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)

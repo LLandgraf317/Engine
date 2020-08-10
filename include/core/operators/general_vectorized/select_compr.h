@@ -88,7 +88,8 @@ struct select_processing_unit_wit {
         p_State.m_Pos = vectorlib::add<t_ve>::apply(p_State.m_Pos, p_State.m_Inc);
     }
 };
-    
+
+
 template<
         template<class, int> class t_compare,
         class t_vector_extension,

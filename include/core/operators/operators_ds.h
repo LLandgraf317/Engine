@@ -15,7 +15,7 @@ using pmem::obj::persistent_ptr;
 
 /**** EXESSIVE TEMPLATE GAME ****/
 
-template<template<typename, typename, int, int> class Tree, typename KeyType, typename ValueType, int N, int M, template<typename> class t_op>
+/*template<template<typename, typename, int, int> class Tree, typename KeyType, typename ValueType, int N, int M, template<typename> class t_op>
 struct select_t {
     static std::shared_ptr<VolatileColumn> apply( pptr<Tree<KeyType, ValueType, N, M>> in, uint64_t val )
     {
@@ -81,7 +81,7 @@ struct select_t<Tree, KeyType, ValueType, N, M, std::equal_to> {
     }
 };
 
-/*template<template<typename, typename, int, int> class Tree, typename KeyType, typename ValueType, int N, int M>
+template<template<typename, typename, int, int> class Tree, typename KeyType, typename ValueType, int N, int M>
 struct select_t<Tree, KeyType, ValueType, N, M, std::less> {
      VolatileColumn * apply( Tree<KeyType, ValueType, N, M> * in, uint64_t val )
     {

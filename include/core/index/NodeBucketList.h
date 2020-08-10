@@ -131,6 +131,8 @@ struct NodeBucketList {
             sum += it->fill_count;
             it = it->getNext();
         }
+
+        return sum;
     }
 
     bool lookup(T val)
