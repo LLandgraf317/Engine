@@ -88,6 +88,8 @@ struct NodeBucketList {
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
 
+    size_t value_count;
+
     pptr<NodeBucket<T>> first;
     pptr<NodeBucket<T>> last;
 
@@ -153,6 +155,7 @@ struct NodeBucketList {
 
     NodeBucketList()
     {
+        value_count = 0;
         first = nullptr;
         last = nullptr;
     }
@@ -182,17 +185,16 @@ struct NodeBucketList {
 
     size_t getCountValues()
     {
-        if (first == nullptr)
-            return 0; // should we throw an exception?
+        return value_count;
 
-        size_t sum = 0;
+        /*size_t sum = 0;
         auto it = first;
         while (it != nullptr) {
             sum += it->fill_count;
             it = it->getNext();
         }
 
-        return sum;
+        return sum;*/
     }
 
     bool lookup(T val)
@@ -214,6 +216,8 @@ struct NodeBucketList {
 
     inline void insertValue(T val)
     {
+        value_count++;
+
         if (first == nullptr) {
             first = make_persistent<NodeBucket<T>>();
             last = first;
@@ -256,6 +260,7 @@ struct NodeBucketList {
 
                     auto tmp = last->getLastAndDecr();
                     it->bucket_list[i] = tmp;
+                    value_count--;
                     return true;
                 }
             }
