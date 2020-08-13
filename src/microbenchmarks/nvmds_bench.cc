@@ -416,7 +416,7 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
     ArrayList<pptr<MultiValTreeIndex>> indexes;
-    ArrayList<pptr<TreeType>> trees;
+    //ArrayList<pptr<TreeType>> trees;
 
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
@@ -458,15 +458,15 @@ int main(int /*argc*/, char** /*argv*/)
         index->generateKeyToPos(valCol);
         indexes.push_back(index);
 
-        trees.push_back(root_mgr.getPop(i).root()->tree);
+        //trees.push_back(root_mgr.getPop(i).root()->tree);
         trace_l(T_INFO, "Building tree ", i, " from primary and value columns");
-        if (!retr.read_from_file_successful)
-            preparePersistentTree(trees[i], primColNode[0], valColNode[0]);
+        //if (!retr.read_from_file_successful)
+         //   preparePersistentTree(trees[i], primColNode[0], valColNode[0]);
         trace_l(T_DEBUG, "Prepared tree ", i);
     }
     root_mgr.drainAll();
 
-    std::cout << "Sizeof PBPTree: " << trees[0]->memory_footprint() << std::endl;
+    //std::cout << "Sizeof PBPTree: " << indexes[0]->memory_footprint() << std::endl;
     std::cout << "Sizeof Column Prim: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
     std::cout << "Sizeof Column Val: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
 
@@ -506,7 +506,7 @@ int main(int /*argc*/, char** /*argv*/)
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
         measure("Duration of selection on persistent tree: ", 
                 index_select_wit_t<std::equal_to, uncompr_f, uncompr_f>::apply, &(*indexes[i]), 10);
-        measure("Duration of selection on volatile columns: ",
+        measure("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
     }
 
@@ -528,7 +528,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of aggregation on persistent tree: ",
                 //parallel_aggregate_tree, &(*trees[i]));
                 group_agg_sum, &(*indexes[i]));
-        measure("Duration of aggregation on volatile column: ",
+        measure("Duration of aggregation on persistent column: ",
                 //parallel_aggregate_col<const column<uncompr_f>*>, valColPersConv[i].get());
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
@@ -537,15 +537,15 @@ int main(int /*argc*/, char** /*argv*/)
 
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
-        measure("Duration of random deterministic selection on volatile column: ",
+        measure("Duration of between selection on volatile column: ",
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 8, 12, 0);
-        measure("Duration of random deterministic selection on persistent tree: ",
+        measure("Duration of between selection on persistent tree: ",
 
                 index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f>
                     ::apply, indexes[i], 8, 12);
-        measure("Duration of random deterministic selection on persistent column: ",
+        measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColPersConv[i].get(), 8, 12, 0);
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i], valColPersConv[i]);
