@@ -52,7 +52,9 @@ public:
 
     const column<uncompr_f>* convert()
     {
-        return new column<uncompr_f>(this->getAbsoluteSize(), m_numaNode, this->get_data());
+        auto col = new column<uncompr_f>(this->getAbsoluteSize(), m_numaNode, this->get_data());
+        col->set_meta_data(this->get_count_values(), this->m_byteSize);
+        return col; 
     }
 
     void expand(size_t expansionSize)
@@ -81,8 +83,6 @@ public:
     }
 
     inline voidptr_t get_data( void ) const {
-        //TODO: fix this you lazy code monkey
-        // type safety issues etc
         return &(m_persistentData[0]);
     }
 
