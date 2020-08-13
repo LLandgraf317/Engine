@@ -61,6 +61,8 @@ agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
     return outDataCol;
 }
 
+
+// group parameter is key, sum attr is value
 template<>
 std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
 group_agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(

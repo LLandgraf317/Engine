@@ -33,12 +33,12 @@ public:
         return this->fill_count == 0;
     }
 
-    T getBucketEntry(uint64_t i)
+    inline T getBucketEntry(uint64_t i)
     {
         return bucket_list[i];
     }
 
-    void setBucketEntry(uint64_t i, T val)
+    inline void setBucketEntry(uint64_t i, T val)
     {
         assert(i <= MAX_ENTRIES);
         bucket_list[i] = val;
@@ -90,6 +90,66 @@ struct NodeBucketList {
 
     pptr<NodeBucket<T>> first;
     pptr<NodeBucket<T>> last;
+
+    class Iterator {
+        pptr<NodeBucket<T>> curr;
+        size_t iterator_count;
+
+        Iterator(const Iterator& iter)
+        {
+            curr = iter.curr;
+            iterator_count = iter.iterator_count;
+        }
+
+        Iterator& operator=(const Iterator& iter)
+        {
+            return Iterator(iter.curr, iter.iterator_count);
+        }
+
+        Iterator(pptr<NodeBucket<T>> but, size_t it) : curr(but), iterator_count(it)
+        { }
+
+        void operator++()
+        {
+            if (iterator_count < curr->fill_count) {
+                iterator_count++;
+            }
+            else {
+                curr = curr->getNext();
+                iterator_count = 0;
+            }
+        }
+
+        friend bool operator==(const Iterator& lhs, const Iterator& rhs)
+        {
+            return lhs.curr == rhs.curr && lhs.iterator_count == rhs.iterator_count;
+        }
+
+        friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
+        {
+            return lhs.curr != rhs.curr || lhs.iterator_count != rhs.iterator_count;
+        }
+
+        T operator*()
+        {
+            return curr->getBucketEntry(iterator_count);
+        }
+
+        T& get()
+        {
+            return curr->getBucketEntry(iterator_count);
+        }
+    };
+
+    Iterator begin()
+    {
+        return Iterator(first, 0);
+    }
+
+    Iterator end()
+    {
+        return Iterator(last, last->fill_count);
+    }
 
     NodeBucketList()
     {
@@ -152,7 +212,7 @@ struct NodeBucketList {
         return false;
     }
 
-    void insertValue(T val)
+    inline void insertValue(T val)
     {
         if (first == nullptr) {
             first = make_persistent<NodeBucket<T>>();

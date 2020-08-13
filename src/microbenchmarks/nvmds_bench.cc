@@ -10,6 +10,7 @@
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/PHashMap.hpp>
 #include <core/utils/measure.h>
 
 #include <core/morphing/format.h>
@@ -97,12 +98,12 @@ root_retrieval getPoolRoot(int pmemNode)
     return retr;
 }
 
-void initTreeRoot(int pMemNode)
+void initTreeRoot(int /*pMemNode*/)
 {
 
     //Constructing the tree
     //auto retr = getPoolRoot(pmemNode);
-    RootManager& mgr = RootManager::getInstance();
+    /*RootManager& mgr = RootManager::getInstance();
 
     pool<root> pop = *std::next(mgr.getPops(), pMemNode);
     auto q = pop.root();
@@ -115,7 +116,7 @@ void initTreeRoot(int pMemNode)
         transaction::run(pop, [&] {
           pop.root()->tree = make_persistent<TreeType>(alloc_class);
         });
-    }
+    }*/
     trace_l(T_DEBUG, "End of tree file creation");
 
 }
@@ -440,7 +441,14 @@ int main(int /*argc*/, char** /*argv*/)
         initTreeRoot(i);
 
         trace_l(T_INFO, "Constructing MuliValTreeIndex");
-        auto index = make_persistent<MultiValTreeIndex>(i, std::string(""), std::string(""), std::string(""));
+
+        pptr<MultiValTreeIndex> index;
+        alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
+            "heap.alloc_class.new.desc", MultiValTree::AllocClass);
+        trace_l(T_INFO, "Running transaction");
+        transaction::run(retr.pop, [&] {
+            index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
+        });
         index->generateKeyToPos(valCol);
         indexes.push_back(index);
 
@@ -547,6 +555,7 @@ int main(int /*argc*/, char** /*argv*/)
             delete_persistent<PersistentColumn>(primColPers[i]);
             delete_persistent<PersistentColumn>(valColPers[i]);
             delete_persistent<PersistentColumn>(delColPers[i]);
+            delete_persistent<MultiValTreeIndex>(indexes[i]);
         });
     }
 

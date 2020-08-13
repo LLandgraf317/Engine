@@ -16,21 +16,20 @@ class MultiValTreeIndex {
     pptr<char[]> m_Attribute;
     pptr<char[]> m_Table;
 
-    pobj_alloc_class_desc alloc_class;
-
+    size_t m_PmemNode;
     bool m_Init;
 public:
-    MultiValTreeIndex(uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
+    MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string table, std::string relation, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), pMemNode);
+
+        m_PmemNode = pMemNode;
 
         m_Table = make_persistent<char[]>(table.length() + 1);
         m_Attribute = make_persistent<char[]>(attribute.length() + 1);
         m_Relation = make_persistent<char[]>(relation.length() + 1);
 
-        alloc_class = pop.ctl_set<struct pobj_alloc_class_desc>(
-            "heap.alloc_class.new.desc", TreeType::AllocClass);
         m_Tree = make_persistent<MultiValTree>(alloc_class);
 
         pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
@@ -42,7 +41,7 @@ public:
 
     void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
     {
-        if (m_Init) return; // Should throw exception
+        if (m_Init) return; // Should throw exception instead
 
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
@@ -83,17 +82,28 @@ public:
     void insert(uint64_t key, uint64_t value)
     {
         pptr<NodeBucketList<uint64_t>> list;
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
         if (m_Tree->lookup(key, &list)) {
-            list->insertValue(value); 
+            transaction::run(pop, [&] {
+                list->insertValue(value); 
+            });
         }
         else {
-            list = make_persistent<NodeBucketList<uint64_t>>();
-            m_Tree->insert(key, list);
-            list->insertValue(value);
+            RootManager& mgr = RootManager::getInstance();
+            pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+            transaction::run(pop, [&] {
+                list = make_persistent<NodeBucketList<uint64_t>>();
+                m_Tree->insert(key, list);
+                list->insertValue(value);
+            });
         }
     }
 
-    bool lookup(uint64_t key, uint64_t val) {
+    bool lookup(uint64_t key, uint64_t val)
+    {
         pptr<NodeBucketList<uint64_t>> list;
 
         if (m_Tree->lookup(key, &list)) {
@@ -108,7 +118,8 @@ public:
         m_Tree->scan(minKey, maxKey, func);
     }
 
-    void scan(ScanFunc func) const {
+    void scan(ScanFunc func) const
+    {
         m_Tree->scan(func);
     }
 
