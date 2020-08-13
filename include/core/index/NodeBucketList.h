@@ -69,13 +69,13 @@ public:
         return fill_count < MAX_ENTRIES;
     }
 
-    void insertLast(T val)
+    inline void insertLast(T val)
     {
         assert(fill_count < MAX_ENTRIES);
         bucket_list[fill_count++] = val;
     }
 
-    T getLastAndDecr()
+    inline T getLastAndDecr()
     {
         assert(fill_count != 0);
         return bucket_list[fill_count--];
@@ -109,7 +109,7 @@ struct NodeBucketList {
         Iterator(pptr<NodeBucket<T>> but, size_t it) : curr(but), iterator_count(it)
         { }
 
-        void operator++()
+        inline void operator++()
         {
             if (iterator_count < curr->fill_count) {
                 iterator_count++;
@@ -120,12 +120,12 @@ struct NodeBucketList {
             }
         }
 
-        friend bool operator==(const Iterator& lhs, const Iterator& rhs)
+        inline friend bool operator==(const Iterator& lhs, const Iterator& rhs)
         {
             return lhs.curr == rhs.curr && lhs.iterator_count == rhs.iterator_count;
         }
 
-        friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
+        inline friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
         {
             return lhs.curr != rhs.curr || lhs.iterator_count != rhs.iterator_count;
         }
@@ -141,12 +141,12 @@ struct NodeBucketList {
         }
     };
 
-    Iterator begin()
+    inline Iterator begin()
     {
         return Iterator(first, 0);
     }
 
-    Iterator end()
+    inline Iterator end()
     {
         return Iterator(last, last->fill_count);
     }
@@ -158,7 +158,7 @@ struct NodeBucketList {
     }
 
     //TODO: need to nail pre and post conditions
-    bool isEmpty()
+    inline bool isEmpty()
     {
         return first == nullptr || first->fill_count == 0;
     }
@@ -172,7 +172,7 @@ struct NodeBucketList {
         auto it = first;
         while (it != nullptr) {
             for (uint64_t i = 0; i < it->fill_count; i++) {
-                sum += it->getEntry(i);
+                sum += it->getBucketEntry(i);
             }
             it = it->getNext();
         }

@@ -6,7 +6,7 @@
 #include <core/access/root.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/operators/operators.h>
-#include <core/operators/operators_ds.h>
+//#include <core/operators/operators_ds.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/index/MultiValTreeIndex.hpp>
@@ -15,7 +15,8 @@
 
 #include <core/morphing/format.h>
 #include <core/morphing/uncompr.h>
-#include <core/operators/general_vectorized/agg_sum_compr.h>
+//#include <core/operators/general_vectorized/agg_sum_compr.h>
+#include <core/operators/scalar/agg_sum_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/select_uncompr.h>
 
@@ -382,6 +383,11 @@ public:
     }
 };
 
+inline void agg_sum_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
+{
+    agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>(f, s, inExtNum);
+}
+
 int main(int /*argc*/, char** /*argv*/)
 {
     // Setup phase: figure out node configuration
@@ -517,11 +523,14 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<const column<uncompr_f>*>, valColNode[i].get());
+                //parallel_aggregate_col<const column<uncompr_f>*>, valColNode[i].get());
+                agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                parallel_aggregate_tree, &(*trees[i]));
+                //parallel_aggregate_tree, &(*trees[i]));
+                group_agg_sum, &(*indexes[i]));
         measure("Duration of aggregation on volatile column: ",
-                parallel_aggregate_col<const column<uncompr_f>*>, valColPersConv[i].get());
+                //parallel_aggregate_col<const column<uncompr_f>*>, valColPersConv[i].get());
+                agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
 
     // Benchmark: random sequential selection
