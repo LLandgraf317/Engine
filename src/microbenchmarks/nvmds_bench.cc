@@ -416,7 +416,6 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
     ArrayList<pptr<MultiValTreeIndex>> indexes;
-    //ArrayList<pptr<TreeType>> trees;
 
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
@@ -458,11 +457,6 @@ int main(int /*argc*/, char** /*argv*/)
         index->generateKeyToPos(valCol);
         indexes.push_back(index);
 
-        //trees.push_back(root_mgr.getPop(i).root()->tree);
-        trace_l(T_INFO, "Building tree ", i, " from primary and value columns");
-        //if (!retr.read_from_file_successful)
-         //   preparePersistentTree(trees[i], primColNode[0], valColNode[0]);
-        trace_l(T_DEBUG, "Prepared tree ", i);
     }
     root_mgr.drainAll();
 
