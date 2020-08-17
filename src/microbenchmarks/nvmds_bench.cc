@@ -6,16 +6,15 @@
 #include <core/access/root.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/operators/operators.h>
-//#include <core/operators/operators_ds.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/index/MultiValTreeIndex.hpp>
 #include <core/index/PHashMap.hpp>
+#include <core/index/HashMapIndex.hpp>
 #include <core/utils/measure.h>
 
 #include <core/morphing/format.h>
 #include <core/morphing/uncompr.h>
-//#include <core/operators/general_vectorized/agg_sum_compr.h>
 #include <core/operators/scalar/agg_sum_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/select_uncompr.h>

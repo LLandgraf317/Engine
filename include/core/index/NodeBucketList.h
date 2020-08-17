@@ -97,6 +97,7 @@ struct NodeBucketList {
         pptr<NodeBucket<T>> curr;
         size_t iterator_count;
 
+      public:	
         Iterator(const Iterator& iter)
         {
             curr = iter.curr;
@@ -122,6 +123,10 @@ struct NodeBucketList {
             }
         }
 
+	inline void operator++(int) {
+            this->operator++();
+	}
+
         inline friend bool operator==(const Iterator& lhs, const Iterator& rhs)
         {
             return lhs.curr == rhs.curr && lhs.iterator_count == rhs.iterator_count;
@@ -137,7 +142,7 @@ struct NodeBucketList {
             return curr->getBucketEntry(iterator_count);
         }
 
-        T& get()
+        T get()
         {
             return curr->getBucketEntry(iterator_count);
         }
