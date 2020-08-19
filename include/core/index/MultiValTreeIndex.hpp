@@ -18,6 +18,8 @@ class MultiValTreeIndex {
 
     size_t m_PmemNode;
     bool m_Init;
+    size_t m_CountTuples;
+
 public:
     MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string table, std::string relation, std::string attribute)
     {
@@ -37,6 +39,7 @@ public:
         pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
         m_Init = false;
+	m_CountTuples = 0;
     }
 
     void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
@@ -68,6 +71,11 @@ public:
         m_Init = true;
     }
 
+    size_t getCountValues()
+    {
+	return m_CountTuples;
+    }
+
     pptr<NodeBucketList<uint64_t>> find(uint64_t key)
     {
         pptr<NodeBucketList<uint64_t>> list;
@@ -81,6 +89,7 @@ public:
 
     void insert(uint64_t key, uint64_t value)
     {
+
         pptr<NodeBucketList<uint64_t>> list;
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
@@ -100,6 +109,8 @@ public:
                 list->insertValue(value);
             });
         }
+
+	m_CountTuples++;
     }
 
     bool lookup(uint64_t key, uint64_t val)
@@ -118,6 +129,10 @@ public:
         m_Tree->scan(minKey, maxKey, func);
     }
 
+    inline uint64_t scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* col) const {
+        return m_Tree->scanValue(minKey, maxKey, col);
+    }
+
     void scan(ScanFunc func) const
     {
         m_Tree->scan(func);
@@ -131,6 +146,7 @@ public:
             bool success = list->deleteValue(value);
             if (list->isEmpty())
                 m_Tree->erase(key);
+	    m_CountTuples--;
             return success;
         }
 

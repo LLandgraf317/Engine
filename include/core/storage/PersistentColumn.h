@@ -12,6 +12,7 @@
 #include <core/utils/helper_types.h>
 #include <core/storage/column_helper.h>
 #include <core/access/root.h>
+#include <core/access/RootManager.h>
 #include <core/tracing/trace.h>
 
 namespace morphstore {
@@ -120,9 +121,9 @@ public:
     }
 private:
     void* m_testVol;
-    pptr<size_t[]> m_persistentData;
-    pptr<char[]> m_table;
-    pptr<char[]> m_attribute;
+    pmem::obj::persistent_ptr<size_t[]> m_persistentData;
+    pmem::obj::persistent_ptr<char[]> m_table;
+    pmem::obj::persistent_ptr<char[]> m_attribute;
 
     column_meta_data m_MetaData;
 

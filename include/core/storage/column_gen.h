@@ -107,7 +107,7 @@ const column<uncompr_f> * generate_sorted_unique(
 }
 
 //TODO: somehow remove code duplication
-pptr<PersistentColumn> generate_sorted_unique_pers(
+pmem::obj::persistent_ptr<PersistentColumn> generate_sorted_unique_pers(
         size_t countValues,
         int numa_node_number,
         uint64_t start = 0,
@@ -117,7 +117,7 @@ pptr<PersistentColumn> generate_sorted_unique_pers(
     auto pop = root_mgr.getPop(numa_node_number);
 
     const size_t allocationSize = countValues * sizeof(uint64_t);
-    pptr<PersistentColumn> resCol;
+    pmem::obj::persistent_ptr<PersistentColumn> resCol;
     transaction::run(pop, [&] {
         resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
     });
@@ -149,7 +149,7 @@ const column<uncompr_f> * generate_boolean_col(
     return resCol;
 }
 
-pptr<PersistentColumn> generate_boolean_col_pers(
+pmem::obj::persistent_ptr<PersistentColumn> generate_boolean_col_pers(
         size_t countValues,
         int numa_node_number)
 {
@@ -162,7 +162,7 @@ pptr<PersistentColumn> generate_boolean_col_pers(
     std::string attr_name = "gen_boolean_col_";
     attr_name += std::to_string(numa_node_number);
 
-    pptr<PersistentColumn> resCol;
+    pmem::obj::persistent_ptr<PersistentColumn> resCol;
 
     transaction::run(pop, [&] {
         resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
@@ -321,7 +321,7 @@ const column<uncompr_f> * generate_with_distr(
 }
 
 template<template<typename> class t_distr>
-pptr<PersistentColumn> generate_with_distr_pers(
+pmem::obj::persistent_ptr<PersistentColumn> generate_with_distr_pers(
         size_t countValues,
         t_distr<uint64_t> distr,
         bool sorted,
@@ -329,7 +329,7 @@ pptr<PersistentColumn> generate_with_distr_pers(
         size_t seed = 0
 ) {
     const size_t allocationSize = countValues * sizeof(uint64_t);
-    pptr<PersistentColumn> resCol;
+    pmem::obj::persistent_ptr<PersistentColumn> resCol;
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(numa_node_number);
 
@@ -473,6 +473,82 @@ const column<uncompr_f> * generate_with_outliers_and_selectivity(
     
     const size_t allocationSize = p_CountValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize);
+    uint64_t * const res = resCol->get_data();
+    
+    if(p_Seed == 0)
+       p_Seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::default_random_engine generator(p_Seed);
+    
+    std::bernoulli_distribution rndIsOutlier(p_OutlierShare);
+    std::bernoulli_distribution rndIsSelected(
+            p_SelectedShare / (1 - p_OutlierShare)
+    );
+    std::uniform_int_distribution<uint64_t> rndMain(p_MainMin + 1, p_MainMax);
+    std::uniform_int_distribution<uint64_t> rndOutliers(
+            p_OutlierMin, p_OutlierMax
+    );
+    
+    for(size_t i = 0; i < p_CountValues; i++) {
+        if(rndIsOutlier(generator))
+            res[i] = rndOutliers(generator);
+        else if(rndIsSelected(generator))
+            res[i] = p_MainMin;
+        else
+            res[i] = rndMain(generator);
+    }
+    
+    resCol->set_meta_data(p_CountValues, allocationSize);
+    
+    if(p_IsSorted)
+        std::sort(res, res + p_CountValues);
+    
+    return resCol;
+}
+
+pmem::obj::persistent_ptr<PersistentColumn> generate_with_outliers_and_selectivity_pers(
+        size_t p_CountValues,
+        uint64_t p_MainMin, uint64_t p_MainMax,
+        double p_SelectedShare,
+        uint64_t p_OutlierMin, uint64_t p_OutlierMax, double p_OutlierShare,
+        bool p_IsSorted,
+        int numa_node_number,
+        size_t p_Seed = 0
+) {
+    const bool mainAndOutliers = p_OutlierShare > 0 && p_OutlierShare < 1;
+    if(!(p_MainMin < p_MainMax))
+        throw std::runtime_error(
+                "p_MainMin < p_MainMax must hold"
+        );
+    if(mainAndOutliers && p_OutlierMin > p_OutlierMax)
+        throw std::runtime_error(
+                "p_OutlierMin <= p_OutlierMax must hold if "
+                "0 < p_OutlierShare < 1"
+        );
+    if(mainAndOutliers && p_MainMax >= p_OutlierMin)
+        throw std::runtime_error(
+                "p_MainMax < p_OutlierMin must hold if"
+                "0 < p_OutlierShare < 1"
+        );
+    if(p_SelectedShare < 0 || p_SelectedShare > 1)
+        throw std::runtime_error(
+                "0 <= p_SelectedShare <= 1 must hold"
+        );
+    if(p_OutlierShare < 0 || p_OutlierShare > 1)
+        throw std::runtime_error(
+                "0 <= p_OutlierShare <= 1 must hold"
+        );
+    if(p_SelectedShare + p_OutlierShare > 1)
+        throw std::runtime_error(
+                "p_SelectedShare + p_OutlierShare <= 1 must hold"
+        );
+    pmem::obj::persistent_ptr<PersistentColumn> resCol;
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node_number);
+    
+    const size_t allocationSize = p_CountValues * sizeof(uint64_t);
+    transaction::run(pop, [&] {
+	    resCol = make_persistent<PersistentColumn>(true, allocationSize, numa_node_number);
+    });
     uint64_t * const res = resCol->get_data();
     
     if(p_Seed == 0)

@@ -255,7 +255,7 @@ if (DEFINED ENV{COLUMN_SIZE})
     add_definitions( -DCOLUMN_SIZE=$ENV{COLUMN_SIZE})
 else()
     message("Setting column size to 7200000")
-    add_definitions( -DCOLUMN_SIZE=100000)
+    add_definitions( -DCOLUMN_SIZE=7200000)
 endif()
 
 if (DEFINED ENV{SELECTION_THREADS})

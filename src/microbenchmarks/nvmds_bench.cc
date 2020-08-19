@@ -2,8 +2,9 @@
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
 
-#include <core/index/TreeDef.h>
+//#include <core/index/TreeDef.h>
 #include <core/access/root.h>
+#include <core/access/RootManager.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/operators/operators.h>
 #include <core/storage/column_gen.h>
@@ -422,16 +423,29 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
         primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(ARRAY_SIZE, i)));
-        valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_with_distr(ARRAY_SIZE,
-                std::poisson_distribution<uint64_t>(20), false, i, SEED)));
+        valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_with_outliers_and_selectivity(ARRAY_SIZE,
+                //std::poisson_distribution<uint64_t>(20), false, i, SEED)));
+		0, 20, 0.5, 50, 60, 0.005, false, SEED)));
+
+
+/*pptr<PersistentColumn generate_with_outliers_and_selectivity_pers(
+        size_t p_CountValues,
+        uint64_t p_MainMin, uint64_t p_MainMax,
+        double p_SelectedShare,
+        uint64_t p_OutlierMin, uint64_t p_OutlierMax, double p_OutlierShare,
+        bool p_IsSorted,
+        int numa_node_number,
+        size_t p_Seed = 0
+) {*/
 
         trace_l(T_INFO, "Columns for node ", i, " generated");
         retr = getPoolRoot(i);
         root_mgr.add(retr.pop);
 
         auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
-        auto valCol = generate_with_distr_pers(ARRAY_SIZE,
-                std::poisson_distribution<uint64_t>(20), false, i, SEED);
+        auto valCol = generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
+                //std::poisson_distribution<uint64_t>(20), false, i, SEED);
+		0, 20, 0.8, 50, 60, 0.0005, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
 
         delColPers.push_back(delCol);
@@ -496,11 +510,11 @@ int main(int /*argc*/, char** /*argv*/)
     for (int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of selection on volatile columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 55, 0);
         measure("Duration of selection on persistent tree: ", 
                 index_select_wit_t<std::equal_to, uncompr_f, uncompr_f>::apply, &(*indexes[i]), 10);
         measure("Duration of selection on persistent columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 55, 0);
     }
 
     // Benchmark: deletion
@@ -533,14 +547,14 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of between selection on volatile column: ",
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColNode[i].get(), 8, 12, 0);
+                    ::apply, valColNode[i].get(), 51, 54, 0);
         measure("Duration of between selection on persistent tree: ",
 
                 index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f>
                     ::apply, indexes[i], 8, 12);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColPersConv[i].get(), 8, 12, 0);
+                    ::apply, valColPersConv[i].get(), 51, 54, 0);
                 //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i], valColPersConv[i]);
     }
 

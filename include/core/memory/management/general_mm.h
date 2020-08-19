@@ -35,11 +35,19 @@
 #include <core/utils/basic_types.h>
 #include <core/utils/helper.h>
 #include <core/utils/preprocessor.h>
-#include <core/access/root.h>
+
+#include <libpmemobj++/transaction.hpp>
+#include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/p.hpp>
+#include <core/access/RootManager.h>
 
 #include <numa.h>
 
 #include <core/memory/management/utils/memory_bin_handler.h>
+
+using pmem::obj::pool;
+using pmem::obj::transaction;
+using pmem::obj::delete_persistent;
 
 namespace morphstore {
 
@@ -125,11 +133,11 @@ class general_memory_manager : public abstract_memory_manager {
       }
 
       template<class T>
-      pptr<T> allocatePersistent(size_t p_AllocSize, int numa_node) {
+      pmem::obj::persistent_ptr<T> allocatePersistent(size_t p_AllocSize, int numa_node) {
          RootManager& mgr = RootManager::getInstance();
          pool<root> pop = mgr.getPop(numa_node);
 
-         pptr<T> m_persistentData;
+         pmem::obj::persistent_ptr<T> m_persistentData;
          transaction::run( pop, [&] {
             m_persistentData = pmemobj_tx_alloc(p_AllocSize, 0);
          });
@@ -138,7 +146,7 @@ class general_memory_manager : public abstract_memory_manager {
       }
 
       template<class T>
-      void deallocatePersistent(pptr<T> ptr, int numa_node) {
+      void deallocatePersistent(pmem::obj::persistent_ptr<T> ptr, int numa_node) {
 
          RootManager& mgr = RootManager::getInstance();
          pool<root> pop = mgr.getPop(numa_node);

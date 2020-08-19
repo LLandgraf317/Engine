@@ -116,15 +116,16 @@ namespace morphstore {
         std::list<pptr<NodeBucketList<uint64_t>>> bucket_lists_list;
         size_t sum_count_values = 0;
 
-        auto materialize_lambda = [&](const uint64_t& /*key*/, const pptr<NodeBucketList<uint64_t>> val)
+        /*auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
         {
             bucket_lists_list.push_back(val);
             sum_count_values += val->getCountValues();
-        };
-        inDataIndex->scan(val_lower, val_upper, materialize_lambda);
+        };*/
+        //inDataIndex->scanValue(val_lower, val_upper, materialize_lambda);
  
-        auto outPosCol = new column<t_out_pos_f>(get_size_max_byte_any_len<t_out_pos_f>(sum_count_values));
-        uint64_t* outPtr = outPosCol->get_data();
+        auto outPosCol = new column<t_out_pos_f>(inDataIndex->getCountValues());
+        sum_count_values = inDataIndex->scanValue(val_lower, val_upper, outPosCol);
+        /*uint64_t* outPtr = outPosCol->get_data();
         for (auto listsIter = bucket_lists_list.begin(); listsIter != bucket_lists_list.end(); listsIter++) {
             // TODO: find a good member function based solution for iterating the bucket list, maybe iterator pattern based?
             auto buck = (*listsIter)->first;
@@ -135,10 +136,10 @@ namespace morphstore {
                 }
                 buck = buck->getNext();
             }
-        }
-         outPosCol->set_meta_data(
-            sum_count_values, sum_count_values * sizeof(uint64_t)
-         );
+        }*/
+        outPosCol->set_meta_data(
+            sum_count_values, inDataIndex->getCountValues() * sizeof(uint64_t)
+        );
 
         return outPosCol;
       }

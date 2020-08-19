@@ -1,3 +1,5 @@
+#pragma once
+
 #include <core/index/PHashMap.hpp>
 
 #include <libpmemobj++/make_persistent.hpp>
