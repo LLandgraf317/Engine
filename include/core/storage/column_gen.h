@@ -441,6 +441,7 @@ const column<uncompr_f> * generate_with_outliers_and_selectivity(
         double p_SelectedShare,
         uint64_t p_OutlierMin, uint64_t p_OutlierMax, double p_OutlierShare,
         bool p_IsSorted,
+        int numa_node_number,
         size_t p_Seed = 0
 ) {
     const bool mainAndOutliers = p_OutlierShare > 0 && p_OutlierShare < 1;
@@ -472,7 +473,7 @@ const column<uncompr_f> * generate_with_outliers_and_selectivity(
         );
     
     const size_t allocationSize = p_CountValues * sizeof(uint64_t);
-    auto resCol = new column<uncompr_f>(allocationSize);
+    auto resCol = new column<uncompr_f>(allocationSize, numa_node_number);
     uint64_t * const res = resCol->get_data();
     
     if(p_Seed == 0)

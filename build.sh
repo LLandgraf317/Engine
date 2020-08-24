@@ -134,6 +134,7 @@ runCtest=false
 enableMonitoring="-UENABLE_MONITORING"
 tvlpath="-UTVL_PATH"
 testAll="-DCTEST_ALL=False"
+testIndex="-DCTEST_INDEX=False"
 testMemory="-DCTEST_MEMORY=False"
 testMorph="-DCTEST_MORPHING=False"
 testOps="-DCTEST_OPERATORS=False"
@@ -249,6 +250,11 @@ case $key in
 	-tA|--testAll)
 	runCtest=true
 	testAll="-DCTEST_ALL=True"
+	shift # past argument
+	;;
+	-tIn|--testInd)
+	runCtest=true
+	testMemory="-DCTEST_INDEX=True"
 	shift # past argument
 	;;
 	-tMm|--testMem)
@@ -395,7 +401,7 @@ fi
 printf "Using buildMode: $buildMode and make with: $makeParallel $target\n"
 
 if [ "$runCtest" = true ] ; then
-	addTests="-DRUN_CTESTS=True $testAll $testMemory $testMorph $testOps $testPers $testStorage $testUtils $testVectors $avx512 $avxtwo $odroid $rapl $neon $sve $tvlpath"
+	addTests="-DRUN_CTESTS=True $testAll $testInd $testMemory $testMorph $testOps $testPers $testStorage $testUtils $testVectors $avx512 $avxtwo $odroid $rapl $neon $sve $tvlpath"
 	echo "AddTest String: $addTests"
 else
 	addTests="-DRUN_CTESTS=False"

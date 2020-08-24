@@ -2,8 +2,8 @@
 
 //#include <vector/complex/hash.h>
 #include <core/index/NodeBucketList.h>
-#include <vector/datastructures/hash_based/hash_utils.h>
-#include <vector/datastructures/hash_based/strategies/linear_probing.h>
+//#include <vector/datastructures/hash_based/hash_utils.h>
+//#include <vector/datastructures/hash_based/strategies/linear_probing.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
@@ -22,7 +22,7 @@ struct multiply_mod_hash {
     }
 };
 
-using namespace vectorlib;
+//using namespace vectorlib;
 // Polymorphism disallowed, hence no flexible utilization of template strategies
 // Must be refitted to fit compression paradigm fully
 template<class VectorExtension,
@@ -36,17 +36,17 @@ class PHashMap {
     pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
     size_t m_MapElemCount;
 
-    size_helper<VectorExtension, 60, size_policy_hash::EXPONENTIAL> const m_SizeHelper;
+    //size_helper<VectorExtension, 60, size_policy_hash::EXPONENTIAL> const m_SizeHelper;
     multiply_mod_hash<VectorExtension> m_HashStrategy;
-    scalar_key_vectorized_linear_search<VectorExtension, VectorExtension, multiply_mod_hash, size_policy_hash::EXPONENTIAL> m_SearchStratey;
+    //scalar_key_vectorized_linear_search<VectorExtension, VectorExtension, multiply_mod_hash, size_policy_hash::EXPONENTIAL> m_SearchStratey;
    
 public:
     PHashMap(size_t p_DistinctElementCountEstimate)
         :
          m_MapElemCount(p_DistinctElementCountEstimate),
-         m_SizeHelper{
-            p_DistinctElementCountEstimate
-         },
+         //m_SizeHelper{
+         //   p_DistinctElementCountEstimate
+         //},
             m_HashStrategy(p_DistinctElementCountEstimate)
     {
         m_Map = make_persistent<
@@ -92,6 +92,8 @@ public:
             if (std::get<0>(iter.get()) == key)
                 return iter.get();
         }
+
+        return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
     }
 
     bool lookup(KeyType key, ValueType value)

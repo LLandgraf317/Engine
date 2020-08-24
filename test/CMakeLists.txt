@@ -1,3 +1,4 @@
+add_subdirectory( core/index )
 add_subdirectory( core/memory )
 add_subdirectory( core/morphing )
 add_subdirectory( core/operators )

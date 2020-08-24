@@ -72,7 +72,8 @@ public:
     inline void insertLast(T val)
     {
         assert(fill_count < MAX_ENTRIES);
-        bucket_list[fill_count++] = val;
+        bucket_list[fill_count] = val;
+	fill_count++;
     }
 
     inline T getLastAndDecr()
@@ -191,15 +192,6 @@ struct NodeBucketList {
     size_t getCountValues()
     {
         return value_count;
-
-        /*size_t sum = 0;
-        auto it = first;
-        while (it != nullptr) {
-            sum += it->fill_count;
-            it = it->getNext();
-        }
-
-        return sum;*/
     }
 
     bool lookup(T val)

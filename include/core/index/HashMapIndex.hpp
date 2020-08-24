@@ -1,6 +1,12 @@
 #pragma once
 
 #include <core/index/PHashMap.hpp>
+#include <core/storage/PersistentColumn.h>
+#include <core/storage/column.h>
+#include <vector/scalar/extension_scalar.h>
+#include <core/morphing/format.h>
+#include <core/morphing/uncompr.h>
+#include <vector/scalar/extension_scalar.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
@@ -9,7 +15,7 @@ namespace morphstore {
 
 class HashMapIndex {
 
-    using ps = scalar<v64<uint64_t>>;
+    using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
 
@@ -22,6 +28,7 @@ class HashMapIndex {
 
     bool m_Init;
     uint64_t m_EstimateElemCount;
+public:
 
     HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
 	    : m_PmemNode(pMemNode), m_Init(false), m_EstimateElemCount(estimateElemCount)
@@ -91,7 +98,12 @@ class HashMapIndex {
 
     void insert(uint64_t key, uint64_t value)
     {
-         m_HashMap->insert(key, value);	
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        transaction::run(pop, [&] {
+            m_HashMap->insert(key, value);	
+        });
     }
 
     bool lookup(uint64_t key, uint64_t val)

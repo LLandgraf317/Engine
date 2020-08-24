@@ -4,6 +4,8 @@
 
 #include <libpmemobj++/pool.hpp>
 
+namespace morphstore {
+
 struct root;
 
 class RootManager {
@@ -18,6 +20,10 @@ public:
         static RootManager instance;
 
         return instance;
+    }
+
+    ~RootManager()
+    {
     }
 
     std::list<pmem::obj::pool<root>>::iterator getPops()
@@ -55,3 +61,5 @@ public:
         m_pops.push_back(pop); 
     }
 };
+
+} // namespace morphstore

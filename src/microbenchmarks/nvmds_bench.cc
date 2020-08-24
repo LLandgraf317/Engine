@@ -3,7 +3,7 @@
 #include <core/memory/management/allocators/global_scope_allocator.h>
 
 //#include <core/index/TreeDef.h>
-#include <core/access/root.h>
+//#include <core/access/root.h>
 #include <core/access/RootManager.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/operators/operators.h>
@@ -54,7 +54,6 @@ using namespace vectorlib;
 using pmem::obj::delete_persistent;
 using pmem::obj::make_persistent;
 using pmem::obj::persistent_ptr;
-using pmem::obj::pool;
 using pmem::obj::transaction;
 
 //TODO: Figure out way to abstract this
@@ -72,55 +71,6 @@ constexpr uint64_t SEED = 42;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 pobj_alloc_class_desc alloc_class;
 
-struct root_retrieval {
-    pool<root> pop;
-    bool read_from_file_successful;
-};
-
-root_retrieval getPoolRoot(int pmemNode)
-{
-    root_retrieval retr;
-    std::string path = (pmemNode == 0 ? dbis::gPmemPath0 : dbis::gPmemPath1) + "NVMDSBench";
-    const std::string& gPmem = (pmemNode == 0 ? dbis::gPmemPath0 : dbis::gPmemPath1);
-
-    if (access(path.c_str(), F_OK) != 0) {
-        mkdir(gPmem.c_str(), 0777);
-        trace_l(T_INFO, "Creating new file on ", path);
-        retr.pop = pool<root>::create(path, LAYOUT, POOL_SIZE);
-
-        retr.read_from_file_successful = false;
-    }
-    else {
-        trace_l(T_INFO, "File already existed, opening and returning.");
-        retr.pop = pool<root>::open(path, LAYOUT);
-        retr.read_from_file_successful = true;
-    }
-
-    return retr;
-}
-
-void initTreeRoot(int /*pMemNode*/)
-{
-
-    //Constructing the tree
-    //auto retr = getPoolRoot(pmemNode);
-    /*RootManager& mgr = RootManager::getInstance();
-
-    pool<root> pop = *std::next(mgr.getPops(), pMemNode);
-    auto q = pop.root();
-    auto &rootRef = *q;
-
-    alloc_class = pop.ctl_set<struct pobj_alloc_class_desc>(
-        "heap.alloc_class.new.desc", TreeType::AllocClass);
-    if (!rootRef.tree) {
-        trace_l(T_DEBUG, "make_persistent TreeType");
-        transaction::run(pop, [&] {
-          pop.root()->tree = make_persistent<TreeType>(alloc_class);
-        });
-    }*/
-    trace_l(T_DEBUG, "End of tree file creation");
-
-}
 
 void delete_from_tree(uint64_t start, uint64_t end, pptr<TreeType> tree)
 {
@@ -396,12 +346,12 @@ int main(int /*argc*/, char** /*argv*/)
         return -1;
     }
 
-    auto node_number = numa_max_node() + 1;
+    RootInitializer::initPmemPool();
+    auto node_number = RootInitializer::getNumaNodeCount();
 
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
     RootManager& root_mgr = RootManager::getInstance();
-    root_retrieval retr;
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
@@ -420,11 +370,10 @@ int main(int /*argc*/, char** /*argv*/)
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
-    for (int i = 0; i < node_number; i++) {
+    for (unsigned int i = 0; i < node_number; i++) {
         delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
         primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(ARRAY_SIZE, i)));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_with_outliers_and_selectivity(ARRAY_SIZE,
-                //std::poisson_distribution<uint64_t>(20), false, i, SEED)));
 		0, 20, 0.5, 50, 60, 0.005, false, SEED)));
 
 
@@ -439,36 +388,36 @@ int main(int /*argc*/, char** /*argv*/)
 ) {*/
 
         trace_l(T_INFO, "Columns for node ", i, " generated");
-        retr = getPoolRoot(i);
-        root_mgr.add(retr.pop);
 
-        auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
         auto valCol = generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
-                //std::poisson_distribution<uint64_t>(20), false, i, SEED);
 		0, 20, 0.8, 50, 60, 0.0005, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
+        auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
+
+        trace_l(T_INFO, "Persisent Columns for node ", i, " generated");
 
         delColPers.push_back(delCol);
         valColPers.push_back(valCol);
         primColPers.push_back(primCol);
 
+        primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
         delColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(delCol->convert()));
         valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
-        primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
-
-        initTreeRoot(i);
 
         trace_l(T_INFO, "Constructing MuliValTreeIndex");
+	root_mgr.drainAll();
 
         pptr<MultiValTreeIndex> index;
-        alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
-            "heap.alloc_class.new.desc", MultiValTree::AllocClass);
+        /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
+            "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
         trace_l(T_INFO, "Running transaction");
-        transaction::run(retr.pop, [&] {
+	auto pop = root_mgr.getPop(i);
+        transaction::run(pop, [&] {
             index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
         });
         index->generateKeyToPos(valCol);
         indexes.push_back(index);
+	root_mgr.drainAll();
 
     }
     root_mgr.drainAll();
@@ -503,11 +452,7 @@ int main(int /*argc*/, char** /*argv*/)
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
-    //select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
-    //select_t< PBPTree, CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS, std::equal_to> select;
-
-    //std::cout << "Measuring select times..." << std::endl;
-    for (int i = 0; i < node_number; i++) {
+    for (unsigned int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 55, 0);
@@ -527,25 +472,21 @@ int main(int /*argc*/, char** /*argv*/)
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
     // Projection, aggregation more interesting
 
-    for (int i = 0; i < node_number; i++) {
+    for (unsigned int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
-                //parallel_aggregate_col<const column<uncompr_f>*>, valColNode[i].get());
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                //parallel_aggregate_tree, &(*trees[i]));
                 group_agg_sum, &(*indexes[i]));
         measure("Duration of aggregation on persistent column: ",
-                //parallel_aggregate_col<const column<uncompr_f>*>, valColPersConv[i].get());
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
 
     // Benchmark: random sequential selection
 
-    for (int i = 0; i < node_number; i++) {
+    for (unsigned int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of between selection on volatile column: ",
-                //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i]);
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 51, 54, 0);
         measure("Duration of between selection on persistent tree: ",
@@ -555,17 +496,10 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColPersConv[i].get(), 51, 54, 0);
-                //random_select_col_threads<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i], valColPersConv[i]);
     }
 
-#if 0
-    trace_l(T_INFO, "Doing cleanup for tree NVM DS...");
-    for (int i = 0; i < node_number; i++)
-        delete_from_tree(max_primary_key + 1, momentary_max_key, &(*trees[i]));
-#endif
-
     trace_l(T_INFO, "Cleaning persistent columns");
-    for (int i = 0; i < node_number; i++) {
+    for (unsigned int i = 0; i < node_number; i++) {
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
             delete_persistent<PersistentColumn>(primColPers[i]);
