@@ -9,6 +9,9 @@
 
 #include <nvmdatastructures/src/pbptrees/PBPTree.hpp>
 
+#include <unistd.h>
+#include <numa.h>
+
 namespace morphstore {
 using namespace dbis::pbptrees;
 
@@ -26,7 +29,20 @@ class RootInitializer {
     static constexpr auto LAYOUT = "NVMDS";
     static constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * 4ull;  //< 4GB
 
+    ~RootInitializer()
+    {
+        trace_l(T_DEBUG, "Destoying RootInitializer");
+    }
+
 public:
+
+    static RootInitializer& getInstance()
+    {
+        static RootInitializer instance;
+
+        return instance;
+    }
+
     static root_retrieval getPoolRoot(int pmemNode)
     {
         root_retrieval retr;

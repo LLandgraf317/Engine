@@ -31,6 +31,8 @@
 #include <core/storage/column.h>
 #include <core/utils/basic_types.h>
 #include <vector/scalar/extension_scalar.h>
+#include <core/index/HashMapIndex.hpp>
+#include <core/index/MultiValTreeIndex.hpp>
 
 #include <cstdint>
 #include <tuple>
@@ -96,6 +98,35 @@ nested_loop_join<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
     
     return std::make_tuple(outPosLCol, outPosRCol);
 }
+
+template< class DS1, class DS2 >
+const std::tuple<
+    const column<uncompr_f> *,
+    const column<uncompr_f> *
+    >
+ds_join(DS1 ds1, DS2 ds2)
+{
+    const size_t size = bool(outCountEstimate)
+            // use given estimate
+            ? (outCountEstimate * sizeof(uint64_t))
+            // use pessimistic estimate
+            : (inDataLCount * inDataRCount * sizeof(uint64_t));
+    auto outPosLCol = new column<uncompr_f>(size);
+    auto outPosRCol = new column<uncompr_f>(size);
+
+    // assume both data structures realize a attr -> pos mapping
+    auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
+    {
+        NodeBucketList<uint64_t> positions = ds2->find(given_key);
+
+        auto iter1 = val->begin();
+        auto iter2 = positions->begin();
+    };
+    ds1->scan(materialize_lambda);
+
+    return std::make_tuple(nullptr, nullptr);
+}
+        
 
 template<>
 const column<uncompr_f> *

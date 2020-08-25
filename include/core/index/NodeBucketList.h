@@ -1,5 +1,7 @@
 #pragma once
 
+#include <core/tracing/trace.h>
+
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
 
@@ -13,7 +15,7 @@ struct NodeBucket {
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
 
-    uint16_t fill_count;
+    uint64_t fill_count;
     pptr<NodeBucket<T>> next;
     pptr<NodeBucket<T>> prev;
     T bucket_list[(4096 - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket>)) / sizeof(T)];
@@ -96,7 +98,7 @@ struct NodeBucketList {
 
     class Iterator {
         pptr<NodeBucket<T>> curr;
-        size_t iterator_count;
+        uint64_t iterator_count;
 
       public:	
         Iterator(const Iterator& iter)
@@ -110,12 +112,12 @@ struct NodeBucketList {
             return Iterator(iter.curr, iter.iterator_count);
         }
 
-        Iterator(pptr<NodeBucket<T>> but, size_t it) : curr(but), iterator_count(it)
+        Iterator(pptr<NodeBucket<T>> but, uint64_t it) : curr(but), iterator_count(it)
         { }
 
         inline void operator++()
         {
-            if (iterator_count < curr->fill_count) {
+            if (iterator_count < curr->fill_count - 1) {
                 iterator_count++;
             }
             else {
@@ -124,9 +126,9 @@ struct NodeBucketList {
             }
         }
 
-	inline void operator++(int) {
-            this->operator++();
-	}
+        inline void operator++(int) {
+                this->operator++();
+        }
 
         inline friend bool operator==(const Iterator& lhs, const Iterator& rhs)
         {
@@ -156,7 +158,7 @@ struct NodeBucketList {
 
     inline Iterator end()
     {
-        return Iterator(last, last->fill_count);
+        return Iterator(nullptr, 0);
     }
 
     NodeBucketList()
@@ -264,5 +266,28 @@ struct NodeBucketList {
             it = it->getNext();
         }
         return false;
+    }
+
+    void printAll()
+    {
+        auto curr = first;
+        while (curr != nullptr) {
+            for (uint32_t c = 0; c < curr->fill_count; c++) {
+                trace_l(T_INFO, curr->getBucketEntry(c));
+            }
+
+            curr = curr->getNext();
+        }
+    }
+
+    void printAllIter()
+    {
+        auto curr = begin();
+
+        while (curr != end())
+        {
+            trace_l(T_INFO, curr.get());
+            curr++;
+        }
     }
 };

@@ -1,12 +1,11 @@
 #pragma once
 
-//#include <vector/complex/hash.h>
 #include <core/index/NodeBucketList.h>
-//#include <vector/datastructures/hash_based/hash_utils.h>
-//#include <vector/datastructures/hash_based/strategies/linear_probing.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
+
+#include <functional>
 
 namespace morphstore {
 

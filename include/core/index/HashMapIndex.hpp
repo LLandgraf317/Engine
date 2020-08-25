@@ -76,7 +76,8 @@ public:
         m_Init = true;
     }
 
-    const column<uncompr_f> * find(uint64_t key)
+    //const column<uncompr_f> * find(uint64_t key)
+    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
     {
         using HashMapElem = std::tuple<uint64_t, pptr<NodeBucketList<uint64_t>>>; 
         HashMapElem res = m_HashMap->lookup(key);

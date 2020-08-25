@@ -9,6 +9,7 @@
 #include <core/storage/PersistentColumn.h>
 #include <core/storage/column.h>
 #include <vector/scalar/extension_scalar.h>
+#include <core/tracing/trace.h>
 
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/calc_uncompr.h>
@@ -54,7 +55,7 @@ int main( void ) {
 
     auto pop = root_mgr.getPop(0);
 
-    const size_t ARRAY_SIZE = 40;
+    const size_t ARRAY_SIZE = 4000;
     const size_t SEED = 42;
 
     trace_l(T_DEBUG, "Creating persistent column");
@@ -62,7 +63,7 @@ int main( void ) {
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
                0, 20, 0.5, 50, 60, 0.005, false, 0, SEED);
 
-    print(col->convert(), col->convert());
+    //print(col->convert(), col->convert());
 
     trace_l(T_DEBUG, "Creating index");
     pmem::obj::persistent_ptr<HashMapIndex> index;
@@ -71,18 +72,22 @@ int main( void ) {
             make_persistent<HashMapIndex>(61, 0, std::string(""), std::string(""), std::string(""));
     });
 
+    trace_l(T_INFO, "Generating index");
     index->generateKeyToPos(col);
+    trace_l(T_INFO, "Index construction finished");
 
     const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(col->convert(), 0);
     const column<uncompr_f> * outPosIndex = index->find(0);
 
-    print(outPosOrig, outPosIndex);
+    //print(outPosOrig, outPosIndex);
 
     uint64_t * const orig = outPosOrig->get_data();
     uint64_t * const ind = outPosIndex->get_data();
 
+    trace_l(T_INFO, "Sorting");
     std::sort(orig, orig + outPosOrig->get_count_values());
     std::sort(ind, ind + outPosIndex->get_count_values());
+    trace_l(T_INFO, "Sorting finished");
 
     const column<uncompr_f> * outComp = calc_binary<
                     std::minus,
@@ -99,5 +104,7 @@ int main( void ) {
         delete_persistent<HashMapIndex>(index);
         delete_persistent<PersistentColumn>(col);
     });
+
+    trace_l(T_INFO, "Success");
     return 0;
 }

@@ -297,8 +297,8 @@ const column<uncompr_f> * generate_with_distr(
         size_t countValues,
         t_distr<uint64_t> distr,
         bool sorted,
-        int numa_node,
-        size_t seed = 0
+        size_t seed = 0,
+        int numa_node = 0
 ) {
     const size_t allocationSize = countValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize, numa_node);
@@ -325,8 +325,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_with_distr_pers(
         size_t countValues,
         t_distr<uint64_t> distr,
         bool sorted,
-        int numa_node_number,
-        size_t seed = 0
+        size_t seed = 0,
+        int numa_node_number = 0
 ) {
     const size_t allocationSize = countValues * sizeof(uint64_t);
     pmem::obj::persistent_ptr<PersistentColumn> resCol;

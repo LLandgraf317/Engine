@@ -29,9 +29,7 @@
 
 #include <core/operators/general_vectorized/between_compr.h>
 
-#include <numa.h>
 #include <pthread.h>
-#include <unistd.h>
 
 #include <iostream>
 #include <random>
@@ -346,8 +344,8 @@ int main(int /*argc*/, char** /*argv*/)
         return -1;
     }
 
-    RootInitializer::initPmemPool();
-    auto node_number = RootInitializer::getNumaNodeCount();
+    RootInitializer::getInstance().initPmemPool();
+    auto node_number = RootInitializer::getInstance().getNumaNodeCount();
 
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
