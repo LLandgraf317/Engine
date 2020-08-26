@@ -82,19 +82,7 @@ public:
         using HashMapElem = std::tuple<uint64_t, pptr<NodeBucketList<uint64_t>>>; 
         HashMapElem res = m_HashMap->lookup(key);
 
-        size_t elemCount = std::get<1>(res)->getCountValues();
-
-        column<uncompr_f> * outCol = new column<uncompr_f>(sizeof(uint64_t) * elemCount);
-        uint64_t * outData = outCol->get_data();
-
-        NodeBucketList<uint64_t>::Iterator iter = std::get<1>(res)->begin();
-        for (; iter != std::get<1>(res)->end(); iter++) {
-            (*outData) = iter.get();
-            outData++;
-        }
-        outCol->set_meta_data(elemCount, sizeof(uint64_t) * elemCount);
-
-        return outCol;
+        return std::get<1>(res);
 	}
 
     void insert(uint64_t key, uint64_t value)

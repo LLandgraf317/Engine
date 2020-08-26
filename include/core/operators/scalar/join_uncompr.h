@@ -114,6 +114,9 @@ ds_join(DS1 ds1, DS2 ds2)
     auto outPosLCol = new column<uncompr_f>(size);
     auto outPosRCol = new column<uncompr_f>(size);
 
+    uint64_t * outPosLData = outPosLCol->get_data();
+    uint64_t * outPosRData = outPosRCol->get_data();
+
     // assume both data structures realize a attr -> pos mapping
     auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
     {
@@ -121,10 +124,24 @@ ds_join(DS1 ds1, DS2 ds2)
 
         auto iter1 = val->begin();
         auto iter2 = positions->begin();
+
+        for (; iter1 != val->end(); iter1++) {
+            for (; iter2 != val->end(); iter2++) {
+                *outPosLData = iter1.get();
+                *outPosRData = iter2.get();
+                outPosLData++;
+                outPosRData++;
+            }
+        }
+
     };
     ds1->scan(materialize_lambda);
 
-    return std::make_tuple(nullptr, nullptr);
+    size_t countOut = reinterpret_cast<size_t>( outPosLData - (uint64_t*) outPosLCol->get_data() ) / sizeof(uint64_t) ;
+    outPosLCol->set_meta_data(countOut, size);
+    outPosRCol->set_meta_data(countOut, size);
+
+    return std::make_tuple(outPosLCol, outPosRCol);
 }
         
 

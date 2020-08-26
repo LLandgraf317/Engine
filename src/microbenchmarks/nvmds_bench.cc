@@ -455,7 +455,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 55, 0);
         measure("Duration of selection on persistent tree: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f>::apply, &(*indexes[i]), 10);
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*indexes[i]), 10);
         measure("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 55, 0);
     }

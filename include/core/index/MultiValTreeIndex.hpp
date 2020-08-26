@@ -73,7 +73,7 @@ public:
 
     size_t getCountValues()
     {
-	return m_CountTuples;
+        return m_CountTuples;
     }
 
     pptr<NodeBucketList<uint64_t>> find(uint64_t key)

@@ -116,9 +116,15 @@ public:
     }
 
     using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
-    void apply(KeyType /*key*/, ScanFunc /*func*/)
+    void apply(KeyType key, ScanFunc func)
     {
+        auto i = std::get<1>(this->lookup(key));
+        func(key, i);
 
+        /*auto iter = i->begin();
+        for (; iter != i->end(); iter++) {
+            func(key, iter.get());
+        }*/
     }
 
     bool erase(KeyType key, ValueType val)

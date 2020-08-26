@@ -80,12 +80,13 @@ struct select_t<t_op, vectorlib::scalar<vectorlib::v64<uint64_t>>, uncompr_f, un
 
 template<template<typename> class t_op,
         class t_out_pos_f,
-        class t_in_data_f
+        class t_in_data_f,
+        class index_structure
 >
 struct index_select_wit_t {
     static
     const column<t_out_pos_f> * apply(
-            pptr<MultiValTreeIndex> inDataIndex,
+            pptr<index_structure> inDataIndex,
             const uint64_t key
     ) {
         std::list<

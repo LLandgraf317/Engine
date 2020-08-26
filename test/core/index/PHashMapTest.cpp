@@ -77,7 +77,7 @@ int main( void ) {
     trace_l(T_INFO, "Index construction finished");
 
     const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(col->convert(), 0);
-    const column<uncompr_f> * outPosIndex = index->find(0);
+    const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply(index, 0);
 
     //print(outPosOrig, outPosIndex);
 
