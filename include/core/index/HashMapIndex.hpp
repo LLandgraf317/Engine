@@ -103,14 +103,13 @@ public:
     using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
     void scan(const uint64_t &minKey, const uint64_t &maxKey, ScanFunc func) const
     {
-        for (uint64_t i = minKey; i <= maxKey; i++)
-            m_HashMap->apply(i, func);
+        m_HashMap->apply(minKey, maxKey, func);
     }
 
     void scan(ScanFunc func) const
     {
-        for (uint64_t i = 0; i <= m_EstimateElemCount; i++)
-            m_HashMap->apply(i, func);
+        //for (uint64_t i = 0; i <= m_EstimateElemCount; i++)
+        m_HashMap->apply(func);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)

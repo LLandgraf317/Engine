@@ -86,6 +86,9 @@ public:
     {
         auto entry = m_Map[m_HashStrategy.apply(key)];
 
+        if (entry == nullptr)
+            return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+
         typename NodeBucketList<HashMapElem>::Iterator iter = entry->begin();
         for (; iter != entry->end(); iter++) {
             if (std::get<0>(iter.get()) == key)
@@ -116,15 +119,42 @@ public:
     }
 
     using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
-    void apply(KeyType key, ScanFunc func)
+    void apply(ScanFunc func)
     {
-        auto i = std::get<1>(this->lookup(key));
-        func(key, i);
+        //pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
+        //using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType>>>; 
+   
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+            auto key_bucket_iter = m_Map[i]->begin();
 
-        /*auto iter = i->begin();
-        for (; iter != i->end(); iter++) {
-            func(key, iter.get());
-        }*/
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                func(std::get<0>(pair), node_bucket);
+            }
+        }
+    }
+
+    void apply(const KeyType &minKey, const KeyType maxKey, ScanFunc func)
+    {
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+
+            auto key_bucket_iter = m_Map[i]->begin();
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                KeyType key = std::get<0>(pair);
+
+                if (key < minKey || key > maxKey)
+                        continue;
+
+                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                func(key, node_bucket);
+            }
+        }
     }
 
     bool erase(KeyType key, ValueType val)

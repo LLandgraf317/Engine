@@ -98,14 +98,16 @@ struct index_select_wit_t {
         //This might be slow, check back with execution times
         auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
         {
+            trace_l(T_INFO, "called operation on ", given_key);
             if (op(given_key, key)) {
                 bucket_lists_list.push_back(val);
+                trace_l(T_INFO, "Adding values: ", val->getCountValues());
                 sum_count_values += val->getCountValues();
             }
         };
         inDataIndex->scan(materialize_lambda);
 
-        const column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
         uint64_t* value_data = valueCol->get_data();
 
         for (auto bucketListIter = bucket_lists_list.begin(); bucketListIter != bucket_lists_list.end(); bucketListIter++) {
@@ -116,6 +118,8 @@ struct index_select_wit_t {
                 }
             }
         }
+
+        valueCol->set_meta_data(sum_count_values, sum_count_values * sizeof(uint64_t));
 
         return valueCol;
     }

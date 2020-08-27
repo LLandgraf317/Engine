@@ -81,6 +81,9 @@ int main( void ) {
 
     //print(outPosOrig, outPosIndex);
 
+    trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+    trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+
     uint64_t * const orig = outPosOrig->get_data();
     uint64_t * const ind = outPosIndex->get_data();
 

@@ -27,7 +27,7 @@ struct root_retrieval {
 class RootInitializer {
 
     static constexpr auto LAYOUT = "NVMDS";
-    static constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * 4ull;  //< 4GB
+    static constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * 1ull;  //< 4GB
 
     ~RootInitializer()
     {

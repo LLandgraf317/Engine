@@ -14,14 +14,14 @@ namespace morphstore {
 
 class SkipListIndex {
 private:
-    pmem::obj::persistent_ptr<simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>> m_SkipList;
+    pmem::obj::persistent_ptr<dbis::pskiplists::simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>> m_SkipList;
     size_t m_CountTuples;
     size_t m_PmemNode;
     bool m_Init;
 
 public:
-    SkipListIndex(int p_PmemNode, uint64_t maxKey) : m_CountTuples(0), m_PmemNode(p_PmemNode), m_Init(false) {
-        m_SkipList = pmem::obj::make_persistent<simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>>(maxKey);
+    SkipListIndex(int p_PmemNode) : m_CountTuples(0), m_PmemNode(p_PmemNode), m_Init(false) {
+        m_SkipList = pmem::obj::make_persistent<dbis::pskiplists::simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>>();
     }
 
     void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
@@ -53,15 +53,14 @@ public:
         m_Init = true;
     }
 
-    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
+    pptr<const NodeBucketList<uint64_t>> find(uint64_t key)
     {
         pptr<NodeBucketList<uint64_t>> list;
-        auto node = m_SkipList->search(key);
-       
-        if (node != nullptr)
-           return node->value;
-        else
-           return nullptr; 
+        bool success = m_SkipList->search(key, list);
+        if (!success)
+            return nullptr;
+        
+        return list;
     }
 
     bool insert(uint64_t key, uint64_t value)
@@ -70,33 +69,43 @@ public:
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-        auto node = m_SkipList->search(key);
+        bool success = m_SkipList->search(key, list);
         
-        if (node == nullptr) {
-            list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
+        if (!success) {
+            if (list == nullptr)
+                list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
             list->insertValue(value);
             m_SkipList->insert(key, list);
         }
         else {
-            node->value.get_rw()->insertValue(value);
+            if (list == nullptr)
+                list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
+            list->insertValue(value);
         }
 
         m_CountTuples++;
         return true;
     }
 
-    bool lookup(uint64_t key, uint64_t val)
+    bool lookup(uint64_t key, uint64_t val) const
     {
-        auto node = m_SkipList->search(key);
+        pptr<NodeBucketList<uint64_t>> list;
+        bool success = m_SkipList->search(key, list);
+        if (!success || list == nullptr)
+            return false;
 
-        return node->value.get_rw()->lookup(val);
+        return list->lookup(val);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)
     {
-        auto node = m_SkipList->search(key);
+        pptr<NodeBucketList<uint64_t>> list;
+        bool success = m_SkipList->search(key, list);
+        
+        if (!success || list == nullptr)
+            return false;
 
-        return node->value.get_rw()->deleteValue(value);
+        return list->deleteValue(value);
     }
 
     using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
