@@ -39,7 +39,7 @@ public:
         pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
         m_Init = false;
-	m_CountTuples = 0;
+        m_CountTuples = 0;
     }
 
     void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
@@ -100,9 +100,6 @@ public:
             });
         }
         else {
-            RootManager& mgr = RootManager::getInstance();
-            pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
-
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t>>();
                 m_Tree->insert(key, list);

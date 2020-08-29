@@ -68,30 +68,26 @@ public:
         return list;
     }
 
-    bool insert(uint64_t key, uint64_t value)
+    void insert(uint64_t key, uint64_t value)
     {
         pptr<NodeBucketList<uint64_t>> list;
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-        bool success = m_SkipList->search(key, list);
-       
-        pmem::obj::transaction::run(pop, [&]() { 
-            if (!success) {
-                if (list == nullptr)
-                    list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
-                list->insertValue(value);
+        if (m_SkipList->search(key, list)) {
+            transaction::run(pop, [&] {
+                list->insertValue(value); 
+            });
+        }
+        else {
+            transaction::run(pop, [&] {
+                list = make_persistent<NodeBucketList<uint64_t>>();
                 m_SkipList->insert(key, list);
-            }
-            else {
-                if (list == nullptr)
-                    list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
                 list->insertValue(value);
-            }
-        });
+            });
+        }
 
         m_CountTuples++;
-        return true;
     }
 
     bool lookup(uint64_t key, uint64_t val) const
