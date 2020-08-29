@@ -104,42 +104,17 @@ namespace morphstore {
       template<class, int> class t_compare_lower, // not used yet
       template<class, int> class t_compare_upper, // not used yet
       class t_out_pos_f,
-      class t_in_data_f
+      class t_in_data_f,
+      class index_structure
    >
    struct index_between_wit_t {
       static const column<t_out_pos_f> * apply(
-         pptr<MultiValTreeIndex> inDataIndex,
+         pptr<index_structure> inDataIndex,
          const uint64_t val_lower,
          const uint64_t val_upper
       ) {
-        // first we collect all buckets with positionals to get a precise count of out values
-        std::list<pptr<NodeBucketList<uint64_t>>> bucket_lists_list;
-        size_t sum_count_values = 0;
-
-        /*auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
-        {
-            bucket_lists_list.push_back(val);
-            sum_count_values += val->getCountValues();
-        };*/
-        //inDataIndex->scanValue(val_lower, val_upper, materialize_lambda);
- 
-        auto outPosCol = new column<t_out_pos_f>(inDataIndex->getCountValues());
-        sum_count_values = inDataIndex->scanValue(val_lower, val_upper, outPosCol);
-        /*uint64_t* outPtr = outPosCol->get_data();
-        for (auto listsIter = bucket_lists_list.begin(); listsIter != bucket_lists_list.end(); listsIter++) {
-            // TODO: find a good member function based solution for iterating the bucket list, maybe iterator pattern based?
-            auto buck = (*listsIter)->first;
-            while (buck != nullptr) {
-                for (size_t i = 0; i < buck->fill_count; i++) {
-                    *outPtr = buck->getBucketEntry(i);
-                    outPtr++;
-                }
-                buck = buck->getNext();
-            }
-        }*/
-        outPosCol->set_meta_data(
-            sum_count_values, inDataIndex->getCountValues() * sizeof(uint64_t)
-        );
+        column<uncompr_f> * outPosCol;
+        inDataIndex->scanValue(val_lower, val_upper, outPosCol);
 
         return outPosCol;
       }

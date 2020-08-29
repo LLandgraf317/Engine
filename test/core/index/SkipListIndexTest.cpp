@@ -4,18 +4,23 @@
 #include <core/access/root.h>
 #include <core/access/RootManager.h>
 #include <core/storage/column_gen.h>
+
+#include <core/operators/scalar/calc_uncompr.h>
+#include <core/operators/general_vectorized/between_compr.h>
 #include <core/operators/scalar/select_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
+
 #include <vector/primitives/compare.h>
 #include <core/morphing/format.h>
 #include <core/morphing/uncompr.h>
 #include <vector/scalar/extension_scalar.h>
-#include <core/operators/scalar/calc_uncompr.h>
 
 #include <core/index/SkipListIndex.hpp>
 
 using namespace morphstore;
 using namespace vectorlib;
+
+using ps = scalar<v64<uint64_t>>;
 
 int main( void ) {
 
@@ -35,28 +40,75 @@ int main( void ) {
     pmem::obj::persistent_ptr<PersistentColumn> col = 
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
                0, 20, 0.5, 50, 60, 0.005, false, 0, SEED);
+    const column<uncompr_f> * convCol = col->convert();
 
     index->generateKeyToPos(col);
 
-    const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(col->convert(), 0);
-    const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply(index, 0);
+    {
+        const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, 0);
+        const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply(index, 0);
 
-    uint64_t * const orig = outPosOrig->get_data();
-    uint64_t * const ind = outPosIndex->get_data();
+        trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+        trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
 
-    std::sort(orig, orig + outPosOrig->get_count_values());
-    std::sort(ind, ind + outPosIndex->get_count_values());
+        uint64_t * const orig = outPosOrig->get_data();
+        uint64_t * const ind = outPosIndex->get_data();
 
-    const column<uncompr_f> * outComp = calc_binary<
-                    std::minus,
-                    scalar<v64<uint64_t>>,
-                    uncompr_f,
-                    uncompr_f,
-                    uncompr_f>(outPosOrig, outPosIndex);
+        std::sort(orig, orig + outPosOrig->get_count_values());
+        std::sort(ind, ind + outPosIndex->get_count_values());
 
-    const uint64_t * data = outComp->get_data();
-    for (uint64_t i = 0; i < outComp->get_count_values(); i++)
-        assert(*data++ == 0);
+        // Calculate difference in results
+        const column<uncompr_f> * outComp = calc_binary<
+                        std::minus,
+                        scalar<v64<uint64_t>>,
+                        uncompr_f,
+                        uncompr_f,
+                        uncompr_f>(outPosOrig, outPosIndex);
+
+
+        // Check if output was identical
+        const uint64_t * data = outComp->get_data();
+        for (uint64_t i = 0; i < outComp->get_count_values(); i++)
+            assert(*data++ == 0);
+
+        delete outComp;
+        delete outPosOrig;
+        delete outPosIndex;
+    }
+
+    // Between operator
+    {
+        const column<uncompr_f> * outPosOrig = my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+                        ::apply( convCol, 51, 54, 0);
+        const column<uncompr_f> * outPosIndex = index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f, SkipListIndex>
+                        ::apply( index, 51, 54);
+
+        trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+        trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+
+        uint64_t * const orig = outPosOrig->get_data();
+        uint64_t * const ind = outPosIndex->get_data();
+
+        std::sort(orig, orig + outPosOrig->get_count_values());
+        std::sort(ind, ind + outPosIndex->get_count_values());
+
+        const column<uncompr_f> * outComp = calc_binary<
+                        std::minus,
+                        scalar<v64<uint64_t>>,
+                        uncompr_f,
+                        uncompr_f,
+                        uncompr_f>(outPosOrig, outPosIndex);
+
+        const uint64_t * data = outComp->get_data();
+        for (uint64_t i = 0; i < outComp->get_count_values(); i++)
+            assert(*data++ == 0);
+
+        delete outComp;
+        delete outPosOrig;
+        delete outPosIndex;
+    }
+
+    // Cleanup
 
     transaction::run(pop, [&] {
         delete_persistent<SkipListIndex>(index);

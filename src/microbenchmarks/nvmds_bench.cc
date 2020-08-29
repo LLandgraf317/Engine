@@ -488,8 +488,7 @@ int main(int /*argc*/, char** /*argv*/)
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 51, 54, 0);
         measure("Duration of between selection on persistent tree: ",
-
-                index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f>
+                index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f, MultiValTreeIndex>
                     ::apply, indexes[i], 8, 12);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >

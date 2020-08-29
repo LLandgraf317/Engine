@@ -151,12 +151,12 @@ struct NodeBucketList {
         }
     };
 
-    inline Iterator begin()
+    inline Iterator begin() const
     {
         return Iterator(first, 0);
     }
 
-    inline Iterator end()
+    inline Iterator end() const
     {
         return Iterator(nullptr, 0);
     }
@@ -169,12 +169,12 @@ struct NodeBucketList {
     }
 
     //TODO: need to nail pre and post conditions
-    inline bool isEmpty()
+    inline bool isEmpty() const
     {
         return first == nullptr || first->fill_count == 0;
     }
 
-    size_t getSum()
+    size_t getSum() const
     {
         if (first == nullptr)
             return 0; // should we throw an exception?
@@ -191,12 +191,12 @@ struct NodeBucketList {
         return sum;
     }
 
-    size_t getCountValues()
+    size_t getCountValues() const
     {
         return value_count;
     }
 
-    bool lookup(T val)
+    bool lookup(T val) const
     {
         if (first == nullptr)
             return false; // should we throw an exception?

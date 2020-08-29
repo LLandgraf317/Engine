@@ -125,5 +125,35 @@ struct index_select_wit_t {
     }
 };
 
+template<class t_out_pos_f,
+        class t_in_data_f,
+        class index_structure
+>
+struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structure> {
+    static
+    const column<t_out_pos_f> * apply(
+            pptr<index_structure> inDataIndex,
+            const uint64_t key
+    ) {
+        pptr<const NodeBucketList<uint64_t>> bucket_lists_list;
+
+        bucket_lists_list = inDataIndex->find(key);
+        size_t sum_count_values = bucket_lists_list->getCountValues();
+
+        column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t* value_data = valueCol->get_data();
+
+        for (auto iter = bucket_lists_list->begin(); iter != bucket_lists_list->end(); iter++) {
+            *value_data = iter.get();
+            value_data++;
+        }
+
+        valueCol->set_meta_data(sum_count_values, sum_count_values * sizeof(uint64_t));
+
+        return valueCol;
+    }
+};
+
+
 }
 #endif //MORPHSTORE_CORE_OPERATORS_SCALAR_SELECT_UNCOMPR_H

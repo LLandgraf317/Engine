@@ -53,6 +53,11 @@ public:
         m_Init = true;
     }
 
+    size_t getCountValues() const
+    {
+        return m_CountTuples;
+    }
+
     pptr<const NodeBucketList<uint64_t>> find(uint64_t key)
     {
         pptr<NodeBucketList<uint64_t>> list;
@@ -70,18 +75,20 @@ public:
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
         bool success = m_SkipList->search(key, list);
-        
-        if (!success) {
-            if (list == nullptr)
-                list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
-            list->insertValue(value);
-            m_SkipList->insert(key, list);
-        }
-        else {
-            if (list == nullptr)
-                list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
-            list->insertValue(value);
-        }
+       
+        pmem::obj::transaction::run(pop, [&]() { 
+            if (!success) {
+                if (list == nullptr)
+                    list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
+                list->insertValue(value);
+                m_SkipList->insert(key, list);
+            }
+            else {
+                if (list == nullptr)
+                    list = pmem::obj::make_persistent<NodeBucketList<uint64_t>>();
+                list->insertValue(value);
+            }
+        });
 
         m_CountTuples++;
         return true;
@@ -105,13 +112,47 @@ public:
         if (!success || list == nullptr)
             return false;
 
-        return list->deleteValue(value);
+        if (list->deleteValue(value)) {
+            m_CountTuples--;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
-    void scan(ScanFunc /*func*/) const
+    void scan(ScanFunc func) const
     {
-        //m_Tree->scan(func);
+        m_SkipList->scan(func);
+    }
+
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
+        std::list<pptr<NodeBucketList<uint64_t>>> list;
+        m_SkipList->scanValue(minKey, maxKey, list);
+        size_t sum_count_values = 0;
+
+        for (auto i : list) {
+            sum_count_values += (*i).getCountValues();
+        }
+
+        outCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t * data = outCol->get_data();
+
+        for (auto i : list) {
+            NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+            while (iter != (*i).end()) {
+                *data = iter.get();
+                data++;
+            }
+        }
+
+        outCol->set_meta_data(sum_count_values, sizeof(uint64_t) * sum_count_values);
+    }
+
+    void print()
+    {
+        m_SkipList->printList();
     }
 };
 
