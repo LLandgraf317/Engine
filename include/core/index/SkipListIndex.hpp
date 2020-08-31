@@ -87,9 +87,6 @@ public:
             });
         }
 
-        trace_l(T_INFO, "Inserting ", key, "; ", value);
-        printContents();
-
         m_CountTuples++;
     }
 

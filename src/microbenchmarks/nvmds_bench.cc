@@ -403,19 +403,20 @@ int main(int /*argc*/, char** /*argv*/)
         valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
 
         trace_l(T_INFO, "Constructing MuliValTreeIndex");
-	root_mgr.drainAll();
+        root_mgr.drainAll();
 
         pptr<MultiValTreeIndex> index;
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
         trace_l(T_INFO, "Running transaction");
-	auto pop = root_mgr.getPop(i);
+
+        auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
             index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
         });
         index->generateKeyToPos(valCol);
         indexes.push_back(index);
-	root_mgr.drainAll();
+        root_mgr.drainAll();
 
     }
     root_mgr.drainAll();

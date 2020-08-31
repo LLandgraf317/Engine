@@ -31,7 +31,7 @@ class RootInitializer {
 
     ~RootInitializer()
     {
-        trace_l(T_DEBUG, "Destoying RootInitializer");
+        trace_l(T_DEBUG, "Destroying RootInitializer");
     }
 
 public:
