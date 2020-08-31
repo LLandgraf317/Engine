@@ -55,7 +55,7 @@ int main( void ) {
 
     auto pop = root_mgr.getPop(0);
 
-    const size_t ARRAY_SIZE = 4000;
+    const size_t ARRAY_SIZE = 3000;
     const size_t SEED = 42;
 
     trace_l(T_DEBUG, "Creating persistent column");

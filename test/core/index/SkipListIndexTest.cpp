@@ -29,7 +29,7 @@ int main( void ) {
 
     auto pop = root_mgr.getPop(0);
 
-    const size_t ARRAY_SIZE = 4000;
+    const size_t ARRAY_SIZE = 20;
     const size_t SEED = 42;
 
     pmem::obj::persistent_ptr<SkipListIndex> index;
@@ -39,41 +39,54 @@ int main( void ) {
     });
     pmem::obj::persistent_ptr<PersistentColumn> col = 
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
-               0, 20, 0.5, 50, 60, 0.005, false, 0, SEED);
+               0, 14, 0.5, 15, 20, 0.005, false, 0, SEED);
     const column<uncompr_f> * convCol = col->convert();
 
     index->generateKeyToPos(col);
 
+    trace_l(T_INFO, "Orig val: ", convCol->get_count_values(), ", index val: ", index->getCountValues());
+
     {
-        const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, 0);
-        const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply(index, 0);
+        size_t sum_col = 0;
+        size_t sum_ind = 0;
 
-        trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
-        trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+        for (uint64_t i = 0; i < 25; i++) {
+            const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, i);
+            const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply(index, i);
 
-        uint64_t * const orig = outPosOrig->get_data();
-        uint64_t * const ind = outPosIndex->get_data();
+            trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+            trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+            trace_l(T_INFO, "");
 
-        std::sort(orig, orig + outPosOrig->get_count_values());
-        std::sort(ind, ind + outPosIndex->get_count_values());
+            sum_col += outPosOrig->get_count_values();
+            sum_ind += outPosIndex->get_count_values();
 
-        // Calculate difference in results
-        const column<uncompr_f> * outComp = calc_binary<
-                        std::minus,
-                        scalar<v64<uint64_t>>,
-                        uncompr_f,
-                        uncompr_f,
-                        uncompr_f>(outPosOrig, outPosIndex);
+            /*uint64_t * const orig = outPosOrig->get_data();
+            uint64_t * const ind = outPosIndex->get_data();
+
+            std::sort(orig, orig + outPosOrig->get_count_values());
+            std::sort(ind, ind + outPosIndex->get_count_values());
+
+            // Calculate difference in results
+            const column<uncompr_f> * outComp = calc_binary<
+                            std::minus,
+                            scalar<v64<uint64_t>>,
+                            uncompr_f,
+                            uncompr_f,
+                            uncompr_f>(outPosOrig, outPosIndex);
 
 
-        // Check if output was identical
-        const uint64_t * data = outComp->get_data();
-        for (uint64_t i = 0; i < outComp->get_count_values(); i++)
-            assert(*data++ == 0);
+            // Check if output was identical
+            const uint64_t * data = outComp->get_data();
+            for (uint64_t i = 0; i < outComp->get_count_values(); i++)
+                assert(*data++ == 0);
 
-        delete outComp;
-        delete outPosOrig;
-        delete outPosIndex;
+            delete outComp;*/
+            delete outPosOrig;
+            delete outPosIndex;
+        }
+
+        trace_l(T_INFO, "Sum of col: ", sum_col, ", sum of index: ", sum_ind);
     }
 
     // Between operator

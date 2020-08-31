@@ -87,6 +87,9 @@ public:
             });
         }
 
+        trace_l(T_INFO, "Inserting ", key, "; ", value);
+        printContents();
+
         m_CountTuples++;
     }
 
@@ -149,6 +152,20 @@ public:
     void print()
     {
         m_SkipList->printList();
+    }
+
+    void printContents()
+    {
+        auto printLambda = [&](const uint64_t &key, const pptr<NodeBucketList<uint64_t>> buck) {
+            trace_l(T_INFO, "key: ", key, ", value_count: ", buck->getCountValues());
+            trace_l(T_INFO, "values: ");
+            for (auto iter = buck->begin(); iter != buck->end(); iter++) {
+                trace_l(T_INFO, iter.get());
+            } 
+            trace_l(T_INFO, "");
+        };
+
+        m_SkipList->scan(printLambda);
     }
 };
 
