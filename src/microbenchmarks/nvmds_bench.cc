@@ -476,7 +476,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum, &(*indexes[i]));
+                group_agg_sum<MultiValTreeIndex>, &(*indexes[i]));
         measure("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }

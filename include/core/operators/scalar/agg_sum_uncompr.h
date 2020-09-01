@@ -37,6 +37,7 @@
 #include <stdexcept>
 #include <tuple>
 #include <unordered_map>
+#include <map>
 
 namespace morphstore {
 
@@ -63,9 +64,10 @@ agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
 
 
 // group parameter is key, sum attr is value
+template<class index_structure>
 std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
 group_agg_sum(
-        const MultiValTreeIndex * const inDataIndex
+        const pptr<index_structure> inDataIndex
 ) {
     std::map<uint64_t, uint64_t> bucket_map;
     auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)

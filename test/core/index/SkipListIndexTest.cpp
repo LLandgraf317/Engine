@@ -9,6 +9,7 @@
 #include <core/operators/general_vectorized/between_compr.h>
 #include <core/operators/scalar/select_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
+#include <core/operators/scalar/agg_sum_uncompr.h>
 
 #include <vector/primitives/compare.h>
 #include <core/morphing/format.h>
@@ -17,6 +18,7 @@
 
 #include <core/index/SkipListIndex.hpp>
 #include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/HashMapIndex.hpp>
 
 using namespace morphstore;
 using namespace vectorlib;
@@ -30,6 +32,7 @@ public:
     static void test(pmem::obj::persistent_ptr<index_structure> index, pmem::obj::persistent_ptr<PersistentColumn> col) {
 
         const column<uncompr_f> * convCol = col->convert();
+        //const column<uncompr_f> * posCol = generate_sorted_unique( col->get_count_values(), 0, 0, 1);
         trace_l(T_INFO, "Orig val: ", convCol->get_count_values(), ", index val: ", index->getCountValues());
 
         {
@@ -107,6 +110,57 @@ public:
             delete outPosIndex;
         }
 
+        // agg_sum
+        {
+
+            //column<uncompr_f> * keyColCol;
+
+            /*const column<uncompr_f> * sumColCol = agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>( convCol, posCol, 21 );
+            std::tuple<const column<uncompr_f>*, const column<uncompr_f>*> ret = group_agg_sum<index_structure>( index );
+
+            uint64_t * orig = keyColCol->get_data();
+            uint64_t * ind = keyColInd->get_data();
+
+            std::sort(orig, orig + keyColCol->get_count_values());
+            std::sort(ind, ind + keyColInd->get_count_values());
+            
+            {
+                const column<uncompr_f> * outComp = calc_binary<
+                                std::minus,
+                                scalar<v64<uint64_t>>,
+                                uncompr_f,
+                                uncompr_f,
+                                uncompr_f>(keyColCol, keyColInd);
+
+                const uint64_t * data = outComp->get_data();
+                for (uint64_t i = 0; i < outComp->get_count_values(); i++)
+                    assert(*data++ == 0);
+
+                delete outComp;
+            }*/
+
+            /*orig = sumColCol->get_data();
+            ind = sumColInd->get_data();
+
+            std::sort(orig, orig + sumColCol->get_count_values());
+            std::sort(ind, ind + sumColInd->get_count_values());
+            {
+                const column<uncompr_f> * outComp = calc_binary<
+                                std::minus,
+                                scalar<v64<uint64_t>>,
+                                uncompr_f,
+                                uncompr_f,
+                                uncompr_f>(sumColCol, sumColInd);
+
+                const uint64_t * data = outComp->get_data();
+                for (uint64_t i = 0; i < outComp->get_count_values(); i++)
+                    assert(*data++ == 0);
+
+                delete outComp;
+            }*/
+
+        }
+
     }
 };
 
@@ -123,9 +177,14 @@ int main( void ) {
 
     pmem::obj::persistent_ptr<SkipListIndex> skiplist;
     pmem::obj::persistent_ptr<MultiValTreeIndex> tree;
+    pmem::obj::persistent_ptr<HashMapIndex> hashmap;
+
     transaction::run(pop, [&] {
         skiplist = pmem::obj::make_persistent<SkipListIndex>(0);
-        tree = pmem::obj::make_persistent<MultiValTreeIndex>(0, alloc_class, std::string(""), std::string(""), std::string("")); // pobj_alloc_class_desc alloc_class, std::string table, std::string relation, std::string attribute)
+        tree = pmem::obj::make_persistent<MultiValTreeIndex>(0, alloc_class, std::string(""), std::string(""), std::string(""));
+    });
+    transaction::run(pop, [&] {
+        hashmap = pmem::obj::make_persistent<HashMapIndex>(20, 0, std::string(""), std::string(""), std::string(""));
     });
 
     pmem::obj::persistent_ptr<PersistentColumn> col = 
@@ -134,14 +193,17 @@ int main( void ) {
 
     skiplist->generateKeyToPos(col);
     tree->generateKeyToPos(col);
+    hashmap->generateKeyToPos(col);
 
     IndexTest<SkipListIndex>::test(skiplist, col);
     IndexTest<MultiValTreeIndex>::test(tree, col);
+    IndexTest<HashMapIndex>::test(hashmap, col);
 
     // Cleanup
     transaction::run(pop, [&] {
         delete_persistent<SkipListIndex>(skiplist);
         delete_persistent<MultiValTreeIndex>(tree);
+        delete_persistent<HashMapIndex>(hashmap);
         delete_persistent<PersistentColumn>(col);
     });
 

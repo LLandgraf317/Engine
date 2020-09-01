@@ -28,6 +28,8 @@ class HashMapIndex {
 
     bool m_Init;
     uint64_t m_EstimateElemCount;
+    size_t m_CountTuples;
+
 public:
 
     HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
@@ -76,6 +78,11 @@ public:
         m_Init = true;
     }
 
+    size_t getCountValues()
+    {
+        return m_CountTuples;
+    }
+
     //const column<uncompr_f> * find(uint64_t key)
     pptr<NodeBucketList<uint64_t>> find(uint64_t key)
     {
@@ -93,6 +100,8 @@ public:
         transaction::run(pop, [&] {
             m_HashMap->insert(key, value);	
         });
+
+        m_CountTuples++;
     }
 
     bool lookup(uint64_t key, uint64_t val)
@@ -108,13 +117,42 @@ public:
 
     void scan(ScanFunc func) const
     {
-        //for (uint64_t i = 0; i <= m_EstimateElemCount; i++)
         m_HashMap->apply(func);
+    }
+
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
+        std::list<pptr<NodeBucketList<uint64_t>>> list;
+
+        m_HashMap->scanValue(minKey, maxKey, list);
+        size_t sum_count_values = 0;
+
+        for (auto i : list) {
+            sum_count_values += (*i).getCountValues();
+        }
+
+        outCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t * data = outCol->get_data();
+
+        for (auto i : list) {
+            NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+            while (iter != (*i).end()) {
+                *data = iter.get();
+                data++;
+            }
+        }
+
+        outCol->set_meta_data(sum_count_values, sizeof(uint64_t) * sum_count_values);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)
     {
-        return m_HashMap->erase(key, value);
+        if (m_HashMap->erase(key, value)) {
+            m_CountTuples--;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
 };

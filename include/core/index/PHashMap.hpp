@@ -6,6 +6,7 @@
 #include <libpmemobj++/p.hpp>
 
 #include <functional>
+#include <list>
 
 namespace morphstore {
 
@@ -121,9 +122,6 @@ public:
     using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
     void apply(ScanFunc func)
     {
-        //pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
-        //using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType>>>; 
-   
         for (size_t i = 0; i < m_MapElemCount; i++) {
             if (m_Map[i] == nullptr)
                 continue;
@@ -153,6 +151,25 @@ public:
 
                 pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
                 func(key, node_bucket);
+            }
+        }
+    }
+
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<pptr<NodeBucketList<ValueType>>> &outList) const {
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+
+            auto key_bucket_iter = m_Map[i]->begin();
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                KeyType key = std::get<0>(pair);
+
+                if (key < minKey || key > maxKey)
+                        continue;
+
+                pptr<NodeBucketList<ValueType>> value = std::get<1>(pair);
+                outList.push_back(value);
             }
         }
     }

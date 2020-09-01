@@ -26,22 +26,47 @@ int main( void )
         bucket_list = make_persistent<NodeBucketList<uint64_t>>();
     });
 
+    auto i = bucket_list->begin();
+    assert(i == bucket_list->end());
+
     transaction::run(pop, [&]() {
         bucket_list->insertValue(8);
         bucket_list->insertValue(9);
     });
 
-    auto iter = bucket_list->begin();
+    {
+        auto iter = bucket_list->begin();
 
-    bucket_list->printAll();
-    bucket_list->printAllIter();
+        bucket_list->printAll();
+        bucket_list->printAllIter();
 
-    assert(iter.get() == 8);
-    iter++;
-    assert(iter.get() == 9);
-    iter++;
+        assert(iter.get() == 8);
+        iter++;
+        assert(iter.get() == 9);
+        iter++;
 
-    assert(iter == bucket_list->end());
+        assert(iter == bucket_list->end());
+    }
+
+    for (uint64_t i = 0; i < 1218ul; i++) {
+        transaction::run(pop, [&]() {
+            bucket_list->insertValue(i + 10);
+        });
+    }
+
+    {
+        auto iter = bucket_list->begin();
+        uint64_t i = 0;
+
+        while (iter != bucket_list->end()) {
+            if (iter.get() != 8+i)
+                std::cout << "Assertion failed, iter is " << iter.get() << ", should be " << 8+i << std::endl;
+            assert(iter.get() == 8 + i);
+            iter++;
+            i++;
+        }
+    }
+
   
     trace_l(T_INFO, "Success");     
     return 0;

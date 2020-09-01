@@ -117,7 +117,7 @@ struct NodeBucketList {
 
         inline void operator++()
         {
-            if (iterator_count < curr->fill_count - 1) {
+            if (iterator_count + 1 < curr->fill_count) {
                 iterator_count++;
             }
             else {

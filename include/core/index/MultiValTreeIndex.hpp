@@ -127,11 +127,13 @@ public:
     }
 
     inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &col) const {
+
         std::list<pptr<NodeBucketList<uint64_t>>> list;
         m_Tree->scanValue(minKey, maxKey, list);
         size_t sum_count_values = 0;
 
         for (auto i : list) {
+            std::cout << "adding values " << sum_count_values << std::endl;
             sum_count_values += (*i).getCountValues();
         }
 
@@ -140,9 +142,11 @@ public:
 
         for (auto i : list) {
             NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+
             while (iter != (*i).end()) {
                 *data = iter.get();
                 data++;
+                iter++;
             }
         }
 
