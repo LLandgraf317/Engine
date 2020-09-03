@@ -37,7 +37,7 @@
 #include <vector/vector_primitives.h>
 
 #include <tuple>
-
+#include <functional>
 #include <cstdint>
 
 namespace morphstore {
@@ -101,20 +101,105 @@ namespace morphstore {
    };
 
    template<
-      template<class, int> class t_compare_lower, // not used yet
-      template<class, int> class t_compare_upper, // not used yet
+      template<typename> class t_compare_lower,
+      template<typename> class t_compare_upper,
       class t_out_pos_f,
       class t_in_data_f,
       class index_structure
    >
    struct index_between_wit_t {
+      static
+      const column<t_out_pos_f> *
+      apply(
+          pptr<index_structure> index,
+          uint64_t const val_lower,
+          uint64_t const val_upper
+      );
+   };
+
+   template<
+      template<typename> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t_1 {
+      static const column<t_out_pos_f> * apply(
+         const uint64_t val_lower,
+         const uint64_t val_upper,
+         column<uncompr_f> * &outPosCol);
+   };
+
+   template<
+      template<typename> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t<std::greater_equal, t_compare_upper, t_out_pos_f, t_in_data_f, index_structure> {
+
+      static const column<t_out_pos_f> * apply(
+         pptr<index_structure> inDataIndex,
+         const uint64_t val_lower,
+         const uint64_t val_upper
+      ) {
+        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower-1, val_upper);
+      }
+
+   };
+
+   template<
+      template<typename> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t<std::greater, t_compare_upper, t_out_pos_f, t_in_data_f, index_structure> {
+
+      static const column<t_out_pos_f> * apply(
+         pptr<index_structure> inDataIndex,
+         const uint64_t val_lower,
+         const uint64_t val_upper
+      ) {
+        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower, val_upper);
+      }
+   };
+
+   template<
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t_1<std::less, t_out_pos_f, t_in_data_f, index_structure> {
       static const column<t_out_pos_f> * apply(
          pptr<index_structure> inDataIndex,
          const uint64_t val_lower,
          const uint64_t val_upper
       ) {
         column<uncompr_f> * outPosCol;
-        inDataIndex->scanValue(val_lower, val_upper, outPosCol);
+
+        index_structure &index = (*inDataIndex);
+        index.scanValue(val_lower, val_upper, outPosCol);
+
+        return outPosCol;
+      }
+   };
+
+   template<
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t_1<std::less_equal, t_out_pos_f, t_in_data_f, index_structure> {
+      static const column<t_out_pos_f> * apply(
+         pptr<index_structure> inDataIndex,
+         const uint64_t val_lower,
+         const uint64_t val_upper
+      ) {
+        column<uncompr_f> * outPosCol;
+
+        index_structure &index = (*inDataIndex);
+        index.scanValue(val_lower, val_upper+1, outPosCol);
 
         return outPosCol;
       }

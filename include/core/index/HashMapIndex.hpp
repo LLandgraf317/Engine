@@ -138,6 +138,7 @@ public:
             while (iter != (*i).end()) {
                 *data = iter.get();
                 data++;
+                iter++;
             }
         }
 

@@ -106,11 +106,10 @@ const std::tuple<
     >
 ds_join(DS1 ds1, DS2 ds2)
 {
-    const size_t size = bool(outCountEstimate)
-            // use given estimate
-            ? (outCountEstimate * sizeof(uint64_t))
-            // use pessimistic estimate
-            : (inDataLCount * inDataRCount * sizeof(uint64_t));
+    const size_t inDataLCount = ds1->getCountValues();
+    const size_t inDataRCount = ds2->getCountValues();
+    const size_t size = 
+             (inDataLCount * inDataRCount * sizeof(uint64_t));
     auto outPosLCol = new column<uncompr_f>(size);
     auto outPosRCol = new column<uncompr_f>(size);
 
@@ -118,28 +117,31 @@ ds_join(DS1 ds1, DS2 ds2)
     uint64_t * outPosRData = outPosRCol->get_data();
 
     // assume both data structures realize a attr -> pos mapping
+    unsigned iOut = 0;
     auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
     {
-        NodeBucketList<uint64_t> positions = ds2->find(given_key);
+        pptr<const NodeBucketList<uint64_t>> positions = ds2->find(given_key);
+
+        trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
 
         auto iter1 = val->begin();
-        auto iter2 = positions->begin();
-
         for (; iter1 != val->end(); iter1++) {
-            for (; iter2 != val->end(); iter2++) {
-                *outPosLData = iter1.get();
-                *outPosRData = iter2.get();
-                outPosLData++;
-                outPosRData++;
+            auto iter2 = positions->begin();
+            for (; iter2 != positions->end(); iter2++) {
+                outPosLData[iOut] = iter1.get();
+                outPosRData[iOut] = iter2.get();
+                iOut++;
             }
         }
+
+        trace_l(T_INFO, "iOut is now ", iOut);
 
     };
     ds1->scan(materialize_lambda);
 
-    size_t countOut = reinterpret_cast<size_t>( outPosLData - (uint64_t*) outPosLCol->get_data() ) / sizeof(uint64_t) ;
-    outPosLCol->set_meta_data(countOut, size);
-    outPosRCol->set_meta_data(countOut, size);
+    const size_t outSize = iOut * sizeof(uint64_t);
+    outPosLCol->set_meta_data(iOut, outSize);
+    outPosRCol->set_meta_data(iOut, outSize);
 
     return std::make_tuple(outPosLCol, outPosRCol);
 }

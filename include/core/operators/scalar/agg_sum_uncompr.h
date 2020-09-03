@@ -67,7 +67,8 @@ agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
 template<class index_structure>
 std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
 group_agg_sum(
-        const pptr<index_structure> inDataIndex
+        const pptr<index_structure> inDataIndex,
+        size_t inExtCount
 ) {
     std::map<uint64_t, uint64_t> bucket_map;
     auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
@@ -77,8 +78,10 @@ group_agg_sum(
     };
     inDataIndex->scan(materialize_lambda);
 
-    column<uncompr_f> * keyCol = new column<uncompr_f>(sizeof(uint64_t) * bucket_map.size());
-    column<uncompr_f> * sumCol = new column<uncompr_f>(sizeof(uint64_t) * bucket_map.size());
+    //const size_t total_count = bucket_map.size();
+
+    column<uncompr_f> * keyCol = new column<uncompr_f>(sizeof(uint64_t) * inExtCount);
+    column<uncompr_f> * sumCol = new column<uncompr_f>(sizeof(uint64_t) * inExtCount);
 
     uint64_t* key_data = keyCol->get_data();
     uint64_t* sum_data = sumCol->get_data();
@@ -88,7 +91,18 @@ group_agg_sum(
         key_data[i] = iter->first;
         sum_data[i] = iter->second;
         i++;
+        if (i >= inExtCount)
+            break;
     }
+
+    while (i < inExtCount) {
+        key_data[i] = 0;
+        sum_data[i] = 0;
+        i++;
+    }
+
+    keyCol->set_meta_data(inExtCount, inExtCount * sizeof(uint64_t));
+    sumCol->set_meta_data(inExtCount, inExtCount * sizeof(uint64_t));
 
     return std::make_tuple<const column<uncompr_f>*, const column<uncompr_f>*>(keyCol, sumCol);
 }

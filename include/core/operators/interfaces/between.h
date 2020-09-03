@@ -71,14 +71,36 @@ namespace morphstore {
          size_t const outPosCountEstimate = 0
       );
 
+   };
+
+   template<
+      template<class, int> class t_compare_lower,
+      template<class, int> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t {
       static
       const column<t_out_pos_f> *
       apply(
-          pptr<MultiValTreeIndex> index,
+          pptr<index_structure> index,
           uint64_t const val_lower,
-          uint64_t const val_upper,
-          size_t const outPosCountEstimate = 0
+          uint64_t const val_upper
       );
+   };
+
+   template<
+      template<typename> class t_compare_upper,
+      class t_out_pos_f,
+      class t_in_data_f,
+      class index_structure
+   >
+   struct index_between_wit_t_1 {
+      static const column<t_out_pos_f> * apply(
+         const uint64_t val_lower,
+         const uint64_t val_upper
+         column<uncompr_f> * &outPosCol);
    };
 
    template<

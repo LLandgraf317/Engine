@@ -123,8 +123,11 @@ public:
         m_SkipList->scan(func);
     }
 
-    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
+    void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
+
+        trace_l(T_INFO, "Got values ", minKey, " and ", maxKey);
         std::list<pptr<NodeBucketList<uint64_t>>> list;
+
         m_SkipList->scanValue(minKey, maxKey, list);
         size_t sum_count_values = 0;
 
@@ -140,6 +143,7 @@ public:
             while (iter != (*i).end()) {
                 *data = iter.get();
                 data++;
+                iter++;
             }
         }
 

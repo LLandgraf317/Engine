@@ -133,7 +133,6 @@ public:
         size_t sum_count_values = 0;
 
         for (auto i : list) {
-            std::cout << "adding values " << sum_count_values << std::endl;
             sum_count_values += (*i).getCountValues();
         }
 
