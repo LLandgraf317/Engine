@@ -412,10 +412,7 @@ int main(int /*argc*/, char** /*argv*/)
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
         trace_l(T_INFO, "Running transaction");
-<<<<<<< HEAD
-=======
 
->>>>>>> d0e69acb90708270c7697086adee063262ef4851
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
             index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
