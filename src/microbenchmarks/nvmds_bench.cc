@@ -19,6 +19,7 @@
 #include <core/operators/scalar/agg_sum_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/select_uncompr.h>
+#include <core/operators/general_vectorized/between_compr.h>
 
 #include <libpmempool.h>
 #include <libpmemobj++/container/array.hpp>
@@ -26,8 +27,6 @@
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/transaction.hpp>
-
-#include <core/operators/general_vectorized/between_compr.h>
 
 #include <pthread.h>
 
@@ -476,7 +475,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum<MultiValTreeIndex>, &(*indexes[i]));
+                group_agg_sum<MultiValTreeIndex>, &(*indexes[i]), 21);
         measure("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
@@ -489,7 +488,7 @@ int main(int /*argc*/, char** /*argv*/)
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 51, 54, 0);
         measure("Duration of between selection on persistent tree: ",
-                index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f, MultiValTreeIndex>
+                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
                     ::apply, indexes[i], 8, 12);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
