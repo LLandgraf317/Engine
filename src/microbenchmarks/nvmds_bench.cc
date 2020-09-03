@@ -10,6 +10,7 @@
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/SkipListIndex.hpp>
 #include <core/index/PHashMap.hpp>
 #include <core/index/HashMapIndex.hpp>
 #include <core/utils/measure.h>
@@ -362,7 +363,9 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColPersConv;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
-    ArrayList<pptr<MultiValTreeIndex>> indexes;
+    ArrayList<pptr<MultiValTreeIndex>> trees;
+    ArrayList<pptr<SkipListIndex>> skiplists;
+    ArrayList<pptr<HashMapIndex>> hashmaps;
 
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
@@ -397,17 +400,32 @@ int main(int /*argc*/, char** /*argv*/)
         trace_l(T_INFO, "Constructing MuliValTreeIndex");
         root_mgr.drainAll();
 
-        pptr<MultiValTreeIndex> index;
+        pptr<MultiValTreeIndex> tree;
+        pptr<SkipListIndex> skiplist;
+        pptr<HashMapIndex> hashmap;
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
         trace_l(T_INFO, "Running transaction");
 
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
-            index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
+            tree = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
         });
-        index->generateKeyToPos(valCol);
-        indexes.push_back(index);
+        transaction::run(pop, [&] {
+            skiplist = pmem::obj::make_persistent<SkipListIndex>(i);
+        });
+        transaction::run(pop, [&] {
+            hashmap = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
+        });
+
+        tree->generateKeyToPos(valCol);
+        skiplist->generateKeyToPos(valCol);
+        hashmap->generateKeyToPos(valCol);
+
+        trees.push_back(tree);
+        skiplists.push_back(skiplist);
+        hashmaps.push_back(hashmap);
+
         root_mgr.drainAll();
 
     }
@@ -448,7 +466,11 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
         measure("Duration of selection on persistent tree: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*indexes[i]), 0);
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*trees[i]), 0);
+        measure("Duration of selection on persistent skiplist: ", 
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply, &(*skiplists[i]), 0);
+        measure("Duration of selection on persistent hashmaps: ", 
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply, &(*hashmaps[i]), 0);
         measure("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
     }
@@ -468,7 +490,11 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum<MultiValTreeIndex>, &(*indexes[i]), 21);
+                group_agg_sum<MultiValTreeIndex>, &(*trees[i]), 21);
+        measure("Duration of aggregation on persistent tree: ",
+                group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
+        measure("Duration of aggregation on persistent tree: ",
+                group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
         measure("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
@@ -482,7 +508,13 @@ int main(int /*argc*/, char** /*argv*/)
                     ::apply, valColNode[i].get(), 0, 0, 0);
         measure("Duration of between selection on persistent tree: ",
                 index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
-                    ::apply, indexes[i], 0, 0);
+                    ::apply, trees[i], 0, 0);
+        measure("Duration of between selection on persistent tree: ",
+                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, SkipListIndex>
+                    ::apply, skiplists[i], 0, 0);
+        measure("Duration of between selection on persistent tree: ",
+                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, HashMapIndex>
+                    ::apply, hashmaps[i], 0, 0);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColPersConv[i].get(), 0, 0, 0);
@@ -495,7 +527,9 @@ int main(int /*argc*/, char** /*argv*/)
             delete_persistent<PersistentColumn>(primColPers[i]);
             delete_persistent<PersistentColumn>(valColPers[i]);
             delete_persistent<PersistentColumn>(delColPers[i]);
-            delete_persistent<MultiValTreeIndex>(indexes[i]);
+            delete_persistent<MultiValTreeIndex>(trees[i]);
+            delete_persistent<SkipListIndex>(skiplists[i]);
+            delete_persistent<HashMapIndex>(hashmaps[i]);
         });
     }
 
