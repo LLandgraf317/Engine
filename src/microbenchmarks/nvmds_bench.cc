@@ -378,17 +378,6 @@ int main(int /*argc*/, char** /*argv*/)
         bool p_Sorted,
         size_t p_Seed = 0*/
 
-
-/*pptr<PersistentColumn generate_with_outliers_and_selectivity_pers(
-        size_t p_CountValues,
-        uint64_t p_MainMin, uint64_t p_MainMax,
-        double p_SelectedShare,
-        uint64_t p_OutlierMin, uint64_t p_OutlierMax, double p_OutlierShare,
-        bool p_IsSorted,
-        int numa_node_number,
-        size_t p_Seed = 0
-) {*/
-
         trace_l(T_INFO, "Columns for node ", i, " generated");
 
         auto valCol = generate_exact_number_pers( ARRAY_SIZE, 10, 0, 1, false, i, SEED);
@@ -457,11 +446,11 @@ int main(int /*argc*/, char** /*argv*/)
     for (unsigned int i = 0; i < node_number; i++) {
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of selection on volatile columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
         measure("Duration of selection on persistent tree: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*indexes[i]), 10);
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*indexes[i]), 0);
         measure("Duration of selection on persistent columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
+                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
     }
 
     // Benchmark: deletion
@@ -490,13 +479,13 @@ int main(int /*argc*/, char** /*argv*/)
         std::cout << "Measures for node " << i << std::endl;
         measure("Duration of between selection on volatile column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColNode[i].get(), 8, 12, 0);
+                    ::apply, valColNode[i].get(), 0, 0, 0);
         measure("Duration of between selection on persistent tree: ",
                 index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
-                    ::apply, indexes[i], 8, 12);
+                    ::apply, indexes[i], 0, 0);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColPersConv[i].get(), 8, 12, 0);
+                    ::apply, valColPersConv[i].get(), 0, 0, 0);
     }
 
     trace_l(T_INFO, "Cleaning persistent columns");
