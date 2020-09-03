@@ -1,12 +1,12 @@
 #pragma once
 
-//#include <vector/complex/hash.h>
 #include <core/index/NodeBucketList.h>
-//#include <vector/datastructures/hash_based/hash_utils.h>
-//#include <vector/datastructures/hash_based/strategies/linear_probing.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
+
+#include <functional>
+#include <list>
 
 namespace morphstore {
 
@@ -87,6 +87,9 @@ public:
     {
         auto entry = m_Map[m_HashStrategy.apply(key)];
 
+        if (entry == nullptr)
+            return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+
         typename NodeBucketList<HashMapElem>::Iterator iter = entry->begin();
         for (; iter != entry->end(); iter++) {
             if (std::get<0>(iter.get()) == key)
@@ -117,9 +120,58 @@ public:
     }
 
     using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
-    void apply(KeyType /*key*/, ScanFunc /*func*/)
+    void apply(ScanFunc func)
     {
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+            auto key_bucket_iter = m_Map[i]->begin();
 
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                func(std::get<0>(pair), node_bucket);
+            }
+        }
+    }
+
+    void apply(const KeyType &minKey, const KeyType maxKey, ScanFunc func)
+    {
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+
+            auto key_bucket_iter = m_Map[i]->begin();
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                KeyType key = std::get<0>(pair);
+
+                if (key < minKey || key > maxKey)
+                        continue;
+
+                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                func(key, node_bucket);
+            }
+        }
+    }
+
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<pptr<NodeBucketList<ValueType>>> &outList) const {
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] == nullptr)
+                continue;
+
+            auto key_bucket_iter = m_Map[i]->begin();
+            for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
+                HashMapElem pair = key_bucket_iter.get();
+                KeyType key = std::get<0>(pair);
+
+                if (key < minKey+1 || key > maxKey-1)
+                        continue;
+
+                pptr<NodeBucketList<ValueType>> value = std::get<1>(pair);
+                outList.push_back(value);
+            }
+        }
     }
 
     bool erase(KeyType key, ValueType val)

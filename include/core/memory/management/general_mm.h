@@ -36,18 +36,18 @@
 #include <core/utils/helper.h>
 #include <core/utils/preprocessor.h>
 
-#include <libpmemobj++/transaction.hpp>
+/*#include <libpmemobj++/transaction.hpp>
 #include <libpmemobj++/make_persistent.hpp>
-#include <libpmemobj++/p.hpp>
-#include <core/access/RootManager.h>
+#include <libpmemobj++/p.hpp>*/
+//#include <core/access/RootManager.h>
 
 #include <numa.h>
 
 #include <core/memory/management/utils/memory_bin_handler.h>
 
-using pmem::obj::pool;
+/*using pmem::obj::pool;
 using pmem::obj::transaction;
-using pmem::obj::delete_persistent;
+using pmem::obj::delete_persistent;*/
 
 namespace morphstore {
 
@@ -132,30 +132,30 @@ class general_memory_manager : public abstract_memory_manager {
          return numa_free(ptr, p_AllocSize);
       }
 
-      template<class T>
+      /*template<class T>
       pmem::obj::persistent_ptr<T> allocatePersistent(size_t p_AllocSize, int numa_node) {
          RootManager& mgr = RootManager::getInstance();
-         pool<root> pop = mgr.getPop(numa_node);
+         pmem::obj::pool<root> pop = mgr.getPop(numa_node);
 
          pmem::obj::persistent_ptr<T> m_persistentData;
-         transaction::run( pop, [&] {
+         pmem::obj::transaction::run( pop, [&] {
             m_persistentData = pmemobj_tx_alloc(p_AllocSize, 0);
          });
 
          return m_persistentData;
-      }
+      }*/
 
-      template<class T>
+      /*template<class T>
       void deallocatePersistent(pmem::obj::persistent_ptr<T> ptr, int numa_node) {
 
          RootManager& mgr = RootManager::getInstance();
-         pool<root> pop = mgr.getPop(numa_node);
-         transaction::run(pop, [&] {
-             delete_persistent<char[]>( ptr );
+         pmem::obj::pool<root> pop = mgr.getPop(numa_node);
+         pmem::obj::transaction::run(pop, [&] {
+                 pmem::obj::delete_persistent<char[]>( ptr );
          });
 
          mgr.drainAll();
-      }
+      }*/
 
       void *allocate(abstract_memory_manager *const p_Caller, size_t p_AllocSize) override {
          trace( "[General Memory Manager] - IN.  ( Caller = ", p_Caller, ". AllocSize = ", p_AllocSize, " )." );

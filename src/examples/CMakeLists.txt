@@ -3,7 +3,7 @@ if( BUILD_ALL OR BUILD_EXAMPLES )
     target_compile_options( select_sum_query PRIVATE
                            # $<$<CONFIG:DEBUG>:-DDEBUG> 
                            )
-    target_link_libraries( select_sum_query PRIVATE "-ldl" )
+    target_link_libraries( select_sum_query PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
     add_executable( example_query example_query.cpp )
     target_compile_options( example_query PRIVATE

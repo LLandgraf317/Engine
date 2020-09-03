@@ -31,6 +31,8 @@
 #include <core/storage/column.h>
 #include <core/utils/basic_types.h>
 #include <vector/scalar/extension_scalar.h>
+#include <core/index/HashMapIndex.hpp>
+#include <core/index/MultiValTreeIndex.hpp>
 
 #include <cstdint>
 #include <tuple>
@@ -96,6 +98,54 @@ nested_loop_join<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
     
     return std::make_tuple(outPosLCol, outPosRCol);
 }
+
+template< class DS1, class DS2 >
+const std::tuple<
+    const column<uncompr_f> *,
+    const column<uncompr_f> *
+    >
+ds_join(DS1 ds1, DS2 ds2)
+{
+    const size_t inDataLCount = ds1->getCountValues();
+    const size_t inDataRCount = ds2->getCountValues();
+    const size_t size = 
+             (inDataLCount * inDataRCount * sizeof(uint64_t));
+    auto outPosLCol = new column<uncompr_f>(size);
+    auto outPosRCol = new column<uncompr_f>(size);
+
+    uint64_t * outPosLData = outPosLCol->get_data();
+    uint64_t * outPosRData = outPosRCol->get_data();
+
+    // assume both data structures realize a attr -> pos mapping
+    unsigned iOut = 0;
+    auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
+    {
+        pptr<const NodeBucketList<uint64_t>> positions = ds2->find(given_key);
+
+        trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
+
+        auto iter1 = val->begin();
+        for (; iter1 != val->end(); iter1++) {
+            auto iter2 = positions->begin();
+            for (; iter2 != positions->end(); iter2++) {
+                outPosLData[iOut] = iter1.get();
+                outPosRData[iOut] = iter2.get();
+                iOut++;
+            }
+        }
+
+        trace_l(T_INFO, "iOut is now ", iOut);
+
+    };
+    ds1->scan(materialize_lambda);
+
+    const size_t outSize = iOut * sizeof(uint64_t);
+    outPosLCol->set_meta_data(iOut, outSize);
+    outPosRCol->set_meta_data(iOut, outSize);
+
+    return std::make_tuple(outPosLCol, outPosRCol);
+}
+        
 
 template<>
 const column<uncompr_f> *

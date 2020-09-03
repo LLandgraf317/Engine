@@ -80,12 +80,13 @@ struct select_t<t_op, vectorlib::scalar<vectorlib::v64<uint64_t>>, uncompr_f, un
 
 template<template<typename> class t_op,
         class t_out_pos_f,
-        class t_in_data_f
+        class t_in_data_f,
+        class index_structure
 >
 struct index_select_wit_t {
     static
     const column<t_out_pos_f> * apply(
-            pptr<MultiValTreeIndex> inDataIndex,
+            pptr<index_structure> inDataIndex,
             const uint64_t key
     ) {
         std::list<
@@ -97,14 +98,16 @@ struct index_select_wit_t {
         //This might be slow, check back with execution times
         auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
         {
+            trace_l(T_INFO, "called operation on ", given_key);
             if (op(given_key, key)) {
                 bucket_lists_list.push_back(val);
+                trace_l(T_INFO, "Adding values: ", val->getCountValues());
                 sum_count_values += val->getCountValues();
             }
         };
         inDataIndex->scan(materialize_lambda);
 
-        const column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
         uint64_t* value_data = valueCol->get_data();
 
         for (auto bucketListIter = bucket_lists_list.begin(); bucketListIter != bucket_lists_list.end(); bucketListIter++) {
@@ -116,9 +119,48 @@ struct index_select_wit_t {
             }
         }
 
+        valueCol->set_meta_data(sum_count_values, sum_count_values * sizeof(uint64_t));
+
         return valueCol;
     }
 };
+
+template<class t_out_pos_f,
+        class t_in_data_f,
+        class index_structure
+>
+struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structure> {
+    static
+    const column<t_out_pos_f> * apply(
+            pptr<index_structure> inDataIndex,
+            const uint64_t key
+    ) {
+        pptr<const NodeBucketList<uint64_t>> bucket_lists_list;
+
+        bucket_lists_list = inDataIndex->find(key);
+        if (bucket_lists_list == nullptr) {
+            auto col = new column<uncompr_f>(0);
+            col->set_meta_data(0, 0);
+            return col;
+        }
+        else {
+            size_t sum_count_values = bucket_lists_list->getCountValues();
+
+            column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+            uint64_t* value_data = valueCol->get_data();
+
+            for (auto iter = bucket_lists_list->begin(); iter != bucket_lists_list->end(); iter++) {
+                *value_data = iter.get();
+                value_data++;
+            }
+
+            valueCol->set_meta_data(sum_count_values, sum_count_values * sizeof(uint64_t));
+
+            return valueCol;
+        }
+    }
+};
+
 
 }
 #endif //MORPHSTORE_CORE_OPERATORS_SCALAR_SELECT_UNCOMPR_H

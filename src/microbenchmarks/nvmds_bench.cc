@@ -19,6 +19,7 @@
 #include <core/operators/scalar/agg_sum_uncompr.h>
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/select_uncompr.h>
+#include <core/operators/general_vectorized/between_compr.h>
 
 #include <libpmempool.h>
 #include <libpmemobj++/container/array.hpp>
@@ -27,11 +28,7 @@
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/transaction.hpp>
 
-#include <core/operators/general_vectorized/between_compr.h>
-
-#include <numa.h>
 #include <pthread.h>
-#include <unistd.h>
 
 #include <iostream>
 #include <random>
@@ -346,8 +343,8 @@ int main(int /*argc*/, char** /*argv*/)
         return -1;
     }
 
-    RootInitializer::initPmemPool();
-    auto node_number = RootInitializer::getNumaNodeCount();
+    RootInitializer::getInstance().initPmemPool();
+    auto node_number = RootInitializer::getInstance().getNumaNodeCount();
 
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
@@ -409,12 +406,16 @@ int main(int /*argc*/, char** /*argv*/)
         valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
 
         trace_l(T_INFO, "Constructing MuliValTreeIndex");
-	root_mgr.drainAll();
+        root_mgr.drainAll();
 
         pptr<MultiValTreeIndex> index;
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
         trace_l(T_INFO, "Running transaction");
+<<<<<<< HEAD
+=======
+
+>>>>>>> d0e69acb90708270c7697086adee063262ef4851
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
             index = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
@@ -461,7 +462,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 10, 0);
         measure("Duration of selection on persistent tree: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f>::apply, &(*indexes[i]), 10);
+                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*indexes[i]), 10);
         measure("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 10, 0);
     }
@@ -481,7 +482,7 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum, &(*indexes[i]));
+                group_agg_sum<MultiValTreeIndex>, &(*indexes[i]), 21);
         measure("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
@@ -494,8 +495,7 @@ int main(int /*argc*/, char** /*argv*/)
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 8, 12, 0);
         measure("Duration of between selection on persistent tree: ",
-
-                index_between_wit_t<greaterequal, lessequal, uncompr_f, uncompr_f>
+                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
                     ::apply, indexes[i], 8, 12);
         measure("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >

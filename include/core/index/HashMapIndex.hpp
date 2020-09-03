@@ -28,6 +28,8 @@ class HashMapIndex {
 
     bool m_Init;
     uint64_t m_EstimateElemCount;
+    size_t m_CountTuples;
+
 public:
 
     HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
@@ -76,24 +78,18 @@ public:
         m_Init = true;
     }
 
-    const column<uncompr_f> * find(uint64_t key)
+    size_t getCountValues()
+    {
+        return m_CountTuples;
+    }
+
+    //const column<uncompr_f> * find(uint64_t key)
+    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
     {
         using HashMapElem = std::tuple<uint64_t, pptr<NodeBucketList<uint64_t>>>; 
         HashMapElem res = m_HashMap->lookup(key);
 
-        size_t elemCount = std::get<1>(res)->getCountValues();
-
-        column<uncompr_f> * outCol = new column<uncompr_f>(sizeof(uint64_t) * elemCount);
-        uint64_t * outData = outCol->get_data();
-
-        NodeBucketList<uint64_t>::Iterator iter = std::get<1>(res)->begin();
-        for (; iter != std::get<1>(res)->end(); iter++) {
-            (*outData) = iter.get();
-            outData++;
-        }
-        outCol->set_meta_data(elemCount, sizeof(uint64_t) * elemCount);
-
-        return outCol;
+        return std::get<1>(res);
 	}
 
     void insert(uint64_t key, uint64_t value)
@@ -104,6 +100,8 @@ public:
         transaction::run(pop, [&] {
             m_HashMap->insert(key, value);	
         });
+
+        m_CountTuples++;
     }
 
     bool lookup(uint64_t key, uint64_t val)
@@ -114,19 +112,48 @@ public:
     using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
     void scan(const uint64_t &minKey, const uint64_t &maxKey, ScanFunc func) const
     {
-        for (uint64_t i = minKey; i <= maxKey; i++)
-            m_HashMap->apply(i, func);
+        m_HashMap->apply(minKey, maxKey, func);
     }
 
     void scan(ScanFunc func) const
     {
-        for (uint64_t i = 0; i <= m_EstimateElemCount; i++)
-            m_HashMap->apply(i, func);
+        m_HashMap->apply(func);
+    }
+
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
+        std::list<pptr<NodeBucketList<uint64_t>>> list;
+
+        m_HashMap->scanValue(minKey, maxKey, list);
+        size_t sum_count_values = 0;
+
+        for (auto i : list) {
+            sum_count_values += (*i).getCountValues();
+        }
+
+        outCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t * data = outCol->get_data();
+
+        for (auto i : list) {
+            NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+            while (iter != (*i).end()) {
+                *data = iter.get();
+                data++;
+                iter++;
+            }
+        }
+
+        outCol->set_meta_data(sum_count_values, sizeof(uint64_t) * sum_count_values);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)
     {
-        return m_HashMap->erase(key, value);
+        if (m_HashMap->erase(key, value)) {
+            m_CountTuples--;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
 };

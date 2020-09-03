@@ -311,7 +311,7 @@ typedef shell_logger morphstore_logger;
 #     define info(...)
 #  endif
 #  define warn(...) morphstore::morphstore_logger::get_instance( ).log( 3, __FUNCTION__, __VA_ARGS__ )
-#  define error(...) morphstore::morphstore_logger::get_instance( ).log( 4, __FUNCTION__, __VA_ARGS__ )
+#  define trace_error(...) morphstore::morphstore_logger::get_instance( ).log( 4, __FUNCTION__, __VA_ARGS__ )
 #  define wtf(...) morphstore::morphstore_logger::get_instance( ).log( 5, __FUNCTION__, __VA_ARGS__ )
 #endif
 

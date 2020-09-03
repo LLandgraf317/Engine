@@ -39,7 +39,7 @@ public:
         pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
         m_Init = false;
-	m_CountTuples = 0;
+        m_CountTuples = 0;
     }
 
     void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
@@ -71,9 +71,9 @@ public:
         m_Init = true;
     }
 
-    size_t getCountValues()
+    size_t getCountValues() const
     {
-	return m_CountTuples;
+        return m_CountTuples;
     }
 
     pptr<NodeBucketList<uint64_t>> find(uint64_t key)
@@ -100,9 +100,6 @@ public:
             });
         }
         else {
-            RootManager& mgr = RootManager::getInstance();
-            pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
-
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t>>();
                 m_Tree->insert(key, list);
@@ -110,7 +107,7 @@ public:
             });
         }
 
-	m_CountTuples++;
+        m_CountTuples++;
     }
 
     bool lookup(uint64_t key, uint64_t val)
@@ -129,8 +126,30 @@ public:
         m_Tree->scan(minKey, maxKey, func);
     }
 
-    inline uint64_t scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* col) const {
-        return m_Tree->scanValue(minKey, maxKey, col);
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &col) const {
+
+        std::list<pptr<NodeBucketList<uint64_t>>> list;
+        m_Tree->scanValue(minKey, maxKey, list);
+        size_t sum_count_values = 0;
+
+        for (auto i : list) {
+            sum_count_values += (*i).getCountValues();
+        }
+
+        col = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
+        uint64_t * data = col->get_data();
+
+        for (auto i : list) {
+            NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+
+            while (iter != (*i).end()) {
+                *data = iter.get();
+                data++;
+                iter++;
+            }
+        }
+
+        col->set_meta_data(sum_count_values, sizeof(uint64_t) * sum_count_values);
     }
 
     void scan(ScanFunc func) const
