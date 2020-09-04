@@ -419,14 +419,15 @@ int main(int /*argc*/, char** /*argv*/)
         });
 
         tree->generateKeyToPos(valCol);
+        root_mgr.drainAll();
         skiplist->generateKeyToPos(valCol);
+        root_mgr.drainAll();
         hashmap->generateKeyToPos(valCol);
+        root_mgr.drainAll();
 
         trees.push_back(tree);
         skiplists.push_back(skiplist);
         hashmaps.push_back(hashmap);
-
-        root_mgr.drainAll();
 
     }
     root_mgr.drainAll();
