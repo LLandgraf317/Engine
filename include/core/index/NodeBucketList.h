@@ -2,6 +2,8 @@
 
 #include <core/tracing/trace.h>
 
+#include <stdexcept>
+
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
 
@@ -226,6 +228,8 @@ struct NodeBucketList {
         else {
             if (last->isFull()) {
                 auto tmp = make_persistent<NodeBucket<T>>();
+                if (tmp == nullptr)
+                    throw new std::runtime_error("out of memory");
                 tmp->insertLast(val);
                 last->setNext(tmp);
                 tmp->setPrev(last);

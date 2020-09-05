@@ -5,6 +5,8 @@
 
 #include <nvmdatastructures/src/pskiplists/simplePSkiplist.hpp>
 
+#include <stdexcept>
+
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
@@ -82,6 +84,8 @@ public:
         else {
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t>>();
+                if (list == nullptr)
+                    throw new std::runtime_error("out of memory");
                 m_SkipList->insert(key, list);
                 list->insertValue(value);
             });
