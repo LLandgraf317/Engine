@@ -26,6 +26,8 @@ using namespace vectorlib;
 
 using ps = scalar<v64<uint64_t>>;
 
+const uint64_t MAX_VALUE = 80;
+
 template< class index_structure >
 class IndexTest {
 
@@ -40,13 +42,14 @@ public:
             size_t sum_col = 0;
             size_t sum_ind = 0;
 
-            for (uint64_t i = 0; i < 25; i++) {
+            for (uint64_t i = 0; i < MAX_VALUE; i++) {
                 const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, i);
                 const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, index_structure>::apply(index, i);
 
                 trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
                 trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
-                trace_l(T_INFO, "");
+
+                assert(outPosOrig->get_count_values() == outPosIndex->get_count_values());
 
                 sum_col += outPosOrig->get_count_values();
                 sum_ind += outPosIndex->get_count_values();
@@ -89,6 +92,8 @@ public:
             trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
             trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
 
+            assert(outPosOrig->get_count_values() == outPosIndex->get_count_values());
+
             uint64_t * const orig = outPosOrig->get_data();
             uint64_t * const ind = outPosIndex->get_data();
 
@@ -118,8 +123,8 @@ public:
         {
 
             //column<uncompr_f> * keyColCol;
-            const column<uncompr_f> * sumColCol = agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>( convCol, posCol, 21 );
-            std::tuple<const column<uncompr_f>*, const column<uncompr_f>*> ret = group_agg_sum<index_structure>( index, 21 );
+            const column<uncompr_f> * sumColCol = agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>( convCol, posCol, MAX_VALUE + 1 );
+            std::tuple<const column<uncompr_f>*, const column<uncompr_f>*> ret = group_agg_sum<index_structure>( index, MAX_VALUE + 1 );
             const column<uncompr_f> * sumColInd = std::get<1>(ret);
 
             uint64_t * orig = sumColCol->get_data();
@@ -130,6 +135,8 @@ public:
 
             trace_l(T_INFO, "orig selection: ", sumColCol->get_count_values(), " poses");
             trace_l(T_INFO, "index selection: ", sumColInd->get_count_values(), " poses");
+
+            assert(sumColCol->get_count_values() == sumColInd->get_count_values());
             
             {
                 const column<uncompr_f> * outComp = calc_binary<
@@ -233,7 +240,7 @@ int main( void ) {
 
     pmem::obj::persistent_ptr<PersistentColumn> col = 
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
-               0, 30, 0.5, 40, 80, 0.005, false, 0, SEED);
+               0, 30, 0.5, 40, MAX_VALUE, 0.005, false, 0, SEED);
 
     skiplist->generateKeyToPos(col);
     tree->generateKeyToPos(col);
