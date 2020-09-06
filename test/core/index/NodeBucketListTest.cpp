@@ -15,6 +15,7 @@ using namespace morphstore;
 
 int main( void )
 {
+    constexpr auto ARRAY_SIZE = 10000ul / sizeof(uint64_t);
     RootInitializer::initPmemPool();
 
     auto root_mgr = RootManager::getInstance();
@@ -48,7 +49,7 @@ int main( void )
         assert(iter == bucket_list->end());
     }
 
-    for (uint64_t i = 0; i < 1218ul; i++) {
+    for (uint64_t i = 0; i < ARRAY_SIZE; i++) {
         transaction::run(pop, [&]() {
             bucket_list->insertValue(i + 10);
         });

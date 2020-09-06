@@ -210,7 +210,7 @@ public:
 
 int main( void ) {
 
-    const size_t ARRAY_SIZE = 100;
+    const size_t ARRAY_SIZE = 10000;
     const size_t SEED = 42;
 
     RootInitializer::initPmemPool();
@@ -233,7 +233,7 @@ int main( void ) {
 
     pmem::obj::persistent_ptr<PersistentColumn> col = 
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
-               0, 14, 0.5, 15, 20, 0.005, false, 0, SEED);
+               0, 30, 0.5, 40, 80, 0.005, false, 0, SEED);
 
     skiplist->generateKeyToPos(col);
     tree->generateKeyToPos(col);
