@@ -35,8 +35,9 @@ public:
         uint64_t* value_data = valueCol->get_data();
 
         //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++)
+        for (size_t i = 0; i < count_values; i++) {
             insert(key_data[i], value_data[i]);
+        }
 
         m_Init = true;
     }
@@ -45,12 +46,16 @@ public:
     {
         if (m_Init) return; // Should throw exception
 
+        RootManager& root_mgr = RootManager::getInstance();
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
 
         //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++)
+        for (size_t i = 0; i < count_values; i++) {
             insert(key_data[i], i);
+            if (i % 200 == 0)
+                root_mgr.drainAll();
+        }
 
         m_Init = true;
     }
@@ -78,6 +83,8 @@ public:
 
         if (m_SkipList->search(key, list)) {
             transaction::run(pop, [&] {
+                if (list == nullptr)
+                    list = make_persistent<NodeBucketList<uint64_t>>();
                 list->insertValue(value); 
             });
         }
@@ -162,12 +169,17 @@ public:
     void printContents()
     {
         auto printLambda = [&](const uint64_t &key, const pptr<NodeBucketList<uint64_t>> buck) {
-            trace_l(T_INFO, "key: ", key, ", value_count: ", buck->getCountValues());
-            trace_l(T_INFO, "values: ");
-            for (auto iter = buck->begin(); iter != buck->end(); iter++) {
-                trace_l(T_INFO, iter.get());
-            } 
-            trace_l(T_INFO, "");
+            if (buck == nullptr) {
+                trace_l(T_INFO, "key, bucket is nullptr");
+            }
+            else {
+                trace_l(T_INFO, "key: ", key, ", value_count: ", buck->getCountValues());
+                trace_l(T_INFO, "values: ");
+                for (auto iter = buck->begin(); iter != buck->end(); iter++) {
+                    trace_l(T_INFO, iter.get());
+                } 
+                trace_l(T_INFO, "");
+            }
         };
 
         m_SkipList->scan(printLambda);
