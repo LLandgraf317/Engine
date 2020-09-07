@@ -259,7 +259,7 @@ else()
 endif()
 
 if (DEFINED ENV{POOL_SIZE})
-    message("Setting column size to $ENV{COLUMN_SIZE} G")
+    message("Setting column size to $ENV{POOL_SIZE} G")
     add_definitions( -DENV_POOL_SIZE=$ENV{POOL_SIZE})
 else()
     message("Setting column size to 2G")
