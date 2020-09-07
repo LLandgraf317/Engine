@@ -63,7 +63,7 @@ using ps = scalar<v64<uint64_t>>;
 
 constexpr auto L3 = 14080 * 1024;
 constexpr auto LAYOUT = "NVMDS";
-constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * 4ull;  //< 4GB
+constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * ENV_POOL_SIZE;  //< 4GB
 
 constexpr uint64_t SEED = 42;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
