@@ -143,7 +143,7 @@ namespace morphstore {
          const uint64_t val_lower,
          const uint64_t val_upper
       ) {
-        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower-1, val_upper);
+        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower, val_upper);
       }
 
    };
@@ -161,7 +161,7 @@ namespace morphstore {
          const uint64_t val_lower,
          const uint64_t val_upper
       ) {
-        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower, val_upper);
+        return index_between_wit_t_1<t_compare_upper, t_out_pos_f, t_in_data_f, index_structure>::apply( inDataIndex, val_lower+1, val_upper);
       }
    };
 
@@ -179,7 +179,7 @@ namespace morphstore {
         column<uncompr_f> * outPosCol;
 
         index_structure &index = (*inDataIndex);
-        index.scanValue(val_lower, val_upper, outPosCol);
+        index.scanValue(val_lower, val_upper-1, outPosCol);
 
         return outPosCol;
       }
@@ -199,7 +199,7 @@ namespace morphstore {
         column<uncompr_f> * outPosCol;
 
         index_structure &index = (*inDataIndex);
-        index.scanValue(val_lower, val_upper+1, outPosCol);
+        index.scanValue(val_lower, val_upper, outPosCol);
 
         return outPosCol;
       }

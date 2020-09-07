@@ -84,9 +84,9 @@ public:
 
         // Between operator
         {
-            const column<uncompr_f> * outPosOrig = my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+            const column<uncompr_f> * outPosOrig = my_between_wit_t<greater, less, ps, uncompr_f, uncompr_f >
                             ::apply( convCol, 8, 12, 0);
-            const column<uncompr_f> * outPosIndex = index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, index_structure>
+            const column<uncompr_f> * outPosIndex = index_between_wit_t<std::greater, std::less, uncompr_f, uncompr_f, index_structure>
                             ::apply( index, 8, 12);
 
             trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");

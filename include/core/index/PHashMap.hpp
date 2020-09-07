@@ -165,8 +165,10 @@ public:
                 HashMapElem pair = key_bucket_iter.get();
                 KeyType key = std::get<0>(pair);
 
-                if (key < minKey+1 || key > maxKey-1)
-                        continue;
+                if (key < minKey)
+                    continue;
+                if (key > maxKey)
+                    continue;
 
                 pptr<NodeBucketList<ValueType>> value = std::get<1>(pair);
                 outList.push_back(value);
