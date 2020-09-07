@@ -51,8 +51,11 @@ public:
         uint64_t* value_data = valueCol->get_data();
 
         //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++)
+        for (size_t i = 0; i < count_values; i++) {
             insert(key_data[i], value_data[i]);
+            if (i % 200 == 0)
+                root_mgr.drainAll();
+        }
 
         m_Init = true;
     }
@@ -65,8 +68,11 @@ public:
         uint64_t* key_data = keyCol->get_data();
 
         //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++)
-            insert(key_data[i], i);
+        for (size_t i = 0; i < count_values; i++) {
+            insert(key_data[i], value_data[i]);
+            if (i % 200 == 0)
+                root_mgr.drainAll();
+        }
 
         m_Init = true;
     }
