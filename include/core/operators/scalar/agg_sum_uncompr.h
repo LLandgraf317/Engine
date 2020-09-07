@@ -73,8 +73,10 @@ group_agg_sum(
     std::map<uint64_t, uint64_t> bucket_map;
     auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
     {
-        size_t sum = val->getSum();
-        bucket_map.emplace(key, sum);
+        if (val != nullptr) {
+            size_t sum = val->getSum();
+            bucket_map.emplace(key, sum);
+        }
     };
     inDataIndex->scan(materialize_lambda);
 
