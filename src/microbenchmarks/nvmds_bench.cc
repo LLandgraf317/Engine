@@ -462,9 +462,10 @@ int main(int /*argc*/, char** /*argv*/)
 
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
+    std::cout << "Operator,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns\n";
 
     for (unsigned int i = 0; i < node_number; i++) {
-        //std::cout << "Measures for node " << i << std::endl;
+        std::cout << "Select,";
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
         measure("Duration of selection on persistent tree: ", 
@@ -476,6 +477,7 @@ int main(int /*argc*/, char** /*argv*/)
         measureEnd("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
     }
+    std::cout << "\n";
 
     // Benchmark: deletion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
@@ -500,6 +502,7 @@ int main(int /*argc*/, char** /*argv*/)
         measureEnd("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
+    std::cout << "\n";
 
     // Benchmark: random sequential selection
 

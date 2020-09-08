@@ -24,6 +24,6 @@ void measureEnd(const char* /*message*/, U (*function), Ts... args)
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> dur = end - start;
 
-    std::cout << dur.count() << "\n";
+    std::cout << dur.count();
 }
 
