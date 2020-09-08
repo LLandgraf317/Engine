@@ -12,7 +12,7 @@ void measure(const char* /*message*/, U (*function), Ts... args)
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> dur = end - start;
 
-    std::cout << dur.count() << ",";
+    std::cout << 1.0f/dur.count() << ",";
 }
 
 template<typename ...Ts, typename U>
@@ -24,6 +24,6 @@ void measureEnd(const char* /*message*/, U (*function), Ts... args)
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> dur = end - start;
 
-    std::cout << dur.count();
+    std::cout << 1.0f/dur.count();
 }
 

@@ -462,10 +462,10 @@ int main(int /*argc*/, char** /*argv*/)
 
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
-    std::cout << "Operator,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns\n";
+    std::cout << "Operator,Node number,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns\n";
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Select,";
+        std::cout << "Select," << i << ",";
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
         measure("Duration of selection on persistent tree: ", 
@@ -490,7 +490,7 @@ int main(int /*argc*/, char** /*argv*/)
     // Projection, aggregation more interesting
 
     for (unsigned int i = 0; i < node_number; i++) {
-        //std::cout << "Measures for node " << i << std::endl;
+        std::cout << "Aggregate," << i << ",";
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
@@ -507,7 +507,7 @@ int main(int /*argc*/, char** /*argv*/)
     // Benchmark: random sequential selection
 
     for (unsigned int i = 0; i < node_number; i++) {
-        //std::cout << "Measures for node " << i << std::endl;
+        std::cout << "Between," << i << ",";
         measure("Duration of between selection on volatile column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 0, 0, 0);
@@ -524,6 +524,7 @@ int main(int /*argc*/, char** /*argv*/)
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColPersConv[i].get(), 0, 0, 0);
     }
+    std::cout << "\n";
 
     //trace_l(T_INFO, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
