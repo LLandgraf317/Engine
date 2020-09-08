@@ -66,6 +66,7 @@ constexpr auto LAYOUT = "NVMDS";
 constexpr auto POOL_SIZE = 1024 * 1024 * 1024ull * ENV_POOL_SIZE;  //< 4GB
 
 constexpr uint64_t SEED = 42;
+constexpr unsigned EXP_ITER = 1000;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 pobj_alloc_class_desc alloc_class;
 
@@ -465,19 +466,21 @@ int main(int /*argc*/, char** /*argv*/)
     std::cout << "Operator,Node number,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns\n";
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Select," << i << ",";
-        measure("Duration of selection on volatile columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
-        measure("Duration of selection on persistent tree: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*trees[i]), 0);
-        measure("Duration of selection on persistent skiplist: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply, &(*skiplists[i]), 0);
-        measure("Duration of selection on persistent hashmaps: ", 
-                index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply, &(*hashmaps[i]), 0);
-        measureEnd("Duration of selection on persistent columns: ",
-                my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
+        for (unsigned j = 0; j < EXP_ITER; j++ ) {
+            std::cout << "Select," << i << ",";
+            measure("Duration of selection on volatile columns: ",
+                    my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
+            measure("Duration of selection on persistent tree: ", 
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*trees[i]), 0);
+            measure("Duration of selection on persistent skiplist: ", 
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply, &(*skiplists[i]), 0);
+            measure("Duration of selection on persistent hashmaps: ", 
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply, &(*hashmaps[i]), 0);
+            measureEnd("Duration of selection on persistent columns: ",
+                    my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
+            std::cout << "\n";
+        }
     }
-    std::cout << "\n";
 
     // Benchmark: deletion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
@@ -490,41 +493,45 @@ int main(int /*argc*/, char** /*argv*/)
     // Projection, aggregation more interesting
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Aggregate," << i << ",";
-        measure("Duration of aggregation on volatile column: ",
-                agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
-        measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum<MultiValTreeIndex>, &(*trees[i]), 21);
-        measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
-        measure("Duration of aggregation on persistent tree: ",
-                group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
-        measureEnd("Duration of aggregation on persistent column: ",
-                agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
+        for (unsigned j = 0; j < EXP_ITER; j++ ) {
+            std::cout << "Aggregate," << i << ",";
+            measure("Duration of aggregation on volatile column: ",
+                    agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
+            measure("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<MultiValTreeIndex>, &(*trees[i]), 21);
+            measure("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
+            measure("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
+            measureEnd("Duration of aggregation on persistent column: ",
+                    agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
+            std::cout << "\n";
+        }
     }
-    std::cout << "\n";
 
     // Benchmark: random sequential selection
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Between," << i << ",";
-        measure("Duration of between selection on volatile column: ",
-                my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColNode[i].get(), 0, 0, 0);
-        measure("Duration of between selection on persistent tree: ",
-                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
-                    ::apply, trees[i], 0, 0);
-        measure("Duration of between selection on persistent tree: ",
-                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, SkipListIndex>
-                    ::apply, skiplists[i], 0, 0);
-        measure("Duration of between selection on persistent tree: ",
-                index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, HashMapIndex>
-                    ::apply, hashmaps[i], 0, 0);
-        measureEnd("Duration of between selection on persistent column: ",
-                my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                    ::apply, valColPersConv[i].get(), 0, 0, 0);
+        for (unsigned j = 0; j < EXP_ITER; j++ ) {
+            std::cout << "Between," << i << ",";
+            measure("Duration of between selection on volatile column: ",
+                    my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+                        ::apply, valColNode[i].get(), 0, 0, 0);
+            measure("Duration of between selection on persistent tree: ",
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
+                        ::apply, trees[i], 0, 0);
+            measure("Duration of between selection on persistent tree: ",
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, SkipListIndex>
+                        ::apply, skiplists[i], 0, 0);
+            measure("Duration of between selection on persistent tree: ",
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, HashMapIndex>
+                        ::apply, hashmaps[i], 0, 0);
+            measureEnd("Duration of between selection on persistent column: ",
+                    my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
+                        ::apply, valColPersConv[i].get(), 0, 0, 0);
+            std::cout << "\n";
+        }
     }
-    std::cout << "\n";
 
     //trace_l(T_INFO, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
