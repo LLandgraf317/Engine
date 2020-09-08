@@ -368,7 +368,7 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<HashMapIndex>> hashmaps;
 
     // Generation Phase
-    trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
+    //trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
         delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
@@ -381,13 +381,13 @@ int main(int /*argc*/, char** /*argv*/)
         bool p_Sorted,
         size_t p_Seed = 0*/
 
-        trace_l(T_INFO, "Columns for node ", i, " generated");
+        //trace_l(T_INFO, "Columns for node ", i, " generated");
 
         auto valCol = generate_exact_number_pers( ARRAY_SIZE, 10, 0, 1, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
         auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
 
-        trace_l(T_INFO, "Persisent Columns for node ", i, " generated");
+        //trace_l(T_INFO, "Persisent Columns for node ", i, " generated");
 
         delColPers.push_back(delCol);
         valColPers.push_back(valCol);
@@ -397,7 +397,7 @@ int main(int /*argc*/, char** /*argv*/)
         delColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(delCol->convert()));
         valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
 
-        trace_l(T_INFO, "Constructing MuliValTreeIndex");
+        //trace_l(T_INFO, "Constructing MuliValTreeIndex");
         root_mgr.drainAll();
 
         pptr<MultiValTreeIndex> tree;
@@ -405,7 +405,7 @@ int main(int /*argc*/, char** /*argv*/)
         pptr<HashMapIndex> hashmap;
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
-        trace_l(T_INFO, "Running transaction");
+        //trace_l(T_INFO, "Running transaction");
 
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
@@ -433,15 +433,16 @@ int main(int /*argc*/, char** /*argv*/)
     root_mgr.drainAll();
 
     //std::cout << "Sizeof PBPTree: " << indexes[0]->memory_footprint() << std::endl;
-    std::cout << "Sizeof Column Prim: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
-    std::cout << "Sizeof Column Val: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
+    //std::cout << "Sizeof Column Prim: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
+    //std::cout << "Sizeof Column Val: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
 
-    trace_l(T_INFO, "Benchmark Prototype");
+    //trace_l(T_INFO, "Benchmark Prototype");
     
     // Benchmark: sequential insertion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
-    auto status = numa_run_on_node(0);
-    trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
+    /*auto status =*/
+    numa_run_on_node(0);
+    //trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
 
 #if 0
     uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
@@ -463,7 +464,7 @@ int main(int /*argc*/, char** /*argv*/)
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Measures for node " << i << std::endl;
+        //std::cout << "Measures for node " << i << std::endl;
         measure("Duration of selection on volatile columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
         measure("Duration of selection on persistent tree: ", 
@@ -472,7 +473,7 @@ int main(int /*argc*/, char** /*argv*/)
                 index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply, &(*skiplists[i]), 0);
         measure("Duration of selection on persistent hashmaps: ", 
                 index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply, &(*hashmaps[i]), 0);
-        measure("Duration of selection on persistent columns: ",
+        measureEnd("Duration of selection on persistent columns: ",
                 my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
     }
 
@@ -487,7 +488,7 @@ int main(int /*argc*/, char** /*argv*/)
     // Projection, aggregation more interesting
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Measures for node " << i << std::endl;
+        //std::cout << "Measures for node " << i << std::endl;
         measure("Duration of aggregation on volatile column: ",
                 agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
         measure("Duration of aggregation on persistent tree: ",
@@ -496,14 +497,14 @@ int main(int /*argc*/, char** /*argv*/)
                 group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
         measure("Duration of aggregation on persistent tree: ",
                 group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
-        measure("Duration of aggregation on persistent column: ",
+        measureEnd("Duration of aggregation on persistent column: ",
                 agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
     }
 
     // Benchmark: random sequential selection
 
     for (unsigned int i = 0; i < node_number; i++) {
-        std::cout << "Measures for node " << i << std::endl;
+        //std::cout << "Measures for node " << i << std::endl;
         measure("Duration of between selection on volatile column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColNode[i].get(), 0, 0, 0);
@@ -516,12 +517,12 @@ int main(int /*argc*/, char** /*argv*/)
         measure("Duration of between selection on persistent tree: ",
                 index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, HashMapIndex>
                     ::apply, hashmaps[i], 0, 0);
-        measure("Duration of between selection on persistent column: ",
+        measureEnd("Duration of between selection on persistent column: ",
                 my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                     ::apply, valColPersConv[i].get(), 0, 0, 0);
     }
 
-    trace_l(T_INFO, "Cleaning persistent columns");
+    //trace_l(T_INFO, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
@@ -537,6 +538,6 @@ int main(int /*argc*/, char** /*argv*/)
     root_mgr.drainAll();
     root_mgr.closeAll();
     
-    std::cout << "End of Benchmark" << std::endl;
+    //std::cout << "End of Benchmark" << std::endl;
     return 0;
 }
