@@ -122,6 +122,10 @@ ds_join(DS1 ds1, DS2 ds2)
     {
         pptr<const NodeBucketList<uint64_t>> positions = ds2->find(given_key);
 
+        if (val == nullptr)
+            return;
+        if (positions == nullptr)
+            return;
         //trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
 
         auto iter1 = val->begin();

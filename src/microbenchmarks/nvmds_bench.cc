@@ -333,14 +333,14 @@ public:
     }
 };
 
-inline void agg_sum_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
+inline const column<uncompr_f> * agg_sum_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
 {
-    agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>(f, s, inExtNum);
+    return agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>(f, s, inExtNum);
 }
 
-inline void nest_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
+inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
 {
-    nested_loop_join<ps, uncompr_f, uncompr_f>(f, s, inExtNum);
+    return nested_loop_join<ps, uncompr_f, uncompr_f>(f, s, inExtNum);
 }
 
 int main(int /*argc*/, char** /*argv*/)
@@ -504,11 +504,11 @@ int main(int /*argc*/, char** /*argv*/)
             std::cout << "Aggregate," << i << ",";
             measure("Duration of aggregation on volatile column: ",
                     agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
-            measure("Duration of aggregation on persistent tree: ",
+            measureTuple("Duration of aggregation on persistent tree: ",
                     group_agg_sum<MultiValTreeIndex>, &(*trees[i]), 21);
-            measure("Duration of aggregation on persistent tree: ",
+            measureTuple("Duration of aggregation on persistent tree: ",
                     group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
-            measure("Duration of aggregation on persistent tree: ",
+            measureTuple("Duration of aggregation on persistent tree: ",
                     group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
             measureEnd("Duration of aggregation on persistent column: ",
                     agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
@@ -543,19 +543,19 @@ int main(int /*argc*/, char** /*argv*/)
     for (unsigned int i = 0; i < node_number; i++) {
         for (unsigned j = 0; j < EXP_ITER/50; j++ ) {
             std::cout << "Join," << i << ",";
-            measure("Duration of join on volatile column: ",
+            measureTuple("Duration of join on volatile column: ",
                     nest_dua
                         , valColNode[i].get(), valColNode[i].get(), pow(valColNode[i].get()->get_count_values(), 2));
-            measure("Duration of join on persistent tree: ",
+            measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>>
                         , trees[i], trees[i]);
-            measure("Duration of join on persistent tree: ",
+            measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<SkipListIndex>, pptr<SkipListIndex>>
                         , skiplists[i], skiplists[i]);
-            measure("Duration of join on persistent tree: ",
+            measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<HashMapIndex>, pptr<HashMapIndex>>
                         , hashmaps[i], hashmaps[i]);
-            measureEnd("Duration of join on persistent column: ",
+            measureTupleEnd("Duration of join on persistent column: ",
                     nest_dua
                         , valColPersConv[i].get(), valColPersConv[i].get(), pow(valColPersConv[i].get()->get_count_values(), 2));
 
