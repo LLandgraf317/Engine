@@ -541,7 +541,7 @@ int main(int /*argc*/, char** /*argv*/)
     }
 
     for (unsigned int i = 0; i < node_number; i++) {
-        for (unsigned j = 0; j < EXP_ITER; j++ ) {
+        for (unsigned j = 0; j < EXP_ITER/50; j++ ) {
             std::cout << "Join," << i << ",";
             measure("Duration of join on volatile column: ",
                     nest_dua
