@@ -375,7 +375,7 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<HashMapIndex>> hashmaps;
 
     // Generation Phase
-    //trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
+    trace_l(T_DEBUG, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
         delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
@@ -388,13 +388,13 @@ int main(int /*argc*/, char** /*argv*/)
         bool p_Sorted,
         size_t p_Seed = 0*/
 
-        //trace_l(T_INFO, "Columns for node ", i, " generated");
+        trace_l(T_DEBUG, "Columns for node ", i, " generated");
 
         auto valCol = generate_exact_number_pers( ARRAY_SIZE, 10, 0, 1, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
         auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
 
-        //trace_l(T_INFO, "Persisent Columns for node ", i, " generated");
+        trace_l(T_DEBUG, "Persisent Columns for node ", i, " generated");
 
         delColPers.push_back(delCol);
         valColPers.push_back(valCol);
@@ -404,7 +404,6 @@ int main(int /*argc*/, char** /*argv*/)
         delColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(delCol->convert()));
         valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
 
-        //trace_l(T_INFO, "Constructing MuliValTreeIndex");
         root_mgr.drainAll();
 
         pptr<MultiValTreeIndex> tree;
@@ -412,7 +411,7 @@ int main(int /*argc*/, char** /*argv*/)
         pptr<HashMapIndex> hashmap;
         /*alloc_class = retr.pop.ctl_set<struct pobj_alloc_class_desc>(
             "heap.alloc_class.new.desc", MultiValTree::AllocClass);*/
-        //trace_l(T_INFO, "Running transaction");
+        trace_l(T_DEBUG, "Running transaction");
 
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {
@@ -425,10 +424,13 @@ int main(int /*argc*/, char** /*argv*/)
             hashmap = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
         });
 
+        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
         tree->generateKeyToPos(valCol);
         root_mgr.drainAll();
+        trace_l(T_DEBUG, "Constructing Skiplist");
         skiplist->generateKeyToPos(valCol);
         root_mgr.drainAll();
+        trace_l(T_DEBUG, "Constructing HashMap");
         hashmap->generateKeyToPos(valCol);
         root_mgr.drainAll();
 
@@ -443,13 +445,12 @@ int main(int /*argc*/, char** /*argv*/)
     //std::cout << "Sizeof Column Prim: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
     //std::cout << "Sizeof Column Val: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
 
-    //trace_l(T_INFO, "Benchmark Prototype");
+    trace_l(T_DEBUG, "Benchmark Prototype");
     
     // Benchmark: sequential insertion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
-    /*auto status =*/
-    numa_run_on_node(0);
-    //trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
+    auto status = numa_run_on_node(0);
+    trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
 
 #if 0
     uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
@@ -562,7 +563,7 @@ int main(int /*argc*/, char** /*argv*/)
         }
     }
 
-    //trace_l(T_INFO, "Cleaning persistent columns");
+    trace_l(T_DEBUG, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
         auto pop = root_mgr.getPop(i);
         transaction::run(pop, [&] {

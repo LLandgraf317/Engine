@@ -122,7 +122,7 @@ ds_join(DS1 ds1, DS2 ds2)
     {
         pptr<const NodeBucketList<uint64_t>> positions = ds2->find(given_key);
 
-        trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
+        //trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
 
         auto iter1 = val->begin();
         for (; iter1 != val->end(); iter1++) {
@@ -134,7 +134,7 @@ ds_join(DS1 ds1, DS2 ds2)
             }
         }
 
-        trace_l(T_INFO, "iOut is now ", iOut);
+        //trace_l(T_INFO, "iOut is now ", iOut);
 
     };
     ds1->scan(materialize_lambda);
