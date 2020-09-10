@@ -46,7 +46,6 @@ public:
     {
         if (m_Init) return; // Should throw exception
 
-        RootManager& root_mgr = RootManager::getInstance();
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
 

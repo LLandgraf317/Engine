@@ -49,7 +49,6 @@ public:
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
         uint64_t* value_data = valueCol->get_data();
-        RootManager& root_mgr = RootManager::getInstance();
 
         //TODO: slow, much optimization potential
         for (size_t i = 0; i < count_values; i++) {
