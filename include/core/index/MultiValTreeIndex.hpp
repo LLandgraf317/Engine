@@ -54,8 +54,6 @@ public:
         //TODO: slow, much optimization potential
         for (size_t i = 0; i < count_values; i++) {
             insert(key_data[i], value_data[i]);
-            if (i % 200 == 0)
-                root_mgr.drainAll();
         }
 
         m_Init = true;
