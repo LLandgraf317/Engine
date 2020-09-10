@@ -136,7 +136,7 @@ public:
 
     void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
 
-        trace_l(T_INFO, "Got values ", minKey, " and ", maxKey);
+        //trace_l(T_INFO, "Got values ", minKey, " and ", maxKey);
         std::list<pptr<NodeBucketList<uint64_t>>> list;
 
         m_SkipList->scanValue(minKey, maxKey, list);
