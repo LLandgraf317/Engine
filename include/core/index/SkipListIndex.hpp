@@ -51,6 +51,8 @@ public:
 
         //TODO: slow, much optimization potential
         for (size_t i = 0; i < count_values; i++) {
+            if (i % 10000 == 0)
+                trace_l(T_DEBUG, "Inserted key ", i);
             insert(key_data[i], i);
         }
 

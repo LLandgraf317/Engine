@@ -65,12 +65,11 @@ public:
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
 
-        RootManager& root_mgr = RootManager::getInstance();
         //TODO: slow, much optimization potential
         for (size_t i = 0; i < count_values; i++) {
             insert(key_data[i], i);
-            if (i % 200 == 0)
-                root_mgr.drainAll();
+            if (i % 10000 == 0)
+                trace_l(T_DEBUG, "Inserted key ", i);
         }
 
         m_Init = true;
