@@ -67,7 +67,7 @@ constexpr auto LAYOUT = "NVMDS";
 constexpr auto POOL_SIZE = 1024 * 1024 * 1024ull * ENV_POOL_SIZE;  //< 4GB
 
 constexpr uint64_t SEED = 42;
-constexpr unsigned EXP_ITER = 1000;
+constexpr unsigned EXP_ITER = 100;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 constexpr uint64_t JOIN_KEY_SIZE = 1000;
 pobj_alloc_class_desc alloc_class;
@@ -629,7 +629,7 @@ int main(int /*argc*/, char** /*argv*/)
         //table2PrimPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(table2PrimCol->convert()));
         
     for (unsigned int i = 0; i < node_number; i++) {
-        for (unsigned j = 0; j < EXP_ITER/50; j++ ) {
+        for (unsigned j = 0; j < EXP_ITER/10; j++ ) {
             std::cout << "Join," << i << ",";
             measureTuple("Duration of join on volatile column: ",
                     nest_dua
