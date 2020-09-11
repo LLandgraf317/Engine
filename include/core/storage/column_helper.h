@@ -35,26 +35,22 @@ struct column_meta_data {
    size_t m_SizeComprByte;
    // TODO make this const again
    size_t /*const*/ m_SizeAllocByte;
-   bool m_isNVM;
 
    column_meta_data(
       size_t p_CountLogicalValues,
       size_t p_SizeUsedByte,
       size_t p_SizeComprByte,
-      size_t p_SizeAllocByte,
-      bool p_isNVM
+      size_t p_SizeAllocByte
    ) :
       m_CountLogicalValues{ p_CountLogicalValues },
       m_SizeUsedByte{ p_SizeUsedByte },
       m_SizeComprByte{ p_SizeComprByte },
-      m_SizeAllocByte{ p_SizeAllocByte },
-      m_isNVM{ p_isNVM}{
+      m_SizeAllocByte{ p_SizeAllocByte }{
       trace(
          "Column Meta Data - ctor( |Logical Values| =", p_CountLogicalValues,
          ", |Data total column| =", p_SizeUsedByte, "Byte",
          ", |Data compressed part| =", p_SizeComprByte, "Byte",
-         ", Allocated Size = ", p_SizeAllocByte, " Bytes ",
-         ", isNVM = ", p_isNVM, " ).");
+         ", Allocated Size = ", p_SizeAllocByte, " Bytes).");
    }
       
    column_meta_data( column_meta_data const & ) = delete;

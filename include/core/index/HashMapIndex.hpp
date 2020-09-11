@@ -20,15 +20,15 @@ class HashMapIndex {
     using pptr = pmem::obj::persistent_ptr<Object>;
 
     pptr<PHashMap <ps, uint64_t, uint64_t>> m_HashMap;
-    uint64_t m_PmemNode;
+    p<uint64_t> m_PmemNode;
 
     pptr<char[]> m_Table;
     pptr<char[]> m_Relation;
     pptr<char[]> m_Attribute;
 
-    bool m_Init;
-    uint64_t m_EstimateElemCount;
-    size_t m_CountTuples;
+    p<bool> m_Init;
+    p<uint64_t> m_EstimateElemCount;
+    p<size_t> m_CountTuples;
 
 public:
 

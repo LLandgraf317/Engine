@@ -16,9 +16,9 @@ class MultiValTreeIndex {
     pptr<char[]> m_Attribute;
     pptr<char[]> m_Table;
 
-    size_t m_PmemNode;
-    bool m_Init;
-    size_t m_CountTuples;
+    p<size_t> m_PmemNode;
+    p<bool> m_Init;
+    p<size_t> m_CountTuples;
 
 public:
     MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string table, std::string relation, std::string attribute)
@@ -111,7 +111,7 @@ public:
             });
         }
 
-        m_CountTuples++;
+        m_CountTuples = m_CountTuples + 1;
     }
 
     bool lookup(uint64_t key, uint64_t val)
@@ -169,7 +169,7 @@ public:
             bool success = list->deleteValue(value);
             if (list->isEmpty())
                 m_Tree->erase(key);
-	    m_CountTuples--;
+            m_CountTuples = m_CountTuples - 1;
             return success;
         }
 

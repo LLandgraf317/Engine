@@ -13,7 +13,8 @@ namespace morphstore {
 template<class VectorExtension>
 struct multiply_mod_hash {
 
-    size_t m_ModSize;
+    p<size_t> m_ModSize;
+
     multiply_mod_hash(size_t modsize) : m_ModSize(modsize) {}
 
     size_t apply(size_t num)
@@ -29,16 +30,15 @@ template<class VectorExtension,
     typename KeyType,
     typename ValueType>
 class PHashMap {
+
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
-
     using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType>>>; 
-    pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
-    size_t m_MapElemCount;
 
-    //size_helper<VectorExtension, 60, size_policy_hash::EXPONENTIAL> const m_SizeHelper;
+    pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
+    p<size_t> m_MapElemCount;
+
     multiply_mod_hash<VectorExtension> m_HashStrategy;
-    //scalar_key_vectorized_linear_search<VectorExtension, VectorExtension, multiply_mod_hash, size_policy_hash::EXPONENTIAL> m_SearchStratey;
    
 public:
     PHashMap(size_t p_DistinctElementCountEstimate)

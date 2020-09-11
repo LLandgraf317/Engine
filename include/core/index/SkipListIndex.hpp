@@ -17,9 +17,9 @@ namespace morphstore {
 class SkipListIndex {
 private:
     pmem::obj::persistent_ptr<dbis::pskiplists::simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>> m_SkipList;
-    size_t m_CountTuples;
-    size_t m_PmemNode;
-    bool m_Init;
+    p<size_t> m_CountTuples;
+    p<size_t> m_PmemNode;
+    p<bool> m_Init;
 
 public:
     SkipListIndex(int p_PmemNode) : m_CountTuples(0), m_PmemNode(p_PmemNode), m_Init(false) {
@@ -81,17 +81,21 @@ public:
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
         if (m_SkipList->search(key, list)) {
-            transaction::run(pop, [&] {
-                if (list == nullptr)
+            if (list == nullptr)
+                transaction::run(pop, [&] {
                     list = make_persistent<NodeBucketList<uint64_t>>();
+                });
+            transaction::run(pop, [&] {
                 list->insertValue(value); 
             });
         }
         else {
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t>>();
-                if (list == nullptr)
-                    throw new std::runtime_error("out of memory");
+            });
+            if (list == nullptr)
+                throw new std::runtime_error("out of memory");
+            transaction::run(pop, [&] {
                 m_SkipList->insert(key, list);
                 list->insertValue(value);
             });

@@ -6,7 +6,7 @@
 //#include <core/access/root.h>
 #include <core/access/RootManager.h>
 #include <core/storage/PersistentColumn.h>
-#include <core/operators/operators.h>
+//#include <core/operators/operators.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 #include <core/index/MultiValTreeIndex.hpp>
@@ -297,30 +297,6 @@ void random_select_col_threads(T prim, T val)
     for (int i = 0; i < SELECTIVITY_PARALLEL; i++) {
         trace_l(T_DEBUG, "Ending Thread ", i);
         pthread_join((data[i].thread) , nullptr);
-    }
-}
-
-void random_select_tree(uint64_t highest_key, TreeType* tree)
-{
-    std::srand(SEED);
-    VolatileColumn* col = nullptr;
-
-    for (int sel = 0; sel < SELECT_ITERATIONS; sel++) {
-        col = new VolatileColumn(SELECTIVITY_SIZE * sizeof(uint64_t), 0);
-
-        uint64_t random_select_start = std::rand() / RAND_MAX * highest_key;
-        uint64_t random_select_end = random_select_start + SELECTIVITY_SIZE - 1;
-        uint64_t* index = col->get_data();
-
-        auto materialize_lambda = [&](const uint64_t& /*key*/, const std::tuple<uint64_t>& val)
-        {
-            *index = std::get<0>(val);
-            index++;
-        };
-
-        tree->scan(random_select_start, random_select_end, materialize_lambda);
-
-        delete col;
     }
 }
 

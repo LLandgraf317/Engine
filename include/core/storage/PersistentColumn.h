@@ -2,6 +2,7 @@
 
 #include <libpmemobj/ctl.h>
 #include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/make_persistent_atomic.hpp>
 #include <libpmemobj++/p.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/transaction.hpp>
@@ -19,6 +20,7 @@ namespace morphstore {
 
 using pmem::obj::persistent_ptr;
 using pmem::obj::make_persistent;
+using pmem::obj::make_persistent_atomic;
 using pmem::obj::pool;
 
 using morphstore::column_meta_data;
@@ -34,12 +36,10 @@ public:
 
     PersistentColumn(
         std::string table_name, std::string attr_name, size_t byteSize, size_t numa_node)
-        :
-        m_MetaData{ 0, 0, 0, byteSize, true }
     {
         RootManager& mgr = RootManager::getInstance();
         trace(T_INFO, "Creating column for table ", table_name, " and attr name ", attr_name);
-        pool<root> pop = *mgr.getPops();
+        pool<root> pop = mgr.getPop(numa_node);
 
         m_byteSize = byteSize;
         m_persistentData = pmemobj_tx_alloc(byteSize, 0);
@@ -87,6 +87,15 @@ public:
         return &(m_persistentData[0]);
     }
 
+    inline void set(size_t index, uint64_t value)
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = mgr.getPop(m_numaNode);
+
+        pptr<uint64_t> ptr = &((uint64_t*) get_data())[index];
+        pmem::obj::make_persistent_atomic<uint64_t>(pop, ptr, value); 
+    }
+
     size_t getAbsoluteSize()
     {
         return m_byteSize;
@@ -95,16 +104,17 @@ public:
     inline void set_meta_data(
          size_t p_CountValues,
          size_t p_SizeUsedByte,
-         size_t p_SizeComprByte
+         size_t /*p_SizeComprByte*/
              )  {
 
-        m_MetaData.m_CountLogicalValues = p_CountValues;
-        m_MetaData.m_SizeUsedByte = p_SizeUsedByte;
-        m_MetaData.m_SizeComprByte = p_SizeComprByte;
+        m_entries = p_CountValues;
+        m_byteSize = p_SizeUsedByte;
+        //m_MetaData.m_SizeComprByte = p_SizeComprByte;
     }
 
     inline void set_meta_data( size_t p_CountValues, size_t p_SizeUsedByte )  {
-        set_meta_data(p_CountValues, p_SizeUsedByte, 0);
+        m_entries = p_CountValues;
+        m_byteSize = p_SizeUsedByte;
     }
 
     size_t get_size()
@@ -113,25 +123,24 @@ public:
     }
 
     inline size_t get_count_values( void )  {
-       return m_MetaData.m_CountLogicalValues;
+       return m_entries;
     }
 
     inline size_t get_size_used_byte( void )  {
-       return m_MetaData.m_SizeUsedByte;
+       return m_byteSize;
     }
 private:
-    void* m_testVol;
     pmem::obj::persistent_ptr<size_t[]> m_persistentData;
     pmem::obj::persistent_ptr<char[]> m_table;
     pmem::obj::persistent_ptr<char[]> m_attribute;
 
-    column_meta_data m_MetaData;
+    //column_meta_data m_MetaData;
 
-    size_t m_byteSize;
-    size_t m_entries;
-    size_t m_fieldLength;
+    p<size_t> m_byteSize;
+    p<size_t> m_entries;
+    p<size_t> m_fieldLength;
 
-    size_t m_numaNode;
+    p<size_t> m_numaNode;
 
 };
 

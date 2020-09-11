@@ -89,7 +89,7 @@ class column {
    protected:
       column( size_t p_SizeAllocatedByte, int numa_node, voidptr_t data)
           :
-         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte, false },
+         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte},
          m_Data(data),
          m_PersistenceType(storage_persistence_type::nvmScope),
          m_IsPreparedForRndAccess(true),
@@ -115,7 +115,7 @@ class column {
          size_t p_SizeAllocatedByte,
          int numa_node
       ) :
-         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte, false },
+         m_MetaData{ 0, 0, 0, p_SizeAllocatedByte},
 #ifdef MSV_NO_SELFMANAGED_MEMORY
          m_DataUnaligned{
             malloc( get_size_with_alignment_padding( p_SizeAllocatedByte ) )
