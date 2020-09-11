@@ -42,37 +42,14 @@ public:
         m_CountTuples = 0;
     }
 
-    void generateFromPersistentColumn(pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
+    void setInit()
     {
-        if (m_Init) return; // Should throw exception instead
-
-        auto count_values = keyCol->get_count_values();
-        uint64_t* key_data = keyCol->get_data();
-        uint64_t* value_data = valueCol->get_data();
-
-        //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++) {
-            insert(key_data[i], value_data[i]);
-        }
-
         m_Init = true;
     }
 
-    void generateKeyToPos(pptr<PersistentColumn> keyCol)
+    bool isInit()
     {
-        if (m_Init) return; // Should throw exception
-
-        auto count_values = keyCol->get_count_values();
-        uint64_t* key_data = keyCol->get_data();
-
-        //TODO: slow, much optimization potential
-        for (size_t i = 0; i < count_values; i++) {
-            insert(key_data[i], i);
-            if (i % 10000 == 0)
-                trace_l(T_DEBUG, "Inserted key ", i);
-        }
-
-        m_Init = true;
+        return m_Init;
     }
 
     size_t getCountValues() const

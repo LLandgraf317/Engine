@@ -9,10 +9,12 @@
 //#include <core/operators/operators.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
+
 #include <core/index/MultiValTreeIndex.hpp>
 #include <core/index/SkipListIndex.hpp>
-#include <core/index/PHashMap.hpp>
 #include <core/index/HashMapIndex.hpp>
+#include <core/index/index_gen.h>
+
 #include <core/utils/measure.h>
 
 #include <core/morphing/format.h>
@@ -458,33 +460,33 @@ int main(int /*argc*/, char** /*argv*/)
         });
 
         trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        tree->generateKeyToPos(valCol);
+        IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, valCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing Skiplist");
-        skiplist->generateKeyToPos(valCol);
+        IndexGen<SkipListIndex>::generateKeyToPos(skiplist, valCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing HashMap");
-        hashmap->generateKeyToPos(valCol);
+        IndexGen<HashMapIndex>::generateKeyToPos(hashmap, valCol);
         root_mgr.drainAll();
 
         trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        treeFor->generateKeyToPos(forKeyCol);
+        IndexGen<MultiValTreeIndex>::generateKeyToPos(treeFor, forKeyCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing Skiplist");
-        skiplistFor->generateKeyToPos(forKeyCol);
+        IndexGen<SkipListIndex>::generateKeyToPos(skiplistFor, forKeyCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing HashMap");
-        hashmapFor->generateKeyToPos(forKeyCol);
+        IndexGen<HashMapIndex>::generateKeyToPos(hashmapFor, forKeyCol);
         root_mgr.drainAll();
 
         trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        tree2->generateKeyToPos(table2PrimCol);
+        IndexGen<MultiValTreeIndex>::generateKeyToPos(tree2, table2PrimCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing Skiplist");
-        skiplist2->generateKeyToPos(table2PrimCol);
+        IndexGen<SkipListIndex>::generateKeyToPos(skiplist2, table2PrimCol);
         root_mgr.drainAll();
         trace_l(T_DEBUG, "Constructing HashMap");
-        hashmap2->generateKeyToPos(table2PrimCol);
+        IndexGen<HashMapIndex>::generateKeyToPos(hashmap2, table2PrimCol);
         root_mgr.drainAll();
 
         trees.push_back(tree);

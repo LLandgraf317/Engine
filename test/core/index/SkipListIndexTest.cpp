@@ -20,6 +20,7 @@
 #include <core/index/SkipListIndex.hpp>
 #include <core/index/MultiValTreeIndex.hpp>
 #include <core/index/HashMapIndex.hpp>
+#include <core/index/index_gen.h>
 
 using namespace morphstore;
 using namespace vectorlib;
@@ -242,13 +243,13 @@ int main( void ) {
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
                0, 30, 0.5, 40, MAX_VALUE, 0.005, false, 0, SEED);
 
-    skiplist->generateKeyToPos(col);
-    tree->generateKeyToPos(col);
-    hashmap->generateKeyToPos(col);
+    IndexGen<SkipListIndex>    ::generateKeyToPos(skiplist, col);
+    IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, col);
+    IndexGen<HashMapIndex>     ::generateKeyToPos(hashmap, col);
 
-    IndexTest<SkipListIndex>::test(skiplist, col);
+    IndexTest<SkipListIndex>    ::test(skiplist, col);
     IndexTest<MultiValTreeIndex>::test(tree, col);
-    IndexTest<HashMapIndex>::test(hashmap, col);
+    IndexTest<HashMapIndex>     ::test(hashmap, col);
 
     // Cleanup
     transaction::run(pop, [&] {
