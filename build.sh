@@ -236,11 +236,13 @@ case $key in
 	-rel|--release)
 	buildModeSet=$((buildModeSet + 1))
 	buildMode="-DCMAKE_BUILD_TYPE=Release"
+    export TRACE_LEVEL=2
 	shift # past argument
 	;;
 	-hi|--HighPerf)
 	buildModeSet=$((buildModeSet + 1))
 	buildMode="-DCMAKE_BUILD_TYPE=HighPerf"
+    export TRACE_LEVEL=1
 	shift # past argument
 	;;
 	-mon|--enable-monitoring)
