@@ -386,7 +386,7 @@ int main(int /*argc*/, char** /*argv*/)
 
         table2PrimNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(100, i)) );
 
-        trace_l(T_DEBUG, "Columns for node ", i, " generated");
+        trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
         auto valCol = generate_exact_number_pers( ARRAY_SIZE, 10, 0, 1, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
@@ -396,7 +396,7 @@ int main(int /*argc*/, char** /*argv*/)
 
         auto table2PrimCol = generate_sorted_unique_pers(100, i);
 
-        trace_l(T_DEBUG, "Persisent Columns for node ", i, " generated");
+        trace_l(T_INFO, "Persistent columns for node ", i, " generated");
 
         delColPers.push_back(delCol);
         valColPers.push_back(valCol);
@@ -414,7 +414,7 @@ int main(int /*argc*/, char** /*argv*/)
 
         root_mgr.drainAll();
 
-        trace_l(T_DEBUG, "Running transaction");
+        trace_l(T_DEBUG, "Initializing index structures");
 
         pptr<MultiValTreeIndex> tree;
         pptr<SkipListIndex> skiplist;
@@ -503,16 +503,10 @@ int main(int /*argc*/, char** /*argv*/)
     }
     root_mgr.drainAll();
 
-    //std::cout << "Sizeof PBPTree: " << indexes[0]->memory_footprint() << std::endl;
-    //std::cout << "Sizeof Column Prim: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
-    //std::cout << "Sizeof Column Val: " << ARRAY_SIZE * sizeof(uint64_t) << std::endl;
-
-    trace_l(T_DEBUG, "Benchmark Prototype");
-    
     // Benchmark: sequential insertion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
     auto status = numa_run_on_node(0);
-    trace_l(T_DEBUG, "numa_run_on_node(0) returned ", status);
+    trace_l(T_INFO, "numa_run_on_node(0) returned ", status);
 
 #if 0
     uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
@@ -602,10 +596,6 @@ int main(int /*argc*/, char** /*argv*/)
         }
     }
 
-        //forKeyColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
-
-        //table2PrimPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(table2PrimCol->convert()));
-        
     for (unsigned int i = 0; i < node_number; i++) {
         for (unsigned j = 0; j < EXP_ITER/10; j++ ) {
             std::cout << "Join," << i << ",";
@@ -639,6 +629,8 @@ int main(int /*argc*/, char** /*argv*/)
 
             delete_persistent<PersistentColumn>(forKeyColPers[i]);
 
+            delete_persistent<PersistentColumn>(table2PrimPers[i]);
+
             delete_persistent<MultiValTreeIndex>(trees[i]);
             delete_persistent<SkipListIndex>(skiplists[i]);
             delete_persistent<HashMapIndex>(hashmaps[i]);
@@ -656,6 +648,6 @@ int main(int /*argc*/, char** /*argv*/)
     root_mgr.drainAll();
     root_mgr.closeAll();
     
-    //std::cout << "End of Benchmark" << std::endl;
+    trace_l(T_INFO, "End of Benchmark");
     return 0;
 }
