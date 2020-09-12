@@ -1,15 +1,19 @@
 #pragma once
 
 #include <core/tracing/trace.h>
+#include <core/access/RootManager.h>
 
 #include <stdexcept>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
+#include <libpmemobj++/transaction.hpp>
 
 using pmem::obj::make_persistent;
 using pmem::obj::persistent_ptr;
 using pmem::obj::delete_persistent;
+using pmem::obj::p;
+using pmem::obj::transaction;
 
 
 template<typename T>
@@ -93,7 +97,8 @@ struct NodeBucketList {
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
 
-    size_t value_count;
+    p<size_t> value_count;
+    p<size_t> m_PmemNode;
 
     pptr<NodeBucket<T>> first;
     pptr<NodeBucket<T>> last;
@@ -163,11 +168,12 @@ struct NodeBucketList {
         return Iterator(nullptr, 0);
     }
 
-    NodeBucketList()
+    NodeBucketList(size_t pmemNode)
     {
         value_count = 0;
         first = nullptr;
         last = nullptr;
+        m_PmemNode = pmemNode;
     }
 
     //TODO: need to nail pre and post conditions
@@ -217,28 +223,34 @@ struct NodeBucketList {
 
     inline void insertValue(T val)
     {
-        value_count++;
 
-        if (first == nullptr) {
-            first = make_persistent<NodeBucket<T>>();
-            last = first;
+        morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
+        pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-            first->insertLast(val);
-        }
-        else {
-            if (last->isFull()) {
-                auto tmp = make_persistent<NodeBucket<T>>();
-                if (tmp == nullptr)
-                    throw new std::runtime_error("out of memory");
-                tmp->insertLast(val);
-                last->setNext(tmp);
-                tmp->setPrev(last);
-                last = tmp;
+        transaction::run(pop, [&] {
+            value_count = value_count + 1;
+            if (first == nullptr) {
+
+                first = make_persistent<NodeBucket<T>>();
+                last = first;
+
+                first->insertLast(val);
             }
             else {
-                last->insertLast(val);
+                if (last->isFull()) {
+                    auto tmp = make_persistent<NodeBucket<T>>();
+                    if (tmp == nullptr)
+                        throw new std::runtime_error("out of memory");
+                    tmp->insertLast(val);
+                    last->setNext(tmp);
+                    tmp->setPrev(last);
+                    last = tmp;
+                }
+                else {
+                    last->insertLast(val);
+                }
             }
-        }
+        });
     }
 
     bool deleteValue(T val)
@@ -263,7 +275,7 @@ struct NodeBucketList {
 
                     auto tmp = last->getLastAndDecr();
                     it->bucket_list[i] = tmp;
-                    value_count--;
+                    value_count = value_count - 1;
                     return true;
                 }
             }

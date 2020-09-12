@@ -72,20 +72,19 @@ public:
     {
 
         pptr<NodeBucketList<uint64_t>> list;
-        RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
         if (m_Tree->lookup(key, &list)) {
-            transaction::run(pop, [&] {
-                list->insertValue(value); 
-            });
+            list->insertValue(value); 
         }
         else {
+            morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
+            pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
             transaction::run(pop, [&] {
-                list = make_persistent<NodeBucketList<uint64_t>>();
+                list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
                 m_Tree->insert(key, list);
-                list->insertValue(value);
             });
+            list->insertValue(value);
         }
 
         m_CountTuples = m_CountTuples + 1;

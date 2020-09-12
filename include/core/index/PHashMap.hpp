@@ -37,16 +37,18 @@ class PHashMap {
 
     pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
     p<size_t> m_MapElemCount;
+    p<size_t> m_PmemNode;
 
     multiply_mod_hash<VectorExtension> m_HashStrategy;
    
 public:
-    PHashMap(size_t p_DistinctElementCountEstimate)
+    PHashMap(size_t p_DistinctElementCountEstimate, size_t pmemNode)
         :
          m_MapElemCount(p_DistinctElementCountEstimate),
          //m_SizeHelper{
          //   p_DistinctElementCountEstimate
          //},
+         m_PmemNode(pmemNode),
             m_HashStrategy(p_DistinctElementCountEstimate)
     {
         m_Map = make_persistent<
@@ -60,9 +62,9 @@ public:
     {
         auto offset = m_HashStrategy.apply(key);
         if (m_Map[offset] == nullptr) {
-            m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>();
+            m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
 
-            pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>();
+            pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
             tmp->insertValue(value);
             m_Map[offset]->insertValue(std::make_tuple(key, tmp));
 
@@ -78,7 +80,7 @@ public:
             }
         }
 
-        pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>();
+        pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
         tmp->insertValue(value);
         m_Map[offset]->insertValue(std::make_tuple(key, tmp));
     }

@@ -77,7 +77,9 @@ class column {
 
       virtual ~column( ) {
 #ifdef MSV_NO_SELFMANAGED_MEMORY
-         free( m_DataUnaligned );
+         if( m_PersistenceType == storage_persistence_type::globalScope ) {
+             free( m_DataUnaligned );
+         }
 #else
          if( m_PersistenceType == storage_persistence_type::globalScope ) {
             general_memory_manager::get_instance( ).deallocate( m_Data );

@@ -60,7 +60,7 @@ public:
         if (m_SkipList->search(key, list)) {
             if (list == nullptr)
                 transaction::run(pop, [&] {
-                    list = make_persistent<NodeBucketList<uint64_t>>();
+                    list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
                 });
             transaction::run(pop, [&] {
                 list->insertValue(value); 
@@ -68,7 +68,7 @@ public:
         }
         else {
             transaction::run(pop, [&] {
-                list = make_persistent<NodeBucketList<uint64_t>>();
+                list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
             });
             if (list == nullptr)
                 throw new std::runtime_error("out of memory");

@@ -46,7 +46,7 @@ public:
         pop.memcpy_persist(m_Attribute.raw_ptr(), attribute.c_str(), attribute.length() + 1);
         pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
-        m_HashMap = make_persistent<PHashMap<ps, uint64_t, uint64_t>>(estimateElemCount);
+        m_HashMap = make_persistent<PHashMap<ps, uint64_t, uint64_t>>(estimateElemCount, pMemNode);
     }
 
     void setInit()
