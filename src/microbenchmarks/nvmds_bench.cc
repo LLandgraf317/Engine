@@ -371,7 +371,7 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<HashMapIndex>> hashmapsTable2;
 
     // Generation Phase
-    trace_l(T_DEBUG, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
+    trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
         delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
