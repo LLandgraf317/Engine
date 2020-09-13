@@ -2,6 +2,7 @@
 
 #include <libpmemobj++/p.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
+#include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/container/vector.hpp>
 
@@ -20,12 +21,16 @@ class MultiValTreeIndex;
 class HashMapIndex;
 class SkipListIndex;
 
-struct root {
-    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<PersistentColumn>>> cols;
+using pmem::obj::persistent_ptr;
+using pmem::obj::vector;
+using pmem::obj::make_persistent;
 
-    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<MultiValTreeIndex>>> treeIndeces;
-    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<SkipListIndex>>> skipListIndeces;
-    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<HashMapIndex>>> hashMapIndeces;
+struct root {
+    persistent_ptr<vector<persistent_ptr<PersistentColumn>>> cols;
+
+    persistent_ptr<vector<persistent_ptr<MultiValTreeIndex>>> treeIndeces;
+    persistent_ptr<vector<persistent_ptr<SkipListIndex>>> skipListIndeces;
+    persistent_ptr<vector<persistent_ptr<HashMapIndex>>> hashMapIndeces;
 };
 
 struct root_retrieval {
@@ -63,6 +68,11 @@ public:
             retr.pop = pmem::obj::pool<root>::create(path, LAYOUT, POOL_SIZE);
 
             retr.read_from_file_successful = false;
+
+            retr.pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
+            retr.pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
+            retr.pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
+            retr.pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
@@ -87,10 +97,42 @@ public:
         }
     }
 
+    static void pushPersistentColumn(persistent_ptr<PersistentColumn> col, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        pop.root()->cols->push_back(col);
+    }
+
+    static void pushTree(persistent_ptr<MultiValTreeIndex> tree, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        pop.root()->treeIndeces->push_back(tree);
+    }
+
+    static void pushSkiplist(persistent_ptr<SkipListIndex> skiplist, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        pop.root()->skipListIndeces->push_back(skiplist);
+    }
+
+    static void pushHashmap(persistent_ptr<HashMapIndex> hashmap, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        pop.root()->hashMapIndeces->push_back(hashmap);
+    }
+
     static size_t getNumaNodeCount()
     {
         return numa_max_node() + 1;
     }
 };
 
-} // namespace morphstore
+}

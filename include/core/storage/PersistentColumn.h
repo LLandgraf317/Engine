@@ -49,24 +49,24 @@ public:
         m_persistentData = pmemobj_tx_alloc(byteSize, 0);
         m_numaNode = numa_node;
 
-        m_relation = make_persistent<char[]>(relation.length() + 1);
+        m_Relation = make_persistent<char[]>(relation.length() + 1);
         m_rl = relation.length() + 1;
-        pop.memcpy_persist(m_relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+        pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
-        m_table = make_persistent<char[]>(table_name.length() + 1);
+        m_Table = make_persistent<char[]>(table_name.length() + 1);
         m_tl = table_name.length() + 1;
-        pop.memcpy_persist(m_table.raw_ptr(), table_name.c_str(), table_name.length() + 1);
+        pop.memcpy_persist(m_Table.raw_ptr(), table_name.c_str(), table_name.length() + 1);
 
-        m_attribute = make_persistent<char[]>(attr_name.length() + 1);
+        m_Attribute = make_persistent<char[]>(attr_name.length() + 1);
         m_al = attr_name.length() + 1;
-        pop.memcpy_persist(m_attribute.raw_ptr(), attr_name.c_str(), table_name.length() + 1);
+        pop.memcpy_persist(m_Attribute.raw_ptr(), attr_name.c_str(), table_name.length() + 1);
     }
 
     void prepareDest()
     {
-        delete_persistent_atomic<char[]>(m_relation, m_rl);
-        delete_persistent_atomic<char[]>(m_table, m_tl);
-        delete_persistent_atomic<char[]>(m_attribute, m_al);
+        delete_persistent_atomic<char[]>(m_Relation, m_rl);
+        delete_persistent_atomic<char[]>(m_Table, m_tl);
+        delete_persistent_atomic<char[]>(m_Attribute, m_al);
 
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
@@ -74,6 +74,21 @@ public:
         transaction::run(pop, [&] {
             pmemobj_tx_free( m_persistentData.raw() );
         });
+    }
+
+    std::string getTable()
+    {
+        return std::string(m_Table.get());
+    }
+
+    std::string getRelation()
+    {
+        return std::string(m_Relation.get());
+    }
+
+    std::string getAttribute()
+    {
+        return std::string(m_Attribute.get());
     }
 
     const column<uncompr_f>* convert()
@@ -154,11 +169,17 @@ public:
     inline size_t get_size_used_byte( void )  {
        return m_byteSize;
     }
+
+    size_t getPmemNode()
+    {
+        return m_numaNode;
+    }
+
 private:
     pmem::obj::persistent_ptr<size_t[]> m_persistentData;
-    pmem::obj::persistent_ptr<char[]> m_relation;
-    pmem::obj::persistent_ptr<char[]> m_table;
-    pmem::obj::persistent_ptr<char[]> m_attribute;
+    pmem::obj::persistent_ptr<char[]> m_Relation;
+    pmem::obj::persistent_ptr<char[]> m_Table;
+    pmem::obj::persistent_ptr<char[]> m_Attribute;
 
     //column_meta_data m_MetaData;
 

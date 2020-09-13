@@ -64,6 +64,21 @@ public:
         delete_persistent_atomic<char[]>(m_Attribute, m_al);
     }
 
+    std::string getTable()
+    {
+        return std::string(m_Table.get());
+    }
+
+    std::string getRelation()
+    {
+        return std::string(m_Relation.get());
+    }
+
+    std::string getAttribute()
+    {
+        return std::string(m_Attribute.get());
+    }
+
     void setInit()
     {
         m_Init = true;
