@@ -12,18 +12,68 @@
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/transaction.hpp>
 
+using dbis::pskiplists::simplePSkiplist;
+using pmem::obj::persistent_ptr;
+using pmem::obj::make_persistent;
+
 namespace morphstore {
 
 class SkipListIndex {
+
+    using CustomSkiplist = simplePSkiplist<uint64_t, persistent_ptr<NodeBucketList<uint64_t>>, 8>;
 private:
-    pmem::obj::persistent_ptr<dbis::pskiplists::simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>> m_SkipList;
+    persistent_ptr<CustomSkiplist> m_SkipList;
     p<size_t> m_CountTuples;
     p<size_t> m_PmemNode;
     p<bool> m_Init;
 
+    pptr<char[]> m_Table;
+    pptr<char[]> m_Relation;
+    pptr<char[]> m_Attribute;
+
+    p<size_t> m_rl;
+    p<size_t> m_tl;
+    p<size_t> m_al;
+
 public:
-    SkipListIndex(int p_PmemNode) : m_CountTuples(0), m_PmemNode(p_PmemNode), m_Init(false) {
-        m_SkipList = pmem::obj::make_persistent<dbis::pskiplists::simplePSkiplist<uint64_t, pmem::obj::persistent_ptr<NodeBucketList<uint64_t>>, 8>>();
+    SkipListIndex(int p_PmemNode) : SkipListIndex(p_PmemNode, std::string("null"), std::string("null"), std::string("null")) {
+
+    }
+
+    SkipListIndex(int p_PmemNode, std::string relation, std::string table, std::string attribute) : m_PmemNode(p_PmemNode)
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        m_Init = false;
+
+        m_SkipList = make_persistent<CustomSkiplist>();
+
+        m_Table = make_persistent<char[]>(table.length() + 1);
+        m_tl = table.length() + 1;
+        m_Attribute = make_persistent<char[]>(attribute.length() + 1);
+        m_al = attribute.length() + 1;
+        m_Relation = make_persistent<char[]>(relation.length() + 1);
+        m_rl = relation.length() + 1;
+
+        pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
+        pop.memcpy_persist(m_Attribute.raw_ptr(), attribute.c_str(), attribute.length() + 1);
+        pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+
+    }
+
+    void prepareDest()
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        transaction::run(pop, [&] {
+            delete_persistent<CustomSkiplist>(m_SkipList);
+        });
+
+        delete_persistent_atomic<char[]>(m_Relation, m_rl);
+        delete_persistent_atomic<char[]>(m_Table, m_tl);
+        delete_persistent_atomic<char[]>(m_Attribute, m_al);
     }
 
     void setInit()

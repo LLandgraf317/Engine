@@ -436,7 +436,7 @@ const column<uncompr_f> * generate_exact_number(
     return resCol;
 }
 
-const pptr<PersistentColumn> generate_exact_number_pers(
+const persistent_ptr<PersistentColumn> generate_exact_number_pers(
         size_t p_CountValues,
         size_t p_CountMatches,
         uint64_t p_ValMatch,

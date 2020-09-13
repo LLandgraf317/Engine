@@ -18,13 +18,18 @@ class HashMapIndex {
     using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
+    using CustomHashmap = PHashMap<ps, uint64_t, uint64_t>;
 
-    pptr<PHashMap <ps, uint64_t, uint64_t>> m_HashMap;
+    pptr<CustomHashmap> m_HashMap;
     p<uint64_t> m_PmemNode;
 
     pptr<char[]> m_Table;
     pptr<char[]> m_Relation;
     pptr<char[]> m_Attribute;
+
+    p<size_t> m_rl;
+    p<size_t> m_tl;
+    p<size_t> m_al;
 
     p<bool> m_Init;
     p<uint64_t> m_EstimateElemCount;
@@ -39,14 +44,31 @@ public:
         pool<root> pop = *std::next(mgr.getPops(), pMemNode);
 
         m_Table = make_persistent<char[]>(table.length() + 1);
+        m_tl = table.length() + 1;
         m_Attribute = make_persistent<char[]>(attribute.length() + 1);
+        m_al = attribute.length() + 1;
         m_Relation = make_persistent<char[]>(relation.length() + 1);
+        m_rl = relation.length() + 1;
 
         pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
         pop.memcpy_persist(m_Attribute.raw_ptr(), attribute.c_str(), attribute.length() + 1);
         pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
 
-        m_HashMap = make_persistent<PHashMap<ps, uint64_t, uint64_t>>(estimateElemCount, pMemNode);
+        m_HashMap = make_persistent<CustomHashmap>(estimateElemCount, pMemNode);
+    }
+
+    void prepareDest()
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        transaction::run(pop, [&] {
+            delete_persistent<CustomHashmap>(m_HashMap);
+        });
+
+        delete_persistent_atomic<char[]>(m_Relation, m_rl);
+        delete_persistent_atomic<char[]>(m_Table, m_tl);
+        delete_persistent_atomic<char[]>(m_Attribute, m_al);
     }
 
     void setInit()

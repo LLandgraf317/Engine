@@ -5,6 +5,7 @@
 #include <core/storage/PersistentColumn.h>
 
 #include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/make_persistent_atomic.hpp>
 #include <libpmemobj++/p.hpp>
 
 namespace morphstore {
@@ -15,6 +16,10 @@ class MultiValTreeIndex {
     pptr<char[]> m_Relation;
     pptr<char[]> m_Attribute;
     pptr<char[]> m_Table;
+
+    p<size_t> m_rl;
+    p<size_t> m_tl;
+    p<size_t> m_al;
 
     p<size_t> m_PmemNode;
     p<bool> m_Init;
@@ -29,8 +34,11 @@ public:
         m_PmemNode = pMemNode;
 
         m_Table = make_persistent<char[]>(table.length() + 1);
+        m_tl = table.length() + 1;
         m_Attribute = make_persistent<char[]>(attribute.length() + 1);
+        m_al = attribute.length() + 1;
         m_Relation = make_persistent<char[]>(relation.length() + 1);
+        m_rl = relation.length() + 1;
 
         m_Tree = make_persistent<MultiValTree>(alloc_class);
 
@@ -40,6 +48,20 @@ public:
 
         m_Init = false;
         m_CountTuples = 0;
+    }
+
+    void prepareDest()
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        transaction::run(pop, [&] {
+            delete_persistent<MultiValTree>(m_Tree);
+        });
+
+        delete_persistent_atomic<char[]>(m_Relation, m_rl);
+        delete_persistent_atomic<char[]>(m_Table, m_tl);
+        delete_persistent_atomic<char[]>(m_Attribute, m_al);
     }
 
     void setInit()

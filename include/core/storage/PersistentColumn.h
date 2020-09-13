@@ -20,8 +20,12 @@ namespace morphstore {
 
 using pmem::obj::persistent_ptr;
 using pmem::obj::make_persistent;
+using pmem::obj::persistent_ptr;
 using pmem::obj::make_persistent_atomic;
+using pmem::obj::delete_persistent_atomic;
 using pmem::obj::pool;
+using pmem::obj::transaction;
+using pmem::obj::p;
 
 using morphstore::column_meta_data;
 
@@ -29,13 +33,13 @@ using morphstore::column_meta_data;
 class PersistentColumn /*: public Column*/ {
 public:
     PersistentColumn(bool /*isPersistent*/, size_t p_SizeAllocatedByte, int numa_node ) : PersistentColumn(
-            std::string("null"), std::string("null"), p_SizeAllocatedByte, numa_node)
+            std::string("null"), std::string("null"), std::string("null"), p_SizeAllocatedByte, numa_node)
       {
          //
       };
 
     PersistentColumn(
-        std::string table_name, std::string attr_name, size_t byteSize, size_t numa_node)
+        std::string relation, std::string table_name, std::string attr_name, size_t byteSize, size_t numa_node)
     {
         RootManager& mgr = RootManager::getInstance();
         trace(T_INFO, "Creating column for table ", table_name, " and attr name ", attr_name);
@@ -44,11 +48,32 @@ public:
         m_byteSize = byteSize;
         m_persistentData = pmemobj_tx_alloc(byteSize, 0);
         m_numaNode = numa_node;
+
+        m_relation = make_persistent<char[]>(relation.length() + 1);
+        m_rl = relation.length() + 1;
+        pop.memcpy_persist(m_relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+
         m_table = make_persistent<char[]>(table_name.length() + 1);
+        m_tl = table_name.length() + 1;
         pop.memcpy_persist(m_table.raw_ptr(), table_name.c_str(), table_name.length() + 1);
 
         m_attribute = make_persistent<char[]>(attr_name.length() + 1);
+        m_al = attr_name.length() + 1;
         pop.memcpy_persist(m_attribute.raw_ptr(), attr_name.c_str(), table_name.length() + 1);
+    }
+
+    void prepareDest()
+    {
+        delete_persistent_atomic<char[]>(m_relation, m_rl);
+        delete_persistent_atomic<char[]>(m_table, m_tl);
+        delete_persistent_atomic<char[]>(m_attribute, m_al);
+
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+
+        transaction::run(pop, [&] {
+            pmemobj_tx_free( m_persistentData.raw() );
+        });
     }
 
     const column<uncompr_f>* convert()
@@ -92,7 +117,7 @@ public:
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = mgr.getPop(m_numaNode);
 
-        pptr<uint64_t> ptr = &((uint64_t*) get_data())[index];
+        persistent_ptr<uint64_t> ptr = &((uint64_t*) get_data())[index];
         pmem::obj::make_persistent_atomic<uint64_t>(pop, ptr, value); 
     }
 
@@ -131,6 +156,7 @@ public:
     }
 private:
     pmem::obj::persistent_ptr<size_t[]> m_persistentData;
+    pmem::obj::persistent_ptr<char[]> m_relation;
     pmem::obj::persistent_ptr<char[]> m_table;
     pmem::obj::persistent_ptr<char[]> m_attribute;
 
@@ -139,6 +165,10 @@ private:
     p<size_t> m_byteSize;
     p<size_t> m_entries;
     p<size_t> m_fieldLength;
+
+    p<size_t> m_rl;
+    p<size_t> m_tl;
+    p<size_t> m_al;
 
     p<size_t> m_numaNode;
 

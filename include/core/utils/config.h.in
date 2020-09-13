@@ -10,7 +10,7 @@
 
 #include <assert.h>
 #include <string>
-namespace dbis {
+namespace morphstore {
   const std::string gPmemPath0("@PMEM_MNT_PATH0@/");
   const std::string gPmemPath1("@PMEM_MNT_PATH1@/");
 }

@@ -26,7 +26,6 @@
 #include <core/operators/general_vectorized/between_compr.h>
 
 #include <libpmempool.h>
-#include <libpmemobj++/container/array.hpp>
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/pool.hpp>
@@ -46,9 +45,6 @@
 //Define this to have access to private members for microbenchmarks
 #define UNIT_TESTS
 
-#include <nvmdatastructures/src/pbptrees/PBPTree.hpp>
-
-using namespace dbis::pbptrees;
 using namespace morphstore;
 using namespace vectorlib;
 
@@ -59,51 +55,15 @@ using pmem::obj::transaction;
 
 //TODO: Figure out way to abstract this
 // Parametrization of PBPTree
-using CustomKey = uint64_t;
 using CustomTuple = std::tuple<uint64_t>;
 
 using ps = scalar<v64<uint64_t>>;
-
-constexpr auto L3 = 14080 * 1024;
-constexpr auto LAYOUT = "NVMDS";
-constexpr auto POOL_SIZE = 1024 * 1024 * 1024ull * ENV_POOL_SIZE;  //< 4GB
+pobj_alloc_class_desc alloc_class;
 
 constexpr uint64_t SEED = 42;
 constexpr unsigned EXP_ITER = 100;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 constexpr uint64_t JOIN_KEY_SIZE = 1000;
-pobj_alloc_class_desc alloc_class;
-
-
-void delete_from_tree(uint64_t start, uint64_t end, pptr<TreeType> tree)
-{
-    trace_l(T_DEBUG, "Deleting ", (end - start), " entries from tree");
-    for (auto i = start; i < end; i++)
-        tree->erase(i);
-}
-
-// Prepare the persistent B Tree for benchmarks
-template<class T>
-void preparePersistentTree( pptr<TreeType> tree, std::shared_ptr<const column<T>> primary, std::shared_ptr<const column<T>> values)
-{
-    TreeType& treeRef = *tree;
-
-    //Anonymous function for insertion
-    uint64_t countValues = primary->get_count_values();
-    trace_l(T_DEBUG, "count of values is ", countValues);
-    const uint64_t * const inData = values->get_data();
-
-    auto insertLoop = [&]( uint64_t start, uint64_t end) {
-        for (auto j = start; j < end + 1; ++j) {
-            auto tup = CustomTuple(inData[j]);
-            if (j % 100000 == 0) trace_l(T_DEBUG, "Inserting ", j, " and ", std::get<0>(tup));
-            treeRef.insert(j, tup);
-        }
-    };
-
-    insertLoop(0, countValues);
-    trace_l(T_DEBUG, "End of PBPTree generation.");
-}
 
 bool numa_prechecks()
 {
@@ -181,7 +141,7 @@ void seq_insert_tree(pptr<TreeType> tree)
     }
 }
 
-template< class T >
+/*template< class T >
 struct ThreadSelect {
 public:
     pthread_t thread;
@@ -257,10 +217,10 @@ void parallel_aggregate_tree(TreeType* tree)
 
 const int SELECT_ITERATIONS = SELECTION_IT;
 const int SELECTIVITY_SIZE = SELECTION_SIZE;
-const int SELECTIVITY_PARALLEL = SELECTION_THREADS;
+const int SELECTIVITY_PARALLEL = SELECTION_THREADS;*/
 
 /* T must be a pointer type */
-template<class T>
+/*template<class T>
 void* random_select_col(void* ptr)
 {
     ThreadSelect<T>* data = reinterpret_cast<ThreadSelect<T>*>(ptr);
@@ -300,7 +260,7 @@ void random_select_col_threads(T prim, T val)
         trace_l(T_DEBUG, "Ending Thread ", i);
         pthread_join((data[i].thread) , nullptr);
     }
-}
+}*/
 
 template<class T>
 class ArrayList : public std::list<T>
@@ -330,8 +290,10 @@ int main(int /*argc*/, char** /*argv*/)
         return -1;
     }
 
-    RootInitializer::getInstance().initPmemPool();
-    auto node_number = RootInitializer::getInstance().getNumaNodeCount();
+    auto initializer = RootInitializer::getInstance();
+
+    initializer.initPmemPool();
+    auto node_number = initializer.getNumaNodeCount();
 
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
@@ -459,47 +421,52 @@ int main(int /*argc*/, char** /*argv*/)
             hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
         });
 
-        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, valCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing Skiplist");
-        IndexGen<SkipListIndex>::generateKeyToPos(skiplist, valCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing HashMap");
-        IndexGen<HashMapIndex>::generateKeyToPos(hashmap, valCol);
-        root_mgr.drainAll();
+        try {
+            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+            IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, valCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing Skiplist");
+            IndexGen<SkipListIndex>::generateKeyToPos(skiplist, valCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing HashMap");
+            IndexGen<HashMapIndex>::generateKeyToPos(hashmap, valCol);
+            root_mgr.drainAll();
 
-        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        IndexGen<MultiValTreeIndex>::generateKeyToPos(treeFor, forKeyCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing Skiplist");
-        IndexGen<SkipListIndex>::generateKeyToPos(skiplistFor, forKeyCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing HashMap");
-        IndexGen<HashMapIndex>::generateKeyToPos(hashmapFor, forKeyCol);
-        root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+            IndexGen<MultiValTreeIndex>::generateKeyToPos(treeFor, forKeyCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing Skiplist");
+            IndexGen<SkipListIndex>::generateKeyToPos(skiplistFor, forKeyCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing HashMap");
+            IndexGen<HashMapIndex>::generateKeyToPos(hashmapFor, forKeyCol);
+            root_mgr.drainAll();
 
-        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        IndexGen<MultiValTreeIndex>::generateKeyToPos(tree2, table2PrimCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing Skiplist");
-        IndexGen<SkipListIndex>::generateKeyToPos(skiplist2, table2PrimCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing HashMap");
-        IndexGen<HashMapIndex>::generateKeyToPos(hashmap2, table2PrimCol);
-        root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+            IndexGen<MultiValTreeIndex>::generateKeyToPos(tree2, table2PrimCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing Skiplist");
+            IndexGen<SkipListIndex>::generateKeyToPos(skiplist2, table2PrimCol);
+            root_mgr.drainAll();
+            trace_l(T_DEBUG, "Constructing HashMap");
+            IndexGen<HashMapIndex>::generateKeyToPos(hashmap2, table2PrimCol);
+            root_mgr.drainAll();
 
-        trees.push_back(tree);
-        skiplists.push_back(skiplist);
-        hashmaps.push_back(hashmap);
+            trees.push_back(tree);
+            skiplists.push_back(skiplist);
+            hashmaps.push_back(hashmap);
 
-        treesFor.push_back(treeFor);
-        skiplistsFor.push_back(skiplistFor);
-        hashmapsFor.push_back(hashmapFor);
+            treesFor.push_back(treeFor);
+            skiplistsFor.push_back(skiplistFor);
+            hashmapsFor.push_back(hashmapFor);
 
-        treesTable2.push_back(tree2);
-        skiplistsTable2.push_back(skiplist2);
-        hashmapsTable2.push_back(hashmap2);
+            treesTable2.push_back(tree2);
+            skiplistsTable2.push_back(skiplist2);
+            hashmapsTable2.push_back(hashmap2);
+        }
+        catch (...) {
+
+        }
     }
     root_mgr.drainAll();
 
@@ -622,6 +589,14 @@ int main(int /*argc*/, char** /*argv*/)
     trace_l(T_DEBUG, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
         auto pop = root_mgr.getPop(i);
+
+        primColPers[i]->prepareDest();
+        valColPers[i]->prepareDest();
+        delColPers[i]->prepareDest();
+
+        forKeyColPers[i]->prepareDest();
+        table2PrimPers[i]->prepareDest();
+
         transaction::run(pop, [&] {
             delete_persistent<PersistentColumn>(primColPers[i]);
             delete_persistent<PersistentColumn>(valColPers[i]);

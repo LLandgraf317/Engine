@@ -3,20 +3,29 @@
 #include <libpmemobj++/p.hpp>
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <libpmemobj++/pool.hpp>
+#include <libpmemobj++/container/vector.hpp>
 
 #include <core/access/RootManager.h>
 #include <core/tracing/trace.h>
 
-#include <nvmdatastructures/src/pbptrees/PBPTree.hpp>
+#include "config.h"
 
 #include <unistd.h>
 #include <numa.h>
 
 namespace morphstore {
-using namespace dbis::pbptrees;
+
+class PersistentColumn;
+class MultiValTreeIndex;
+class HashMapIndex;
+class SkipListIndex;
 
 struct root {
-    pmem::obj::persistent_ptr<uint64_t> col_count;
+    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<PersistentColumn>>> cols;
+
+    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<MultiValTreeIndex>>> treeIndeces;
+    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<SkipListIndex>>> skipListIndeces;
+    pmem::obj::persistent_ptr<pmem::obj::vector<pmem::obj::persistent_ptr<HashMapIndex>>> hashMapIndeces;
 };
 
 struct root_retrieval {
@@ -27,14 +36,13 @@ struct root_retrieval {
 class RootInitializer {
 
     static constexpr auto LAYOUT = "NVMDS";
-    static constexpr auto POOL_SIZE = 1024 * 1024 * 1024 * 1ull;  //< 4GB
+    static constexpr uint64_t POOL_SIZE = 1024 * 1024 * 1024ul * ENV_POOL_SIZE;  //< 4GB
 
+public:
     ~RootInitializer()
     {
         trace_l(T_DEBUG, "Destroying RootInitializer");
     }
-
-public:
 
     static RootInitializer& getInstance()
     {
@@ -46,8 +54,8 @@ public:
     static root_retrieval getPoolRoot(int pmemNode)
     {
         root_retrieval retr;
-        std::string path = (pmemNode == 0 ? dbis::gPmemPath0 : dbis::gPmemPath1) + "NVMDSBench";
-        const std::string& gPmem = (pmemNode == 0 ? dbis::gPmemPath0 : dbis::gPmemPath1);
+        std::string path = (pmemNode == 0 ? gPmemPath0 : gPmemPath1) + "NVMDSBench";
+        const std::string& gPmem = (pmemNode == 0 ? gPmemPath0 : gPmemPath1);
 
         if (access(path.c_str(), F_OK) != 0) {
             mkdir(gPmem.c_str(), 0777);
