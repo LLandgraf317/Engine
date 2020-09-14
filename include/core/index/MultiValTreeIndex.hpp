@@ -79,6 +79,11 @@ public:
         return std::string(m_Attribute.get());
     }
 
+    size_t getPmemNode()
+    {
+        return m_PmemNode;
+    }
+
     void setInit()
     {
         m_Init = true;

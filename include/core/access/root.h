@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <numa.h>
 
+#include <vector>
+
 namespace morphstore {
 
 class PersistentColumn;
@@ -43,6 +45,8 @@ class RootInitializer {
     static constexpr auto LAYOUT = "NVMDS";
     static constexpr uint64_t POOL_SIZE = 1024 * 1024 * 1024ul * ENV_POOL_SIZE;  //< 4GB
 
+    std::vector<bool> m_ReadSuccessful;
+
 public:
     ~RootInitializer()
     {
@@ -56,7 +60,12 @@ public:
         return instance;
     }
 
-    static root_retrieval getPoolRoot(int pmemNode)
+    bool isNVMRetrieved(size_t pmemNode)
+    {
+        return m_ReadSuccessful[pmemNode];
+    }
+
+    root_retrieval getPoolRoot(int pmemNode)
     {
         root_retrieval retr;
         std::string path = (pmemNode == 0 ? gPmemPath0 : gPmemPath1) + "NVMDSBench";
@@ -77,13 +86,14 @@ public:
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
             retr.pop = pmem::obj::pool<root>::open(path, LAYOUT);
+
             retr.read_from_file_successful = true;
         }
 
         return retr;
     }
 
-    static void initPmemPool()
+    void initPmemPool()
     {
         unsigned node_number = numa_max_node() + 1;
 
@@ -94,39 +104,9 @@ public:
         for (unsigned int i = 0; i < node_number; i++) {
             retr = getPoolRoot(i);
             root_mgr.add(retr.pop);
+
+            m_ReadSuccessful.push_back(retr.read_from_file_successful);
         }
-    }
-
-    static void pushPersistentColumn(persistent_ptr<PersistentColumn> col, size_t pmemNode)
-    {
-        RootManager& root_mgr = RootManager::getInstance();
-        auto pop = root_mgr.getPop(pmemNode);
-
-        pop.root()->cols->push_back(col);
-    }
-
-    static void pushTree(persistent_ptr<MultiValTreeIndex> tree, size_t pmemNode)
-    {
-        RootManager& root_mgr = RootManager::getInstance();
-        auto pop = root_mgr.getPop(pmemNode);
-
-        pop.root()->treeIndeces->push_back(tree);
-    }
-
-    static void pushSkiplist(persistent_ptr<SkipListIndex> skiplist, size_t pmemNode)
-    {
-        RootManager& root_mgr = RootManager::getInstance();
-        auto pop = root_mgr.getPop(pmemNode);
-
-        pop.root()->skipListIndeces->push_back(skiplist);
-    }
-
-    static void pushHashmap(persistent_ptr<HashMapIndex> hashmap, size_t pmemNode)
-    {
-        RootManager& root_mgr = RootManager::getInstance();
-        auto pop = root_mgr.getPop(pmemNode);
-
-        pop.root()->hashMapIndeces->push_back(hashmap);
     }
 
     static size_t getNumaNodeCount()

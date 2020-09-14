@@ -2,11 +2,9 @@
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
 
-//#include <core/index/TreeDef.h>
-//#include <core/access/root.h>
 #include <core/access/RootManager.h>
+#include <core/access/NVMStorageManager.h>
 #include <core/storage/PersistentColumn.h>
-//#include <core/operators/operators.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 
@@ -282,6 +280,32 @@ inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua
     return nested_loop_join<ps, uncompr_f, uncompr_f>(f, s, inExtNum);
 }
 
+struct NVMDSBenchParamList {
+    ArrayList<pptr<PersistentColumn>> primColPers;
+    ArrayList<pptr<PersistentColumn>> valColPers;
+    ArrayList<pptr<PersistentColumn>> delColPers;
+    ArrayList<pptr<PersistentColumn>> forKeyColPers;
+
+    ArrayList<pptr<PersistentColumn>> table2PrimPers;
+
+    ArrayList<pptr<MultiValTreeIndex>> trees;
+    ArrayList<pptr<SkipListIndex>> skiplists;
+    ArrayList<pptr<HashMapIndex>> hashmaps;
+
+    ArrayList<pptr<MultiValTreeIndex>> treesFor;
+    ArrayList<pptr<SkipListIndex>> skiplistsFor;
+    ArrayList<pptr<HashMapIndex>> hashmapsFor;
+
+    ArrayList<pptr<MultiValTreeIndex>> treesTable2;
+    ArrayList<pptr<SkipListIndex>> skiplistsTable2;
+    ArrayList<pptr<HashMapIndex>> hashmapsTable2;
+};
+
+/*void generateNVMDSBenchSetup(delColPers, valColPers, primColPers, forKeyColPers, table2PrimPersConv,
+            trees, skiplists, hashmaps,
+            treesFor, skiplistsFor, hashmapsFor,
+            treesTable2, skiplistsTable2, hashmapsTable2);*/
+
 int main(int /*argc*/, char** /*argv*/)
 {
     // Setup phase: figure out node configuration
@@ -350,6 +374,10 @@ int main(int /*argc*/, char** /*argv*/)
 
         trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
+        /*generateNVMDSBenchSetup(delColPers, valColPers, primColPers, forKeyColPers, table2PrimPersConv,
+                trees, skiplists, hashmaps,
+                treesFor, skiplistsFor, hashmapsFor,
+                treesTable2, skiplistsTable2, hashmapsTable2);*/
         auto valCol = generate_exact_number_pers( ARRAY_SIZE, 10, 0, 1, false, i, SEED);
         auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
         auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);

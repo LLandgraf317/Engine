@@ -106,6 +106,11 @@ public:
         return m_CountTuples;
     }
 
+    size_t getPmemNode()
+    {
+        return m_PmemNode;
+    }
+
     pptr<const NodeBucketList<uint64_t>> find(uint64_t key)
     {
         pptr<NodeBucketList<uint64_t>> list;
