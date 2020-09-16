@@ -81,22 +81,23 @@ struct select_t<t_op, vectorlib::scalar<vectorlib::v64<uint64_t>>, uncompr_f, un
 template<template<typename> class t_op,
         class t_out_pos_f,
         class t_in_data_f,
-        class index_structure
+        class index_structure_ptr,
+        class node_bucket_list_ptr
 >
 struct index_select_wit_t {
     static
     const column<t_out_pos_f> * apply(
-            pptr<index_structure> inDataIndex,
+            index_structure_ptr inDataIndex,
             const uint64_t key
     ) {
         std::list<
-            pptr<NodeBucketList<uint64_t>>
+            node_bucket_list_ptr 
             > bucket_lists_list;
         size_t sum_count_values = 0;
         t_op<uint64_t> op;
 
         //This might be slow, check back with execution times
-        auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
+        auto materialize_lambda = [&](const uint64_t& given_key, const node_bucket_list_ptr val)
         {
             trace_l(T_INFO, "called operation on ", given_key);
             if (op(given_key, key)) {
@@ -127,17 +128,17 @@ struct index_select_wit_t {
 
 template<class t_out_pos_f,
         class t_in_data_f,
-        class index_structure
+        class index_structure_ptr,
+        class node_bucket_list_ptr
 >
-struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structure> {
+struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structure_ptr, node_bucket_list_ptr> {
     static
     const column<t_out_pos_f> * apply(
-            pptr<index_structure> inDataIndex,
+            index_structure_ptr inDataIndex,
             const uint64_t key
     ) {
-        pptr<const NodeBucketList<uint64_t>> bucket_lists_list;
+        auto bucket_lists_list = inDataIndex->find(key);
 
-        bucket_lists_list = inDataIndex->find(key);
         if (bucket_lists_list == nullptr) {
             auto col = new column<uncompr_f>(0);
             col->set_meta_data(0, 0);

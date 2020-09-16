@@ -9,6 +9,7 @@
 #include <core/tracing/trace.h>
 
 #include <core/index/MultiValTreeIndex.hpp>
+#include <core/index/VolatileTreeIndex.hpp>
 #include <core/index/SkipListIndex.hpp>
 #include <core/index/HashMapIndex.hpp>
 #include <core/index/index_gen.h>
@@ -451,33 +452,33 @@ int main(int /*argc*/, char** /*argv*/)
 
         try {
             trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, valCol);
+            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<SkipListIndex>::generateKeyToPos(skiplist, valCol);
+            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<HashMapIndex>::generateKeyToPos(hashmap, valCol);
+            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
             root_mgr.drainAll();
 
             trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<MultiValTreeIndex>::generateKeyToPos(treeFor, forKeyCol);
+            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(treeFor, forKeyCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<SkipListIndex>::generateKeyToPos(skiplistFor, forKeyCol);
+            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplistFor, forKeyCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<HashMapIndex>::generateKeyToPos(hashmapFor, forKeyCol);
+            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmapFor, forKeyCol);
             root_mgr.drainAll();
 
             trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<MultiValTreeIndex>::generateKeyToPos(tree2, table2PrimCol);
+            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree2, table2PrimCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<SkipListIndex>::generateKeyToPos(skiplist2, table2PrimCol);
+            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist2, table2PrimCol);
             root_mgr.drainAll();
             trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<HashMapIndex>::generateKeyToPos(hashmap2, table2PrimCol);
+            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap2, table2PrimCol);
             root_mgr.drainAll();
 
             trees.push_back(tree);
@@ -529,11 +530,11 @@ int main(int /*argc*/, char** /*argv*/)
             measure("Duration of selection on volatile columns: ",
                     my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
             measure("Duration of selection on persistent tree: ", 
-                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, MultiValTreeIndex>::apply, &(*trees[i]), 0);
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*trees[i]), 0);
             measure("Duration of selection on persistent skiplist: ", 
-                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, SkipListIndex>::apply, &(*skiplists[i]), 0);
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*skiplists[i]), 0);
             measure("Duration of selection on persistent hashmaps: ", 
-                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply, &(*hashmaps[i]), 0);
+                    index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), 0);
             measureEnd("Duration of selection on persistent columns: ",
                     my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
             std::cout << "\n";
@@ -556,11 +557,11 @@ int main(int /*argc*/, char** /*argv*/)
             measure("Duration of aggregation on volatile column: ",
                     agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
             measureTuple("Duration of aggregation on persistent tree: ",
-                    group_agg_sum<MultiValTreeIndex>, &(*trees[i]), 21);
+                    group_agg_sum<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*trees[i]), 21);
             measureTuple("Duration of aggregation on persistent tree: ",
-                    group_agg_sum<SkipListIndex>, &(*skiplists[i]), 21);
+                    group_agg_sum<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*skiplists[i]), 21);
             measureTuple("Duration of aggregation on persistent tree: ",
-                    group_agg_sum<HashMapIndex>, &(*hashmaps[i]), 21);
+                    group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), 21);
             measureEnd("Duration of aggregation on persistent column: ",
                     agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
             std::cout << "\n";
@@ -576,13 +577,13 @@ int main(int /*argc*/, char** /*argv*/)
                     my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                         ::apply, valColNode[i].get(), 0, 0, 0);
             measure("Duration of between selection on persistent tree: ",
-                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, MultiValTreeIndex>
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<MultiValTreeIndex>>
                         ::apply, trees[i], 0, 0);
             measure("Duration of between selection on persistent tree: ",
-                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, SkipListIndex>
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>>
                         ::apply, skiplists[i], 0, 0);
             measure("Duration of between selection on persistent tree: ",
-                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, HashMapIndex>
+                    index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>>
                         ::apply, hashmaps[i], 0, 0);
             measureEnd("Duration of between selection on persistent column: ",
                     my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
@@ -598,13 +599,13 @@ int main(int /*argc*/, char** /*argv*/)
                     nest_dua
                         , forKeyColNode[i].get(), table2PrimNode[i].get(), ARRAY_SIZE*100);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>>
+                    ds_join<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , treesFor[i], treesTable2[i]);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<SkipListIndex>, pptr<SkipListIndex>>
+                    ds_join<pptr<SkipListIndex>, pptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , skiplistsFor[i], skiplistsTable2[i]);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<HashMapIndex>, pptr<HashMapIndex>>
+                    ds_join<pptr<HashMapIndex>, pptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , hashmapsFor[i], hashmapsTable2[i]);
             measureTupleEnd("Duration of join on persistent column: ",
                     nest_dua

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <core/index/NodeBucketList.h>
+#include <core/index/VNodeBucketList.h>
+#include <core/index/HashMethod.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
@@ -10,50 +11,34 @@
 
 namespace morphstore {
 
-template<class VectorExtension>
-struct p_multiply_mod_hash {
-
-    p<size_t> m_ModSize;
-
-    p_multiply_mod_hash(size_t modsize) : m_ModSize(modsize) {}
-
-    size_t apply(size_t num)
-    {
-        return num * num % m_ModSize; 
-    }
-};
-
 //using namespace vectorlib;
 // Polymorphism disallowed, hence no flexible utilization of template strategies
 // Must be refitted to fit compression paradigm fully
 template<class VectorExtension,
     typename KeyType,
     typename ValueType>
-class PHashMap {
+class VHashMap {
 
-    template <typename Object>
-    using pptr = pmem::obj::persistent_ptr<Object>;
-    using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType>>>; 
+    using HashMapElem = std::tuple<KeyType, VNodeBucketList<ValueType> *>; 
 
-    pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
-    p<size_t> m_MapElemCount;
-    p<size_t> m_PmemNode;
+    VNodeBucketList<HashMapElem>** m_Map;
+    size_t m_MapElemCount;
+    size_t m_PmemNode;
 
-    p_multiply_mod_hash<VectorExtension> m_HashStrategy;
+    multiply_mod_hash<VectorExtension> m_HashStrategy;
    
 public:
-    PHashMap(size_t p_DistinctElementCountEstimate, size_t pmemNode)
+    VHashMap(size_t p_DistinctElementCountEstimate, size_t pmemNode)
         :
          m_MapElemCount(p_DistinctElementCountEstimate),
          //m_SizeHelper{
          //   p_DistinctElementCountEstimate
          //},
          m_PmemNode(pmemNode),
-            m_HashStrategy(p_DistinctElementCountEstimate)
+         m_HashStrategy(p_DistinctElementCountEstimate)
     {
-        m_Map = make_persistent<
-            pptr<NodeBucketList<HashMapElem>>[]
-                >(p_DistinctElementCountEstimate);
+        m_Map = new VNodeBucketList<HashMapElem>*[p_DistinctElementCountEstimate];
+
         for (size_t i = 0; i<m_MapElemCount; i++)
             m_Map[i] = nullptr;
     }
@@ -62,9 +47,9 @@ public:
     {
         auto offset = m_HashStrategy.apply(key);
         if (m_Map[offset] == nullptr) {
-            m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
+            m_Map[offset] = new VNodeBucketList<HashMapElem>(m_PmemNode);
 
-            pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+            VNodeBucketList<ValueType> * tmp = new VNodeBucketList<ValueType>(m_PmemNode);
             tmp->insertValue(value);
             m_Map[offset]->insertValue(std::make_tuple(key, tmp));
 
@@ -80,7 +65,7 @@ public:
             }
         }
 
-        pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+        VNodeBucketList<ValueType> * tmp = new VNodeBucketList<ValueType>(m_PmemNode);
         tmp->insertValue(value);
         m_Map[offset]->insertValue(std::make_tuple(key, tmp));
     }
@@ -90,15 +75,15 @@ public:
         auto entry = m_Map[m_HashStrategy.apply(key)];
 
         if (entry == nullptr)
-            return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+            return std::make_tuple(0, nullptr);
 
-        typename NodeBucketList<HashMapElem>::Iterator iter = entry->begin();
+        typename VNodeBucketList<HashMapElem>::Iterator iter = entry->begin();
         for (; iter != entry->end(); iter++) {
             if (std::get<0>(iter.get()) == key)
                 return iter.get();
         }
 
-        return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+        return std::make_tuple(0, nullptr);
     }
 
     bool lookup(KeyType key, ValueType value)
@@ -121,7 +106,7 @@ public:
         return false;
     }
 
-    using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
+    using ScanFunc = std::function<void(const KeyType &key, VNodeBucketList<ValueType> * const val)>;
     void apply(ScanFunc func)
     {
         for (size_t i = 0; i < m_MapElemCount; i++) {
@@ -131,7 +116,7 @@ public:
 
             for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
                 HashMapElem pair = key_bucket_iter.get();
-                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                VNodeBucketList<ValueType> * node_bucket = std::get<1>(pair);
                 func(std::get<0>(pair), node_bucket);
             }
         }
@@ -151,13 +136,13 @@ public:
                 if (key < minKey || key > maxKey)
                         continue;
 
-                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                VNodeBucketList<ValueType> * node_bucket = std::get<1>(pair);
                 func(key, node_bucket);
             }
         }
     }
 
-    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<pptr<NodeBucketList<ValueType>>> &outList) const {
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<VNodeBucketList<ValueType> *> &outList) const {
         for (size_t i = 0; i < m_MapElemCount; i++) {
             if (m_Map[i] == nullptr)
                 continue;
@@ -172,7 +157,7 @@ public:
                 if (key > maxKey)
                     continue;
 
-                pptr<NodeBucketList<ValueType>> value = std::get<1>(pair);
+                VNodeBucketList<ValueType> * value = std::get<1>(pair);
                 outList.push_back(value);
             }
         }

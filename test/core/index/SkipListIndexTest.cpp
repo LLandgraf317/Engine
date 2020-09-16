@@ -18,22 +18,29 @@
 #include <vector/scalar/extension_scalar.h>
 
 #include <core/index/SkipListIndex.hpp>
+#include <core/index/VSkipListIndex.hpp>
 #include <core/index/MultiValTreeIndex.hpp>
 #include <core/index/HashMapIndex.hpp>
+#include <core/index/VHashMapIndex.hpp>
+#include <core/index/VolatileTreeIndex.hpp>
+#include <core/index/NodeBucketList.h>
+#include <core/index/VNodeBucketList.h>
 #include <core/index/index_gen.h>
 
 using namespace morphstore;
 using namespace vectorlib;
 
+using pmem::obj::persistent_ptr;
+
 using ps = scalar<v64<uint64_t>>;
 
 const uint64_t MAX_VALUE = 80;
 
-template< class index_structure >
+template< class index_structure_ptr, class node_bucket_list_ptr >
 class IndexTest {
 
 public:
-    static void test(pmem::obj::persistent_ptr<index_structure> index, pmem::obj::persistent_ptr<PersistentColumn> col) {
+    static void test(index_structure_ptr index, pmem::obj::persistent_ptr<PersistentColumn> col) {
 
         const column<uncompr_f> * convCol = col->convert();
         const column<uncompr_f> * posCol = generate_sorted_unique( col->get_count_values(), 0, 0, 1);
@@ -45,7 +52,7 @@ public:
 
             for (uint64_t i = 0; i < MAX_VALUE; i++) {
                 const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, i);
-                const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, index_structure>::apply(index, i);
+                const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, index_structure_ptr, node_bucket_list_ptr>::apply(index, i);
 
                 trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
                 trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
@@ -87,7 +94,7 @@ public:
         {
             const column<uncompr_f> * outPosOrig = my_between_wit_t<greater, less, ps, uncompr_f, uncompr_f >
                             ::apply( convCol, 8, 12, 0);
-            const column<uncompr_f> * outPosIndex = index_between_wit_t<std::greater, std::less, uncompr_f, uncompr_f, index_structure>
+            const column<uncompr_f> * outPosIndex = index_between_wit_t<std::greater, std::less, uncompr_f, uncompr_f, index_structure_ptr>
                             ::apply( index, 8, 12);
 
             trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
@@ -125,7 +132,7 @@ public:
 
             //column<uncompr_f> * keyColCol;
             const column<uncompr_f> * sumColCol = agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>( convCol, posCol, MAX_VALUE + 1 );
-            std::tuple<const column<uncompr_f>*, const column<uncompr_f>*> ret = group_agg_sum<index_structure>( index, MAX_VALUE + 1 );
+            std::tuple<const column<uncompr_f>*, const column<uncompr_f>*> ret = group_agg_sum<index_structure_ptr, node_bucket_list_ptr>( index, MAX_VALUE + 1 );
             const column<uncompr_f> * sumColInd = std::get<1>(ret);
 
             uint64_t * orig = sumColCol->get_data();
@@ -179,7 +186,7 @@ public:
         // Join
         {
             trace_l(T_INFO, "Performing join test");
-            auto indexTuple = ds_join<pptr<index_structure>, pptr<index_structure>>(index, index);
+            auto indexTuple = ds_join<index_structure_ptr, index_structure_ptr, node_bucket_list_ptr, node_bucket_list_ptr>(index, index);
             auto colTuple = nested_loop_join<ps, uncompr_f, uncompr_f, uncompr_f, uncompr_f>(convCol, convCol);
 
             auto colLCol = std::get<0>(colTuple);
@@ -221,7 +228,7 @@ int main( void ) {
     const size_t ARRAY_SIZE = 10000;
     const size_t SEED = 42;
 
-    RootInitializer::initPmemPool();
+    RootInitializer::getInstance().initPmemPool();
 
     RootManager& root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);
@@ -230,9 +237,12 @@ int main( void ) {
     pmem::obj::persistent_ptr<SkipListIndex> skiplist;
     pmem::obj::persistent_ptr<MultiValTreeIndex> tree;
     pmem::obj::persistent_ptr<HashMapIndex> hashmap;
+    VolatileTreeIndex * vtree = new VolatileTreeIndex(0, std::string(""), std::string(""), std::string(""));
+    VHashMapIndex * vhash = new VHashMapIndex(MAX_VALUE, 0, std::string(""), std::string(""), std::string(""));
+    VSkipListIndex * vskip = new VSkipListIndex(0, std::string(""), std::string(""), std::string(""));
 
     transaction::run(pop, [&] {
-        skiplist = pmem::obj::make_persistent<SkipListIndex>(0);
+        skiplist = pmem::obj::make_persistent<SkipListIndex>(0, std::string(""), std::string(""), std::string(""));
         tree = pmem::obj::make_persistent<MultiValTreeIndex>(0, alloc_class, std::string(""), std::string(""), std::string(""));
     });
     transaction::run(pop, [&] {
@@ -243,13 +253,20 @@ int main( void ) {
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
                0, 30, 0.5, 40, MAX_VALUE, 0.005, false, 0, SEED);
 
-    IndexGen<SkipListIndex>    ::generateKeyToPos(skiplist, col);
-    IndexGen<MultiValTreeIndex>::generateKeyToPos(tree, col);
-    IndexGen<HashMapIndex>     ::generateKeyToPos(hashmap, col);
+    IndexGen<persistent_ptr<SkipListIndex>>    ::generateKeyToPos(skiplist, col);
+    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, col);
+    IndexGen<persistent_ptr<HashMapIndex>>     ::generateKeyToPos(hashmap, col);
+    IndexGen<VolatileTreeIndex*>      ::generateKeyToPos(vtree, col);
+    IndexGen<VHashMapIndex*>          ::generateKeyToPos(vhash, col);
+    IndexGen<VSkipListIndex*>         ::generateKeyToPos(vskip, col);
 
-    IndexTest<SkipListIndex>    ::test(skiplist, col);
-    IndexTest<MultiValTreeIndex>::test(tree, col);
-    IndexTest<HashMapIndex>     ::test(hashmap, col);
+    IndexTest<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>> >    ::test(skiplist, col);
+    IndexTest<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>> >::test(tree, col);
+    IndexTest<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>> >     ::test(hashmap, col);
+
+    IndexTest<VolatileTreeIndex*, VNodeBucketList<uint64_t>*>::test(vtree, col);
+    IndexTest<VHashMapIndex*, VNodeBucketList<uint64_t>*>::test(vhash, col);
+    IndexTest<VSkipListIndex*, VNodeBucketList<uint64_t>*>::test(vskip, col);
 
     // Cleanup
     transaction::run(pop, [&] {

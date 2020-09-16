@@ -10,6 +10,7 @@
 #include <core/storage/column.h>
 #include <vector/scalar/extension_scalar.h>
 #include <core/tracing/trace.h>
+#include <core/index/index_gen.h>
 
 #include <core/operators/general_vectorized/select_compr.h>
 #include <core/operators/scalar/calc_uncompr.h>
@@ -32,6 +33,7 @@
 using namespace vectorlib;
 using namespace dbis::pbptrees;
 using namespace morphstore;
+using pmem::obj::persistent_ptr;
 
 void print(const morphstore::column<uncompr_f> * col1, const morphstore::column<uncompr_f> * col2)
 {
@@ -50,7 +52,7 @@ int main( void ) {
 
     //using ps = scalar<v64<uint64_t>>;
 
-    RootInitializer::initPmemPool();
+    RootInitializer::getInstance().initPmemPool();
     RootManager& root_mgr = RootManager::getInstance();
 
     auto pop = root_mgr.getPop(0);
@@ -73,11 +75,11 @@ int main( void ) {
     });
 
     trace_l(T_INFO, "Generating index");
-    index->generateKeyToPos(col);
+    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(index, col);
     trace_l(T_INFO, "Index construction finished");
 
     const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(col->convert(), 0);
-    const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, HashMapIndex>::apply(index, 0);
+    const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, pptr<NodeBucketList<uint64_t>>>::apply(index, 0);
 
     //print(outPosOrig, outPosIndex);
 

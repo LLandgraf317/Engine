@@ -99,12 +99,12 @@ nested_loop_join<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
     return std::make_tuple(outPosLCol, outPosRCol);
 }
 
-template< class DS1, class DS2 >
+template< class DS1_ptr, class DS2_ptr, class node_bucket_list_ptr1, class node_bucket_list_ptr2 >
 const std::tuple<
     const column<uncompr_f> *,
     const column<uncompr_f> *
     >
-ds_join(DS1 ds1, DS2 ds2)
+ds_join(DS1_ptr ds1, DS2_ptr ds2)
 {
     const size_t inDataLCount = ds1->getCountValues();
     const size_t inDataRCount = ds2->getCountValues();
@@ -118,9 +118,9 @@ ds_join(DS1 ds1, DS2 ds2)
 
     // assume both data structures realize a attr -> pos mapping
     unsigned iOut = 0;
-    auto materialize_lambda = [&](const uint64_t& given_key, const pptr<NodeBucketList<uint64_t>> val)
+    auto materialize_lambda = [&](const uint64_t& given_key, node_bucket_list_ptr1 const val)
     {
-        pptr<const NodeBucketList<uint64_t>> positions = ds2->find(given_key);
+        auto positions = ds2->find(given_key);
 
         if (val == nullptr)
             return;

@@ -64,14 +64,14 @@ agg_sum<vectorlib::scalar<vectorlib::v64<uint64_t>>>(
 
 
 // group parameter is key, sum attr is value
-template<class index_structure>
+template<class index_structure_ptr, class node_bucket_list_ptr>
 std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
 group_agg_sum(
-        const pptr<index_structure> inDataIndex,
+        const index_structure_ptr inDataIndex,
         size_t inExtCount
 ) {
     std::map<uint64_t, uint64_t> bucket_map;
-    auto materialize_lambda = [&](const uint64_t& key, const pptr<NodeBucketList<uint64_t>> val)
+    auto materialize_lambda = [&](const uint64_t& key, node_bucket_list_ptr const val)
     {
         if (val != nullptr) {
             size_t sum = val->getSum();

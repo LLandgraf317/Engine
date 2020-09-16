@@ -1,11 +1,16 @@
+#pragma once
 
+#include <libpmemobj++/persistent_ptr.hpp>
+#include <core/storage/PersistentColumn.h>
 
 namespace morphstore {
 
-template<class index_structure>
+using pmem::obj::persistent_ptr;
+
+template<class index_structure_ptr>
 class IndexGen {
 public:
-    static void generateFromPersistentColumn(pptr<index_structure> index, pptr<PersistentColumn> keyCol, pptr<PersistentColumn> valueCol)
+    static void generateFromPersistentColumn(index_structure_ptr index, persistent_ptr<PersistentColumn> keyCol, persistent_ptr<PersistentColumn> valueCol)
     {
         if (index->isInit()) return; // Should throw exception instead
 
@@ -21,7 +26,7 @@ public:
         index->setInit();
     }
 
-    static void generateKeyToPos(pptr<index_structure> index, pptr<PersistentColumn> keyCol)
+    static void generateKeyToPos(index_structure_ptr index, persistent_ptr<PersistentColumn> keyCol)
     {
         if (index->isInit()) return; // Should throw exception
 

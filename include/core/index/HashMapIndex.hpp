@@ -6,7 +6,6 @@
 #include <vector/scalar/extension_scalar.h>
 #include <core/morphing/format.h>
 #include <core/morphing/uncompr.h>
-#include <vector/scalar/extension_scalar.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>

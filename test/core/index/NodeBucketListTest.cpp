@@ -16,7 +16,7 @@ using namespace morphstore;
 int main( void )
 {
     constexpr auto ARRAY_SIZE = 10000ul / sizeof(uint64_t);
-    RootInitializer::initPmemPool();
+    RootInitializer::getInstance().initPmemPool();
 
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);
@@ -24,7 +24,7 @@ int main( void )
     pmem::obj::persistent_ptr<NodeBucketList<uint64_t>> bucket_list;
 
     transaction::run(pop, [&]() {
-        bucket_list = make_persistent<NodeBucketList<uint64_t>>();
+        bucket_list = make_persistent<NodeBucketList<uint64_t>>(0);
     });
 
     auto i = bucket_list->begin();
