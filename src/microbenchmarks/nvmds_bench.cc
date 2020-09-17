@@ -349,13 +349,13 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<SkipListIndex>> skiplists;
     ArrayList<pptr<HashMapIndex>> hashmaps;
 
-    ArrayList<pptr<MultiValTreeIndex>> treesFor;
+    /*ArrayList<pptr<MultiValTreeIndex>> treesFor;
     ArrayList<pptr<SkipListIndex>> skiplistsFor;
     ArrayList<pptr<HashMapIndex>> hashmapsFor;
 
     ArrayList<pptr<MultiValTreeIndex>> treesTable2;
     ArrayList<pptr<SkipListIndex>> skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> hashmapsTable2;
+    ArrayList<pptr<HashMapIndex>> hashmapsTable2;*/
 
     // selectivity iteration
     for (float size = 10.0; size <= 100.0; size += 10.0) {
@@ -425,7 +425,7 @@ int main(int /*argc*/, char** /*argv*/)
                 hashmap = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
             });
 
-            pptr<MultiValTreeIndex> treeFor;
+            /*pptr<MultiValTreeIndex> treeFor;
             pptr<SkipListIndex> skiplistFor;
             pptr<HashMapIndex> hashmapFor;
 
@@ -451,7 +451,7 @@ int main(int /*argc*/, char** /*argv*/)
             });
             transaction::run(pop, [&] {
                 hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
-            });
+            });*/
 
             try {
                 trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
@@ -464,7 +464,7 @@ int main(int /*argc*/, char** /*argv*/)
                 IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
                 root_mgr.drainAll();
 
-                trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+                /*trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
                 IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(treeFor, forKeyCol);
                 root_mgr.drainAll();
                 trace_l(T_DEBUG, "Constructing Skiplist");
@@ -482,19 +482,19 @@ int main(int /*argc*/, char** /*argv*/)
                 root_mgr.drainAll();
                 trace_l(T_DEBUG, "Constructing HashMap");
                 IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap2, table2PrimCol);
-                root_mgr.drainAll();
+                root_mgr.drainAll();*/
 
                 trees.push_back(tree);
                 skiplists.push_back(skiplist);
                 hashmaps.push_back(hashmap);
 
-                treesFor.push_back(treeFor);
+                /*treesFor.push_back(treeFor);
                 skiplistsFor.push_back(skiplistFor);
                 hashmapsFor.push_back(hashmapFor);
 
                 treesTable2.push_back(tree2);
                 skiplistsTable2.push_back(skiplist2);
-                hashmapsTable2.push_back(hashmap2);
+                hashmapsTable2.push_back(hashmap2);*/
             }
             catch (...) {
 
@@ -597,7 +597,7 @@ int main(int /*argc*/, char** /*argv*/)
             }
         }
 
-        for (unsigned int i = 0; i < node_number; i++) {
+        /*for (unsigned int i = 0; i < node_number; i++) {
             for (unsigned j = 0; j < EXP_ITER/10; j++ ) {
                 std::cout << "Join," << i << ",";
                 measureTuple("Duration of join on volatile column: ",
@@ -618,7 +618,7 @@ int main(int /*argc*/, char** /*argv*/)
 
                 std::cout << "\n";
             }
-        }
+        }*/
 
         trace_l(T_DEBUG, "Cleaning persistent columns");
         for (unsigned int i = 0; i < node_number; i++) {
@@ -628,8 +628,8 @@ int main(int /*argc*/, char** /*argv*/)
             valColPers[i]->prepareDest();
             delColPers[i]->prepareDest();
 
-            forKeyColPers[i]->prepareDest();
-            table2PrimPers[i]->prepareDest();
+            /*forKeyColPers[i]->prepareDest();
+            table2PrimPers[i]->prepareDest();*/
 
             transaction::run(pop, [&] {
                 delete_persistent<PersistentColumn>(primColPers[i]);
@@ -644,13 +644,13 @@ int main(int /*argc*/, char** /*argv*/)
                 delete_persistent<SkipListIndex>(skiplists[i]);
                 delete_persistent<HashMapIndex>(hashmaps[i]);
 
-                delete_persistent<MultiValTreeIndex>(treesFor[i]);
+                /*delete_persistent<MultiValTreeIndex>(treesFor[i]);
                 delete_persistent<SkipListIndex>(skiplistsFor[i]);
                 delete_persistent<HashMapIndex>(hashmapsFor[i]);
                 
                 delete_persistent<MultiValTreeIndex>(treesTable2[i]);
                 delete_persistent<SkipListIndex>(skiplistsTable2[i]);
-                delete_persistent<HashMapIndex>(hashmapsTable2[i]);
+                delete_persistent<HashMapIndex>(hashmapsTable2[i]);*/
             });
         }
     }
