@@ -567,7 +567,7 @@ int main(int /*argc*/, char** /*argv*/)
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), 0);
                 /*measureEnd("Duration of selection on persistent columns: ",
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);*/
-                measureEnd("Duration of selection on persistent columns: ",
+                measure("Duration of selection on persistent columns: ",
                         my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
                 std::cout << selectivity;
                 std::cout << "\n";
