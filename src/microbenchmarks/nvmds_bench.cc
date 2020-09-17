@@ -359,6 +359,31 @@ int main(int /*argc*/, char** /*argv*/)
 
     // selectivity iteration
     for (float size = 10.0; size <= 100.0; size += 10.0) {
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> delColNode;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColNode;
+
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> table2PrimNode;
+
+        ArrayList<pptr<PersistentColumn>> primColPers;
+        ArrayList<pptr<PersistentColumn>> valColPers;
+        ArrayList<pptr<PersistentColumn>> delColPers;
+        ArrayList<pptr<PersistentColumn>> forKeyColPers;
+
+        ArrayList<pptr<PersistentColumn>> table2PrimPers;
+
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> primColPersConv;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> valColPersConv;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColPersConv;
+
+        ArrayList<std::shared_ptr<const column<uncompr_f>>> table2PrimPersConv;
+
+        ArrayList<pptr<MultiValTreeIndex>> trees;
+        ArrayList<pptr<SkipListIndex>> skiplists;
+        ArrayList<pptr<HashMapIndex>> hashmaps;
+
         trace_l(T_INFO, "Starting with a selectivity of ", size / ARRAY_SIZE);
         // Generation Phase
         trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
