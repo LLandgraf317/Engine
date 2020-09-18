@@ -178,6 +178,105 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_boolean_col_pers(
     return resCol;
 }
 
+struct sel_and_val {
+    sel_and_val(float s, uint64_t a) : selectivity(s), attr_value(a) {}
+
+    float selectivity;
+    uint64_t attr_value;
+};
+
+const column<uncompr_f> * generate_share_vector(
+        const size_t total_tuple_count,
+        std::vector<sel_and_val> selectivity_and_resp_val,
+        size_t numa_node_number)
+{
+    const uint64_t default_value = 42;
+    float cumulative_prob = 0.0;
+    size_t cumulative_count = 0;
+
+    column<uncompr_f> * col = new column<uncompr_f>(total_tuple_count * sizeof(uint64_t), numa_node_number);
+    uint64_t * value_pos = col->get_data();
+
+    for (auto i : selectivity_and_resp_val) {
+        cumulative_prob += i.selectivity;
+        if (cumulative_prob > 1.0)
+            throw new std::runtime_error("Cumulative probability larger than 1.0");
+
+        size_t count = i.selectivity * total_tuple_count;
+        cumulative_count += count;
+        if (cumulative_count > total_tuple_count)
+            throw new std::runtime_error("Floating point error");
+
+        for (size_t j = 0; j < count; j++) {
+            *value_pos = i.attr_value;
+            value_pos++;
+        }
+    }
+
+    if (cumulative_count < total_tuple_count) {
+        size_t rem = total_tuple_count - cumulative_count;
+
+        for (size_t j = 0; j < rem; j++) {
+            *value_pos = default_value;
+            value_pos++;
+        }
+    }
+
+    col->set_meta_data(total_tuple_count, total_tuple_count * sizeof(uint64_t));
+
+    return col;
+}
+
+pmem::obj::persistent_ptr<PersistentColumn> generate_share_vector_pers(
+        const size_t total_tuple_count,
+        std::vector<sel_and_val> selectivity_and_resp_val,
+        size_t numa_node_number)
+{
+    const uint64_t default_value = 42;
+    float cumulative_prob = 0.0;
+    size_t cumulative_count = 0;
+
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node_number);
+
+    persistent_ptr<PersistentColumn> col;
+
+    transaction::run(pop, [&] {
+        col = make_persistent<PersistentColumn>(true, total_tuple_count * sizeof(uint64_t), numa_node_number);
+    });
+
+    uint64_t * value_pos = col->get_data();
+
+    for (auto i : selectivity_and_resp_val) {
+        cumulative_prob += i.selectivity;
+        if (cumulative_prob > 1.0)
+            throw new std::runtime_error("Cumulative probability larger than 1.0");
+
+        size_t count = i.selectivity * total_tuple_count;
+        cumulative_count += count;
+        if (cumulative_count > total_tuple_count)
+            throw new std::runtime_error("Floating point error");
+
+        for (size_t j = 0; j < count; j++) {
+            *value_pos = i.attr_value;
+            value_pos++;
+        }
+    }
+
+    if (cumulative_count < total_tuple_count) {
+        size_t rem = total_tuple_count - cumulative_count;
+
+        for (size_t j = 0; j < rem; j++) {
+            *value_pos = default_value;
+            value_pos++;
+        }
+    }
+
+    col->set_meta_data(total_tuple_count, total_tuple_count * sizeof(uint64_t));
+
+    return col;
+}
+
 /**
  * @brief Creates an uncompressed column and fills its data buffer with sorted
  * unique data elements extracted uniformly from some population. Can be used
