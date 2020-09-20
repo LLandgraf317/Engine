@@ -283,30 +283,152 @@ inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua
 }
 
 struct NVMDSBenchParamList {
-    ArrayList<pptr<PersistentColumn>> primColPers;
-    ArrayList<pptr<PersistentColumn>> valColPers;
-    ArrayList<pptr<PersistentColumn>> delColPers;
-    ArrayList<pptr<PersistentColumn>> forKeyColPers;
+    //ArrayList<pptr<PersistentColumn>> &primColPers;
+    ArrayList<pptr<PersistentColumn>> &valColPers;
+    //ArrayList<pptr<PersistentColumn>> &delColPers;
 
-    ArrayList<pptr<PersistentColumn>> table2PrimPers;
+    ArrayList<pptr<MultiValTreeIndex>> &trees;
+    ArrayList<pptr<SkipListIndex>> &skiplists;
+    ArrayList<pptr<HashMapIndex>> &hashmaps;
 
-    ArrayList<pptr<MultiValTreeIndex>> trees;
-    ArrayList<pptr<SkipListIndex>> skiplists;
-    ArrayList<pptr<HashMapIndex>> hashmaps;
-
-    ArrayList<pptr<MultiValTreeIndex>> treesFor;
-    ArrayList<pptr<SkipListIndex>> skiplistsFor;
-    ArrayList<pptr<HashMapIndex>> hashmapsFor;
-
-    ArrayList<pptr<MultiValTreeIndex>> treesTable2;
-    ArrayList<pptr<SkipListIndex>> skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> hashmapsTable2;
+    std::vector<sel_and_val> & sel_distr;
 };
 
-/*void generateNVMDSBenchSetup(delColPers, valColPers, primColPers, forKeyColPers, table2PrimPersConv,
-            trees, skiplists, hashmaps,
-            treesFor, skiplistsFor, hashmapsFor,
-            treesTable2, skiplistsTable2, hashmapsTable2);*/
+struct JoinBenchParamList {
+    ArrayList<pptr<PersistentColumn>> &forKeyColPers;
+    ArrayList<pptr<PersistentColumn>> &table2PrimPers;
+
+    ArrayList<pptr<MultiValTreeIndex>> &treesFor;
+    ArrayList<pptr<SkipListIndex>> &skiplistsFor;
+    ArrayList<pptr<HashMapIndex>> &hashmapsFor;
+
+    ArrayList<pptr<MultiValTreeIndex>> &treesTable2;
+    ArrayList<pptr<SkipListIndex>> &skiplistsTable2;
+    ArrayList<pptr<HashMapIndex>> &hashmapsTable2;
+};
+
+void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
+
+    RootManager& root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(pmemNode);
+
+    auto forKeyColPers = generate_with_distr_pers(
+        ARRAY_SIZE, std::uniform_int_distribution<uint64_t>(0, 99), false, SEED, pmemNode); 
+    auto table2PrimCol = generate_sorted_unique_pers(100, pmemNode);
+
+    list.forKeyColPers.push_back(forKeyColPers);
+    list.table2PrimPers.push_back(table2PrimCol);
+
+    pptr<MultiValTreeIndex> treeFor;
+    pptr<SkipListIndex> skiplistFor;
+    pptr<HashMapIndex> hashmapFor;
+
+    transaction::run(pop, [&] {
+        treeFor = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, std::string(""), std::string(""), std::string(""));
+    });
+    transaction::run(pop, [&] {
+        skiplistFor = pmem::obj::make_persistent<SkipListIndex>(pmemNode);
+    });
+    transaction::run(pop, [&] {
+        hashmapFor = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string(""), std::string(""), std::string(""));
+    });
+
+    pptr<MultiValTreeIndex> tree2;
+    pptr<SkipListIndex> skiplist2;
+    pptr<HashMapIndex> hashmap2;
+
+    transaction::run(pop, [&] {
+        tree2 = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, std::string(""), std::string(""), std::string(""));
+    });
+    transaction::run(pop, [&] {
+        skiplist2 = pmem::obj::make_persistent<SkipListIndex>(pmemNode);
+    });
+    transaction::run(pop, [&] {
+        hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string(""), std::string(""), std::string(""));
+    });
+
+    trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(treeFor, forKeyColPers);
+    root_mgr.drainAll();
+    trace_l(T_DEBUG, "Constructing Skiplist");
+    IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplistFor, forKeyColPers);
+    root_mgr.drainAll();
+    trace_l(T_DEBUG, "Constructing HashMap");
+    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmapFor, forKeyColPers);
+    root_mgr.drainAll();
+
+    trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree2, table2PrimCol);
+    root_mgr.drainAll();
+    trace_l(T_DEBUG, "Constructing Skiplist");
+    IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist2, table2PrimCol);
+    root_mgr.drainAll();
+    trace_l(T_DEBUG, "Constructing HashMap");
+    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap2, table2PrimCol);
+
+    list.treesFor.push_back(treeFor);
+    list.skiplistsFor.push_back(skiplistFor);
+    list.hashmapsFor.push_back(hashmapFor);
+
+    list.treesTable2.push_back(tree2);
+    list.skiplistsTable2.push_back(skiplist2);
+    list.hashmapsTable2.push_back(hashmap2);
+
+    root_mgr.drainAll();
+}
+
+void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
+{
+    auto valCol = generate_share_vector_pers( ARRAY_SIZE, list.sel_distr, pmemNode);
+
+    NVMStorageManager::pushPersistentColumn(valCol);
+
+    trace_l(T_INFO, "Persistent columns for node ", pmemNode, " generated");
+
+    list.valColPers.push_back(valCol);
+
+    trace_l(T_DEBUG, "Initializing index structures");
+
+    pptr<MultiValTreeIndex> tree;
+    pptr<SkipListIndex> skiplist;
+    pptr<HashMapIndex> hashmap;
+
+    RootManager& root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(pmemNode);
+
+    transaction::run(pop, [&] {
+        tree = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, std::string("test"), std::string("1"), std::string("valPos"));
+    });
+    transaction::run(pop, [&] {
+        skiplist = pmem::obj::make_persistent<SkipListIndex>(pmemNode, std::string("test"), std::string("1"), std::string("valPos"));
+    });
+    transaction::run(pop, [&] {
+        hashmap = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string("test"), std::string("1"), std::string("valPos"));
+    });
+
+    NVMStorageManager::pushTree(tree);
+    NVMStorageManager::pushSkiplist(skiplist);
+    NVMStorageManager::pushHashmap(hashmap);
+
+    try {
+        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+        IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
+        root_mgr.drainAll();
+        trace_l(T_DEBUG, "Constructing Skiplist");
+        IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
+        root_mgr.drainAll();
+        trace_l(T_DEBUG, "Constructing HashMap");
+        IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
+        root_mgr.drainAll();
+    }
+    catch (...) {
+
+    }
+
+    list.trees.push_back(tree);
+    list.skiplists.push_back(skiplist);
+    list.hashmaps.push_back(hashmap);
+}
 
 int main(int /*argc*/, char** /*argv*/)
 {
@@ -356,7 +478,6 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<SkipListIndex>> skiplists;
     ArrayList<pptr<HashMapIndex>> hashmaps;
 
-#ifdef EXEC_JOIN_BENCH
     ArrayList<pptr<MultiValTreeIndex>> treesFor;
     ArrayList<pptr<SkipListIndex>> skiplistsFor;
     ArrayList<pptr<HashMapIndex>> hashmapsFor;
@@ -364,24 +485,19 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<pptr<MultiValTreeIndex>> treesTable2;
     ArrayList<pptr<SkipListIndex>> skiplistsTable2;
     ArrayList<pptr<HashMapIndex>> hashmapsTable2;
-#endif
 
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
-        delColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_boolean_col(ARRAY_SIZE, i)));
-        primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(ARRAY_SIZE, i)));
-        //valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_exact_number( ARRAY_SIZE, static_cast<size_t>(size), 0, 1, false, i, SEED)));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_share_vector( ARRAY_SIZE, sel_distr, i) ));
-        forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
+        /*forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
             ARRAY_SIZE,
             std::uniform_int_distribution<uint64_t>(0, 99),
             false,
             SEED,
                i))); 
-
-        table2PrimNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(100, i)) );
+        table2PrimNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(100, i)) );*/
 
         trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
@@ -389,129 +505,29 @@ int main(int /*argc*/, char** /*argv*/)
                 trees, skiplists, hashmaps,
                 treesFor, skiplistsFor, hashmapsFor,
                 treesTable2, skiplistsTable2, hashmapsTable2);*/
-        //auto valCol = generate_exact_number_pers( ARRAY_SIZE, size, 0, 1, false, i, SEED);
-        auto valCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr, i);
-        auto primCol = generate_sorted_unique_pers(ARRAY_SIZE, i);
-        auto delCol = generate_boolean_col_pers(ARRAY_SIZE, i);
-        auto forKeyCol = generate_with_distr_pers(
-            ARRAY_SIZE, std::uniform_int_distribution<uint64_t>(0, 99), false, SEED, i); 
 
-        auto table2PrimCol = generate_sorted_unique_pers(100, i);
+        if (initializer.isNVMRetrieved(i)) {
+            auto valCol   = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("val"), i);
+            auto tree     = NVMStorageManager::getTree(    std::string("test"), std::string("1"), std::string("val"), i);
+            auto skiplist = NVMStorageManager::getSkiplist(std::string("test"), std::string("1"), std::string("val"), i);
+            auto hashmap  = NVMStorageManager::getHashmap( std::string("test"), std::string("1"), std::string("val"), i);
 
-        trace_l(T_INFO, "Persistent columns for node ", i, " generated");
-
-        delColPers.push_back(delCol);
-        valColPers.push_back(valCol);
-        primColPers.push_back(primCol);
-        forKeyColPers.push_back(forKeyCol);
-
-        table2PrimPers.push_back(table2PrimCol);
-
-        primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
-        delColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(delCol->convert()));
-        valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
-        forKeyColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
-
-        table2PrimPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(table2PrimCol->convert()));
-
-        root_mgr.drainAll();
-
-        trace_l(T_DEBUG, "Initializing index structures");
-
-        pptr<MultiValTreeIndex> tree;
-        pptr<SkipListIndex> skiplist;
-        pptr<HashMapIndex> hashmap;
-
-        auto pop = root_mgr.getPop(i);
-        transaction::run(pop, [&] {
-            tree = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
-        });
-        transaction::run(pop, [&] {
-            skiplist = pmem::obj::make_persistent<SkipListIndex>(i);
-        });
-        transaction::run(pop, [&] {
-            hashmap = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
-        });
-
-#ifdef EXEC_JOIN_BENCH
-        pptr<MultiValTreeIndex> treeFor;
-        pptr<SkipListIndex> skiplistFor;
-        pptr<HashMapIndex> hashmapFor;
-
-        transaction::run(pop, [&] {
-            treeFor = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
-        });
-        transaction::run(pop, [&] {
-            skiplistFor = pmem::obj::make_persistent<SkipListIndex>(i);
-        });
-        transaction::run(pop, [&] {
-            hashmapFor = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
-        });
-
-        pptr<MultiValTreeIndex> tree2;
-        pptr<SkipListIndex> skiplist2;
-        pptr<HashMapIndex> hashmap2;
-
-        transaction::run(pop, [&] {
-            tree2 = make_persistent<MultiValTreeIndex>(i, alloc_class, std::string(""), std::string(""), std::string(""));
-        });
-        transaction::run(pop, [&] {
-            skiplist2 = pmem::obj::make_persistent<SkipListIndex>(i);
-        });
-        transaction::run(pop, [&] {
-            hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, i, std::string(""), std::string(""), std::string(""));
-        });
-#endif
-
-        try {
-            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
-            root_mgr.drainAll();
-
-#ifdef EXEC_JOIN_BENCH
-            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(treeFor, forKeyCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplistFor, forKeyCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmapFor, forKeyCol);
-            root_mgr.drainAll();
-
-            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree2, table2PrimCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing Skiplist");
-            IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist2, table2PrimCol);
-            root_mgr.drainAll();
-            trace_l(T_DEBUG, "Constructing HashMap");
-            IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap2, table2PrimCol);
-            root_mgr.drainAll();
-#endif
+            // validate
+            
+            
+            // push
 
             trees.push_back(tree);
             skiplists.push_back(skiplist);
             hashmaps.push_back(hashmap);
 
-#ifdef EXEC_JOIN_BENCH
-            treesFor.push_back(treeFor);
-            skiplistsFor.push_back(skiplistFor);
-            hashmapsFor.push_back(hashmapFor);
-
-            treesTable2.push_back(tree2);
-            skiplistsTable2.push_back(skiplist2);
-            hashmapsTable2.push_back(hashmap2);
-#endif
+            valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
         }
-        catch (...) {
+        else {
+            NVMDSBenchParamList l = {valColPers, trees, skiplists, hashmaps, sel_distr};
+            generateNVMDSBenchSetup(l, i);
 
+            valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valColPers[i]->convert()));
         }
     }
     root_mgr.drainAll();

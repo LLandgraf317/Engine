@@ -81,14 +81,56 @@ public:
         return std::string(m_Table.get());
     }
 
+    void setTable(std::string table)
+    {
+        delete_persistent_atomic<char[]>(m_Table, m_tl);
+
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+
+        transaction::run(pop, [&] {
+            m_Table = make_persistent<char[]>(table.length() + 1);
+            m_tl = table.length() + 1;
+            pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
+        });
+    }
+
     std::string getRelation()
     {
         return std::string(m_Relation.get());
     }
 
+    void setRelation(std::string relation)
+    {
+        delete_persistent_atomic<char[]>(m_Relation, m_rl);
+
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+
+        transaction::run(pop, [&] {
+            m_Relation = make_persistent<char[]>(relation.length() + 1);
+            m_rl = relation.length() + 1;
+            pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+        });
+    }
+
     std::string getAttribute()
     {
         return std::string(m_Attribute.get());
+    }
+
+    void setAttribute(std::string attr_name)
+    {
+        delete_persistent_atomic<char[]>(m_Attribute, m_al);
+
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+
+        transaction::run(pop, [&] {
+            m_Attribute = make_persistent<char[]>(attr_name.length() + 1);
+            m_al = attr_name.length() + 1;
+            pop.memcpy_persist(m_Attribute.raw_ptr(), attr_name.c_str(), attr_name.length() + 1);
+        });
     }
 
     const column<uncompr_f>* convert()
