@@ -78,10 +78,12 @@ public:
 
             retr.read_from_file_successful = false;
 
-            retr.pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
-            retr.pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
-            retr.pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
-            retr.pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
+            pmem::obj::transaction::run(retr.pop, [&]() {
+                retr.pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
+                retr.pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
+                retr.pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
+                retr.pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
+            });
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");

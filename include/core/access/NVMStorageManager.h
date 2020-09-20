@@ -16,6 +16,8 @@ private:
     template <class index_structure>
     static bool compare(pptr<index_structure> index, std::string relation, std::string table, std::string attribute)
     {
+        trace_l(T_DEBUG, "Looking for ", relation, ", ", table, ", ", attribute);
+        trace_l(T_DEBUG, "Got ", index->getRelation(), ", ", index->getTable(), ", ", index->getAttribute());
         return index->getRelation().compare(relation) == 0 && index->getTable().compare(table) == 0 && index->getAttribute().compare(attribute) == 0;
     }
 

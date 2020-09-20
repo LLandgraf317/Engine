@@ -190,7 +190,7 @@ const column<uncompr_f> * generate_share_vector(
         std::vector<sel_and_val> selectivity_and_resp_val,
         size_t numa_node_number)
 {
-    const uint64_t default_value = 42;
+    const uint64_t default_value = 0;
     float cumulative_prob = 0.0;
     size_t cumulative_count = 0;
 
@@ -232,7 +232,7 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_share_vector_pers(
         std::vector<sel_and_val> selectivity_and_resp_val,
         size_t numa_node_number)
 {
-    const uint64_t default_value = 42;
+    const uint64_t default_value = 0;
     float cumulative_prob = 0.0;
     size_t cumulative_count = 0;
 

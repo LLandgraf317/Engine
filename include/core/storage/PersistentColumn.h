@@ -51,15 +51,15 @@ public:
 
         m_Relation = make_persistent<char[]>(relation.length() + 1);
         m_rl = relation.length() + 1;
-        pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+        pop.memcpy_persist(m_Relation.get(), relation.c_str(), relation.length() + 1);
 
         m_Table = make_persistent<char[]>(table_name.length() + 1);
         m_tl = table_name.length() + 1;
-        pop.memcpy_persist(m_Table.raw_ptr(), table_name.c_str(), table_name.length() + 1);
+        pop.memcpy_persist(m_Table.get(), table_name.c_str(), table_name.length() + 1);
 
         m_Attribute = make_persistent<char[]>(attr_name.length() + 1);
         m_al = attr_name.length() + 1;
-        pop.memcpy_persist(m_Attribute.raw_ptr(), attr_name.c_str(), table_name.length() + 1);
+        pop.memcpy_persist(m_Attribute.get(), attr_name.c_str(), table_name.length() + 1);
     }
 
     void prepareDest()
@@ -91,7 +91,7 @@ public:
         transaction::run(pop, [&] {
             m_Table = make_persistent<char[]>(table.length() + 1);
             m_tl = table.length() + 1;
-            pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
+            pop.memcpy_persist(m_Table.get(), table.c_str(), table.length() + 1);
         });
     }
 
@@ -110,7 +110,7 @@ public:
         transaction::run(pop, [&] {
             m_Relation = make_persistent<char[]>(relation.length() + 1);
             m_rl = relation.length() + 1;
-            pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+            pop.memcpy_persist(m_Relation.get(), relation.c_str(), relation.length() + 1);
         });
     }
 
@@ -128,8 +128,10 @@ public:
 
         transaction::run(pop, [&] {
             m_Attribute = make_persistent<char[]>(attr_name.length() + 1);
+            m_Attribute[attr_name.length()] = '\0';
+
             m_al = attr_name.length() + 1;
-            pop.memcpy_persist(m_Attribute.raw_ptr(), attr_name.c_str(), attr_name.length() + 1);
+            pop.memcpy_persist(m_Attribute.get(), attr_name.c_str(), attr_name.length());
         });
     }
 

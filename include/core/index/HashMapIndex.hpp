@@ -36,7 +36,7 @@ class HashMapIndex {
 
 public:
 
-    HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string table, std::string relation, std::string attribute)
+    HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string relation, std::string table, std::string attribute)
 	    : m_PmemNode(pMemNode), m_Init(false), m_EstimateElemCount(estimateElemCount)
     {
         RootManager& mgr = RootManager::getInstance();
@@ -49,9 +49,9 @@ public:
         m_Relation = make_persistent<char[]>(relation.length() + 1);
         m_rl = relation.length() + 1;
 
-        pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
-        pop.memcpy_persist(m_Attribute.raw_ptr(), attribute.c_str(), attribute.length() + 1);
-        pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+        pop.memcpy_persist(m_Table.get(), table.c_str(), table.length() + 1);
+        pop.memcpy_persist(m_Attribute.get(), attribute.c_str(), attribute.length() + 1);
+        pop.memcpy_persist(m_Relation.get(), relation.c_str(), relation.length() + 1);
 
         m_HashMap = make_persistent<CustomHashmap>(estimateElemCount, pMemNode);
     }

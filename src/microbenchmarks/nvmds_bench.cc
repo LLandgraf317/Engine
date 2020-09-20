@@ -283,9 +283,8 @@ inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua
 }
 
 struct NVMDSBenchParamList {
-    //ArrayList<pptr<PersistentColumn>> &primColPers;
+    ArrayList<pptr<PersistentColumn>> &primColPers;
     ArrayList<pptr<PersistentColumn>> &valColPers;
-    //ArrayList<pptr<PersistentColumn>> &delColPers;
 
     ArrayList<pptr<MultiValTreeIndex>> &trees;
     ArrayList<pptr<SkipListIndex>> &skiplists;
@@ -379,13 +378,25 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
 
 void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
 {
-    auto valCol = generate_share_vector_pers( ARRAY_SIZE, list.sel_distr, pmemNode);
+    auto primCol = generate_sorted_unique_pers( ARRAY_SIZE, pmemNode);
+    primCol->setRelation("test");
+    primCol->setTable("1");
+    primCol->setAttribute("prim");
 
+    trace_l(T_INFO, "Testing prim naming: ", primCol->getRelation(), ", ", primCol->getTable(), ", ", primCol->getAttribute());
+
+    auto valCol = generate_share_vector_pers( ARRAY_SIZE, list.sel_distr, pmemNode);
+    valCol->setRelation("test");
+    valCol->setTable("1");
+    valCol->setAttribute("val");
+
+    NVMStorageManager::pushPersistentColumn(primCol);
     NVMStorageManager::pushPersistentColumn(valCol);
 
     trace_l(T_INFO, "Persistent columns for node ", pmemNode, " generated");
 
     list.valColPers.push_back(valCol);
+    list.primColPers.push_back(primCol);
 
     trace_l(T_DEBUG, "Initializing index structures");
 
@@ -430,6 +441,49 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
     list.hashmaps.push_back(hashmap);
 }
 
+void cleanAllDS(NVMDSBenchParamList & list)
+{
+    trace_l(T_DEBUG, "Cleaning persistent columns");
+
+    auto initializer = RootInitializer::getInstance();
+    auto node_number = initializer.getNumaNodeCount();
+    RootManager& root_mgr = RootManager::getInstance();
+
+    for (unsigned int i = 0; i < node_number; i++) {
+        auto pop = root_mgr.getPop(i);
+
+        list.valColPers[i]->prepareDest();
+        list.primColPers[i]->prepareDest();
+
+/*#ifdef EXEC_JOIN_BENCH
+        forKeyColPers[i]->prepareDest();
+        table2PrimPers[i]->prepareDest();
+#endif*/
+
+        transaction::run(pop, [&] {
+            delete_persistent<PersistentColumn>(list.valColPers[i]);
+            delete_persistent<PersistentColumn>(list.primColPers[i]);
+
+            //delete_persistent<PersistentColumn>(forKeyColPers[i]);
+            //delete_persistent<PersistentColumn>(table2PrimPers[i]);
+
+            delete_persistent<MultiValTreeIndex>(list.trees[i]);
+            delete_persistent<SkipListIndex>(list.skiplists[i]);
+            delete_persistent<HashMapIndex>(list.hashmaps[i]);
+
+/*#ifdef EXEC_JOIN_BENCH
+            delete_persistent<MultiValTreeIndex>(treesFor[i]);
+            delete_persistent<SkipListIndex>(skiplistsFor[i]);
+            delete_persistent<HashMapIndex>(hashmapsFor[i]);
+            
+            delete_persistent<MultiValTreeIndex>(treesTable2[i]);
+            delete_persistent<SkipListIndex>(skiplistsTable2[i]);
+            delete_persistent<HashMapIndex>(hashmapsTable2[i]);
+#endif*/
+        });
+    }
+}
+
 int main(int /*argc*/, char** /*argv*/)
 {
     // Setup phase: figure out node configuration
@@ -446,9 +500,10 @@ int main(int /*argc*/, char** /*argv*/)
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
     std::vector<sel_and_val> sel_distr;
-    const uint64_t MAX_SEL_ATTR = 10;
-    for (uint64_t i = 0; i < MAX_SEL_ATTR; i++) {
-        sel_distr.push_back(sel_and_val(pow(2.0, i - MAX_SEL_ATTR - 1 ) , i));
+    const unsigned MAX_SEL_ATTR = 10;
+    for (unsigned i = 1; i < MAX_SEL_ATTR + 1; i++) {
+        trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_ATTR - i + 2));
+        sel_distr.push_back(sel_and_val(pow(0.5f, MAX_SEL_ATTR - i + 2 ) , i));
     }
 
     RootManager& root_mgr = RootManager::getInstance();
@@ -490,6 +545,7 @@ int main(int /*argc*/, char** /*argv*/)
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
+        primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique( ARRAY_SIZE, i) ));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_share_vector( ARRAY_SIZE, sel_distr, i) ));
         /*forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
             ARRAY_SIZE,
@@ -507,10 +563,11 @@ int main(int /*argc*/, char** /*argv*/)
                 treesTable2, skiplistsTable2, hashmapsTable2);*/
 
         if (initializer.isNVMRetrieved(i)) {
+            auto primCol  = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("prim"), i);
             auto valCol   = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("val"), i);
-            auto tree     = NVMStorageManager::getTree(    std::string("test"), std::string("1"), std::string("val"), i);
-            auto skiplist = NVMStorageManager::getSkiplist(std::string("test"), std::string("1"), std::string("val"), i);
-            auto hashmap  = NVMStorageManager::getHashmap( std::string("test"), std::string("1"), std::string("val"), i);
+            auto tree     = NVMStorageManager::getTree(    std::string("test"), std::string("1"), std::string("valPos"), i);
+            auto skiplist = NVMStorageManager::getSkiplist(std::string("test"), std::string("1"), std::string("valPos"), i);
+            auto hashmap  = NVMStorageManager::getHashmap( std::string("test"), std::string("1"), std::string("valPos"), i);
 
             // validate
             
@@ -521,12 +578,15 @@ int main(int /*argc*/, char** /*argv*/)
             skiplists.push_back(skiplist);
             hashmaps.push_back(hashmap);
 
+            primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primCol->convert()));
             valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valCol->convert()));
+            trace_l(T_INFO, "Retrieved data structures from NVM");
         }
         else {
-            NVMDSBenchParamList l = {valColPers, trees, skiplists, hashmaps, sel_distr};
+            NVMDSBenchParamList l = {primColPers, valColPers, trees, skiplists, hashmaps, sel_distr};
             generateNVMDSBenchSetup(l, i);
 
+            primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primColPers[i]->convert()));
             valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valColPers[i]->convert()));
         }
     }
@@ -594,15 +654,15 @@ int main(int /*argc*/, char** /*argv*/)
             for (unsigned j = 0; j < EXP_ITER; j++ ) {
                 std::cout << "Aggregate," << i << ",";
                 measure("Duration of aggregation on volatile column: ",
-                        agg_sum_dua, valColNode[i].get(), primColNode[i].get(), 21);
+                        agg_sum_dua, valColNode[i].get(), primColNode[i].get(), MAX_SEL_ATTR);
                 measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*trees[i]), 21);
+                        group_agg_sum<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*trees[i]), MAX_SEL_ATTR + 1);
                 measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*skiplists[i]), 21);
+                        group_agg_sum<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*skiplists[i]), MAX_SEL_ATTR + 1);
                 measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), 21);
+                        group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), MAX_SEL_ATTR + 1);
                 measure("Duration of aggregation on persistent column: ",
-                        agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), 21);
+                        agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), MAX_SEL_ATTR);
                 std::cout << selectivity;
                 std::cout << "\n";
             }
@@ -659,7 +719,7 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
     }
 
-    trace_l(T_DEBUG, "Cleaning persistent columns");
+/*    trace_l(T_DEBUG, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
         auto pop = root_mgr.getPop(i);
 
@@ -695,7 +755,7 @@ int main(int /*argc*/, char** /*argv*/)
             delete_persistent<HashMapIndex>(hashmapsTable2[i]);
 #endif
         });
-    }
+    }*/
 
     root_mgr.drainAll();
     root_mgr.closeAll();

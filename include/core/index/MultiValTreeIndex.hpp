@@ -26,7 +26,7 @@ class MultiValTreeIndex {
     p<size_t> m_CountTuples;
 
 public:
-    MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string table, std::string relation, std::string attribute)
+    MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), pMemNode);
@@ -42,9 +42,9 @@ public:
 
         m_Tree = make_persistent<MultiValTree>(alloc_class);
 
-        pop.memcpy_persist(m_Table.raw_ptr(), table.c_str(), table.length() + 1);
-        pop.memcpy_persist(m_Attribute.raw_ptr(), attribute.c_str(), attribute.length() + 1);
-        pop.memcpy_persist(m_Relation.raw_ptr(), relation.c_str(), relation.length() + 1);
+        pop.memcpy_persist(m_Table.get(), table.c_str(), table.length() + 1);
+        pop.memcpy_persist(m_Attribute.get(), attribute.c_str(), attribute.length() + 1);
+        pop.memcpy_persist(m_Relation.get(), relation.c_str(), relation.length() + 1);
 
         m_Init = false;
         m_CountTuples = 0;
