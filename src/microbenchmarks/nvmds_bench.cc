@@ -619,22 +619,23 @@ int main(int /*argc*/, char** /*argv*/)
 
     for (uint64_t sel_attr = 0; sel_attr < MAX_SEL_ATTR; sel_attr++ ) {
         const float selectivity = sel_distr[sel_attr].selectivity;
+        const uint64_t attr_value = sel_distr[sel_attr].attr_value;
 
         for (unsigned int i = 0; i < node_number; i++) {
             for (unsigned j = 0; j < EXP_ITER; j++ ) {
                 std::cout << "Select," << i << ",";
                 measure("Duration of selection on volatile columns: ",
-                        my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), 0, 0);
+                        my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColNode[i].get(), attr_value, 0);
                 measure("Duration of selection on persistent tree: ", 
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*trees[i]), 0);
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*trees[i]), attr_value);
                 measure("Duration of selection on persistent skiplist: ", 
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*skiplists[i]), 0);
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*skiplists[i]), attr_value);
                 measure("Duration of selection on persistent hashmaps: ", 
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), 0);
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), attr_value);
                 /*measureEnd("Duration of selection on persistent columns: ",
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);*/
                 measure("Duration of selection on persistent columns: ",
-                        my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), 0, 0);
+                        my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), attr_value, 0);
                 std::cout << selectivity;
                 std::cout << "\n";
             }
@@ -646,28 +647,6 @@ int main(int /*argc*/, char** /*argv*/)
         // Benchmark: insert and updates
         // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
 
-        // Benchmark: group by
-        // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
-        // Projection, aggregation more interesting
-
-        for (unsigned int i = 0; i < node_number; i++) {
-            for (unsigned j = 0; j < EXP_ITER; j++ ) {
-                std::cout << "Aggregate," << i << ",";
-                measure("Duration of aggregation on volatile column: ",
-                        agg_sum_dua, valColNode[i].get(), primColNode[i].get(), MAX_SEL_ATTR);
-                measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*trees[i]), MAX_SEL_ATTR + 1);
-                measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*skiplists[i]), MAX_SEL_ATTR + 1);
-                measureTuple("Duration of aggregation on persistent tree: ",
-                        group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), MAX_SEL_ATTR + 1);
-                measure("Duration of aggregation on persistent column: ",
-                        agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), MAX_SEL_ATTR);
-                std::cout << selectivity;
-                std::cout << "\n";
-            }
-        }
-
         // Benchmark: random sequential selection
 
         for (unsigned int i = 0; i < node_number; i++) {
@@ -675,19 +654,19 @@ int main(int /*argc*/, char** /*argv*/)
                 std::cout << "Between," << i << ",";
                 measure("Duration of between selection on volatile column: ",
                         my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                            ::apply, valColNode[i].get(), 0, 0, 0);
+                            ::apply, valColNode[i].get(), attr_value, attr_value, 0);
                 measure("Duration of between selection on persistent tree: ",
                         index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<MultiValTreeIndex>>
-                            ::apply, trees[i], 0, 0);
+                            ::apply, trees[i], attr_value, attr_value);
                 measure("Duration of between selection on persistent tree: ",
                         index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>>
-                            ::apply, skiplists[i], 0, 0);
+                            ::apply, skiplists[i], attr_value, attr_value);
                 measure("Duration of between selection on persistent tree: ",
                         index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>>
-                            ::apply, hashmaps[i], 0, 0);
+                            ::apply, hashmaps[i], attr_value, attr_value);
                 measure("Duration of between selection on persistent column: ",
                         my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-                            ::apply, valColPersConv[i].get(), 0, 0, 0);
+                            ::apply, valColPersConv[i].get(), attr_value, attr_value, 0);
                 std::cout << selectivity;
                 std::cout << "\n";
             }
@@ -718,6 +697,29 @@ int main(int /*argc*/, char** /*argv*/)
         }
 #endif
     }
+
+    // Benchmark: group by
+    // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
+    // Projection, aggregation more interesting
+
+    for (unsigned int i = 0; i < node_number; i++) {
+        for (unsigned j = 0; j < EXP_ITER; j++ ) {
+            std::cout << "Aggregate," << i << ",";
+            measure("Duration of aggregation on volatile column: ",
+                    agg_sum_dua, valColNode[i].get(), primColNode[i].get(), MAX_SEL_ATTR);
+            measureTuple("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*trees[i]), MAX_SEL_ATTR + 1);
+            measureTuple("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*skiplists[i]), MAX_SEL_ATTR + 1);
+            measureTuple("Duration of aggregation on persistent tree: ",
+                    group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), MAX_SEL_ATTR + 1);
+            measure("Duration of aggregation on persistent column: ",
+                    agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), MAX_SEL_ATTR);
+            std::cout << 1;
+            std::cout << "\n";
+        }
+    }
+
 
 /*    trace_l(T_DEBUG, "Cleaning persistent columns");
     for (unsigned int i = 0; i < node_number; i++) {
