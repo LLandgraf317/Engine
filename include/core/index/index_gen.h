@@ -1,4 +1,5 @@
 #pragma once
+#include <core/tracing/trace.h>
 
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <core/storage/PersistentColumn.h>
