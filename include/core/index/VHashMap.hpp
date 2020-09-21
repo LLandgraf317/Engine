@@ -1,5 +1,8 @@
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <core/index/VNodeBucketList.h>
 #include <core/index/HashMethod.h>
 
@@ -37,10 +40,20 @@ public:
          m_PmemNode(pmemNode),
          m_HashStrategy(p_DistinctElementCountEstimate)
     {
-        m_Map = new VNodeBucketList<HashMapElem>*[p_DistinctElementCountEstimate];
+        m_Map = reinterpret_cast<VNodeBucketList<HashMapElem>**>(general_memory_manager::get_instance().allocateNuma(
+                p_DistinctElementCountEstimate * sizeof(VNodeBucketList<HashMapElem>*), pmemNode));
 
         for (size_t i = 0; i<m_MapElemCount; i++)
             m_Map[i] = nullptr;
+    }
+
+    ~VHashMap()
+    {
+        for (size_t i = 0; i<m_MapElemCount; i++)
+            if (m_Map[i] != nullptr) {
+                m_Map[i]->~VNodeBucketList();
+            }
+        general_memory_manager::get_instance().deallocateNuma(m_Map, m_MapElemCount * sizeof(VNodeBucketList<HashMapElem>*));
     }
 
     void insert(KeyType key, ValueType value)

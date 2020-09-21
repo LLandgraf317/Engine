@@ -1,5 +1,8 @@
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <array>
 #include <iostream>
 #include <list>
@@ -87,6 +90,7 @@ class VolatileBPTree {
     Node rightChild; ///< the resulting rhs child node
   };
 
+  size_t m_NumaNode;
   unsigned int depth; /**< the depth of the tree, i.e. the number of levels
                               (0 => rootNode is LeafNode) */
   Node rootNode;         /**< pointer to the root node (an instance of @c LeafNode or
@@ -157,9 +161,9 @@ class VolatileBPTree {
   /**
    * Constructor for creating a new B+ tree.
    */
-  explicit VolatileBPTree() : depth(0) {
+  explicit VolatileBPTree(size_t numaNode) : m_NumaNode(numaNode), depth(0) {
   //PBPTree() : depth(0) {
-    rootNode = new LeafNode();
+    rootNode = newLeafNode();
     LOG("created new tree with sizeof(BranchNode) = " << sizeof(BranchNode) <<
         ", sizeof(LeafNode) = " << sizeof(LeafNode));
   }
@@ -169,6 +173,13 @@ class VolatileBPTree {
    */
   ~VolatileBPTree() {
     /// Nodes are deleted automatically by releasing leafPool and branchPool.
+  }
+
+  LeafNode* newLeafNode()
+  {
+      auto tmp = reinterpret_cast<LeafNode*>(general_memory_manager::get_instance().allocateNuma(sizeof(LeafNode), m_NumaNode));
+      new (tmp) LeafNode();
+      return tmp;
   }
 
   size_t memory_footprint() {
@@ -956,7 +967,7 @@ class VolatileBPTree {
     /// move all entries behind this position to a new sibling node
     auto &nodeRef = *node;
     auto &nNumKeys = nodeRef.numKeys;
-    LeafNode * sibling = new LeafNode();
+    LeafNode * sibling = newLeafNode();
     auto &sibRef = *sibling;
     auto &sNumKeys = sibRef.numKeys;
     sNumKeys = nNumKeys - middle;
@@ -1198,7 +1209,8 @@ class VolatileBPTree {
   }*/
 
   void deleteLeafNode(LeafNode * &node) {
-    delete node;
+    node->~LeafNode();
+    general_memory_manager::get_instance().deallocateNuma(node, sizeof(LeafNode));
 
     node = nullptr;
   }
@@ -1207,14 +1219,15 @@ class VolatileBPTree {
    * Create a new empty branch node
    */
   BranchNode * newBranchNode() {
-    BranchNode * newNode = nullptr;
-    newNode = new BranchNode();
+    BranchNode * newNode = reinterpret_cast<BranchNode*>(general_memory_manager::get_instance().allocateNuma(sizeof(BranchNode), m_NumaNode));
+    new (newNode) BranchNode();
 
     return newNode;
   }
 
   void deleteBranchNode(BranchNode * &node) {
-    delete node;
+    node->~BranchNode();
+    general_memory_manager::get_instance().deallocateNuma(node, sizeof(BranchNode));
 
     node = nullptr;
   }

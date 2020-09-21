@@ -1,5 +1,8 @@
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <core/index/VNodeBucketList.h>
 #include <core/index/VSkiplist.hpp>
 
@@ -30,11 +33,18 @@ public:
     {
         m_Init = false;
 
-        m_SkipList = new CustomSkiplist();
+        auto tmp = reinterpret_cast<CustomSkiplist*>( general_memory_manager::get_instance().allocateNuma( sizeof(CustomSkiplist), p_PmemNode) );
+        m_SkipList = new (tmp) CustomSkiplist(p_PmemNode);
 
         m_Table = table;
         m_Attribute = attribute;
         m_Relation = relation;
+    }
+
+    ~VSkipListIndex()
+    {
+        m_SkipList->~CustomSkiplist();
+        general_memory_manager::get_instance().deallocateNuma( m_SkipList, sizeof(CustomSkiplist));
     }
 
     std::string getTable()

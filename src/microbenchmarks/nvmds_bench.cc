@@ -11,7 +11,9 @@
 #include <core/index/MultiValTreeIndex.hpp>
 #include <core/index/VolatileTreeIndex.hpp>
 #include <core/index/SkipListIndex.hpp>
+#include <core/index/VSkipListIndex.hpp>
 #include <core/index/HashMapIndex.hpp>
+#include <core/index/VHashMapIndex.hpp>
 #include <core/index/index_gen.h>
 
 #include <core/utils/measure.h>
@@ -511,6 +513,11 @@ int main(int /*argc*/, char** /*argv*/)
     ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> delColNode;
+
+    ArrayList<std::shared_ptr<VolatileTreeIndex>> vtrees;
+    ArrayList<std::shared_ptr<VSkipListIndex>> vskiplists;
+    ArrayList<std::shared_ptr<VHashMapIndex>> vhashmaps;
+
     ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColNode;
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> table2PrimNode;
@@ -547,6 +554,7 @@ int main(int /*argc*/, char** /*argv*/)
     for (unsigned int i = 0; i < node_number; i++) {
         primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique( ARRAY_SIZE, i) ));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_share_vector( ARRAY_SIZE, sel_distr, i) ));
+
         /*forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
             ARRAY_SIZE,
             std::uniform_int_distribution<uint64_t>(0, 99),
@@ -589,6 +597,15 @@ int main(int /*argc*/, char** /*argv*/)
             primColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(primColPers[i]->convert()));
             valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valColPers[i]->convert()));
         }
+
+        vtrees.push_back( std::shared_ptr<VolatileTreeIndex>( new VolatileTreeIndex(i, std::string("test"), std::string("1"), std::string("valPos")) ) );
+        IndexGen<VolatileTreeIndex*>::generateKeyToPos( &*vtrees[i], valColPers[i]);
+
+        vskiplists.push_back( std::shared_ptr<VSkipListIndex>( new VSkipListIndex(i, std::string("test"), std::string("1"), std::string("valPos")) ) );
+        IndexGen<VSkipListIndex*>::generateKeyToPos( &*vskiplists[i], valColPers[i]);
+
+        vhashmaps.push_back( std::shared_ptr<VHashMapIndex>( new VHashMapIndex(MAX_SEL_ATTR, i, std::string("test"), std::string("1"), std::string("valPos")) ) );
+        IndexGen<VHashMapIndex*>::generateKeyToPos( &*vhashmaps[i], valColPers[i]);
     }
     root_mgr.drainAll();
 
@@ -632,10 +649,16 @@ int main(int /*argc*/, char** /*argv*/)
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*skiplists[i]), attr_value);
                 measure("Duration of selection on persistent hashmaps: ", 
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), attr_value);
-                /*measureEnd("Duration of selection on persistent columns: ",
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);*/
+                measure("Duration of selection on volatile tree: ",
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);
                 measure("Duration of selection on persistent columns: ",
                         my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), attr_value, 0);
+                measure("Duration of selection on volatile tree: ",
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);
+                measure("Duration of selection on volatile skiplist: ",
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VSkipListIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vskiplists[i]), 0);
+                measure("Duration of selection on volatile hashmap: ",
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VHashMapIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vhashmaps[i]), 0);
                 std::cout << selectivity;
                 std::cout << "\n";
             }

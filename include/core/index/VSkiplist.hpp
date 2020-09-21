@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <cstdlib>
 #include <iostream>
 
@@ -83,6 +86,7 @@ class VSkiplist {
 
   /* -------------------------------------------------------------------------------------------- */
 
+  size_t m_NumaNode;
   size_t level;     ///< the current number of levels (height)
   size_t nodeCount; ///< the current number of nodes
   dbis::Random* rnd;   ///< volatile pointer to a random number generator
@@ -94,7 +98,8 @@ class VSkiplist {
    * @param node[out] the pointer/reference to the newly allocated node
    */
   void newSkipNode(SkipNode * &node) {
-      node = new SkipNode(level);
+      auto newSkipNode = reinterpret_cast<SkipNode*>( general_memory_manager::get_instance().allocateNuma(sizeof(SkipNode), m_NumaNode));
+      node = new (newSkipNode) SkipNode(level);
   }
 
   /**
@@ -106,7 +111,8 @@ class VSkiplist {
    * @param node[out] the pointer/reference to the newly allocated node
    */
   void newSkipNode(const KeyType &key, const ValueType &value, size_t level, SkipNode * &node) {
-      node = new SkipNode(key, value, level);
+      auto newSkipNode = reinterpret_cast<SkipNode*>( general_memory_manager::get_instance().allocateNuma(sizeof(SkipNode), m_NumaNode));
+      node = new (newSkipNode) SkipNode(key, value, level);
   }
 
   /**
@@ -132,7 +138,7 @@ class VSkiplist {
   /**
    * Constructor for creating a new skip list.
    */
-  VSkiplist() : level(0), nodeCount(0), rnd(new dbis::Random(std::time(nullptr))) {
+  VSkiplist(size_t numaNode) : m_NumaNode(numaNode), level(0), nodeCount(0), rnd(new dbis::Random(std::time(nullptr))) {
     initList();
   }
 

@@ -1,9 +1,14 @@
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <core/tracing/trace.h>
 
 #include <stdexcept>
 #include <cassert>
+
+namespace morphstore {
 
 // Copied from NodeBucketList.h and fitted for volatile memory
 template<typename T>
@@ -89,6 +94,16 @@ struct VNodeBucketList {
     VNodeBucket<T> * first;
     VNodeBucket<T> * last;
 
+    ~VNodeBucketList()
+    {
+        auto next = first->getNext();
+        while (next != nullptr) {
+             auto tmp = next->getNext();
+             deleteBucket(next);
+             next = tmp;
+        }
+    }
+
     class Iterator {
         VNodeBucket<T> * curr;
         uint64_t iterator_count;
@@ -143,6 +158,16 @@ struct VNodeBucketList {
             return curr->getBucketEntry(iterator_count);
         }
     };
+
+    VNodeBucket<T> * newBucket()
+    {
+        return new (general_memory_manager::get_instance().allocateNuma(sizeof(VNodeBucket<T>), m_PmemNode)) VNodeBucket<T>();
+    }
+
+    void deleteBucket(VNodeBucket<T> * buck)
+    {
+        general_memory_manager::get_instance().deallocateNuma(buck, sizeof(VNodeBucket<T>));
+    }
 
     inline Iterator begin() const
     {
@@ -212,14 +237,14 @@ struct VNodeBucketList {
         value_count = value_count + 1;
         if (first == nullptr) {
 
-            first = new VNodeBucket<T>();
+            first = new (newBucket()) VNodeBucket<T>();
             last = first;
 
             first->insertLast(val);
         }
         else {
             if (last->isFull()) {
-                auto tmp = new VNodeBucket<T>();
+                auto tmp = new (newBucket()) VNodeBucket<T>();
                 if (tmp == nullptr)
                     throw new std::runtime_error("out of memory");
                 tmp->insertLast(val);
@@ -287,3 +312,5 @@ struct VNodeBucketList {
         }
     }
 };
+
+}

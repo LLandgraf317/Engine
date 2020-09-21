@@ -1,5 +1,8 @@
 #pragma once
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <core/index/VHashMap.hpp>
 #include <core/index/VNodeBucketList.h>
 
@@ -35,7 +38,14 @@ public:
         m_Attribute = attribute;
         m_Relation = relation;
 
-        m_HashMap = new CustomHashmap(estimateElemCount, pMemNode);
+        auto tmp = reinterpret_cast<CustomHashmap*>(general_memory_manager::get_instance().allocateNuma(sizeof(CustomHashmap), pMemNode));
+        m_HashMap = new (tmp) CustomHashmap(estimateElemCount, pMemNode);
+    }
+
+    ~VHashMapIndex()
+    {
+        m_HashMap->~CustomHashmap();
+        general_memory_manager::get_instance().deallocateNuma(reinterpret_cast<void*>(m_HashMap), sizeof(CustomHashmap));
     }
 
     std::string getTable()

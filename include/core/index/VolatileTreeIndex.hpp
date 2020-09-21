@@ -26,7 +26,7 @@ public:
         m_Attribute = attribute;
         m_Relation = relation;
 
-        m_Tree = new VolatileBPTree<uint64_t, VNodeBucketList<uint64_t> *, 10, 10>();
+        m_Tree = new VolatileBPTree<uint64_t, VNodeBucketList<uint64_t> *, 10, 10>(numaNode);
 
         m_Init = false;
         m_CountTuples = 0;
