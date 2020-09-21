@@ -38,8 +38,10 @@ public:
         auto iter = pop.root()->cols->begin();
  
         for (; iter != pop.root()->cols->end(); iter++) {
-            if (compare(*iter, relation, table, attribute))
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found column in persistent storage");
                 return *iter;
+            }
         }
 
         return nullptr;
@@ -61,8 +63,10 @@ public:
         auto iter = pop.root()->treeIndeces->begin();
  
         for (; iter != pop.root()->treeIndeces->end(); iter++) {
-            if (compare(*iter, relation, table, attribute))
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found tree in persistent storage");
                 return *iter;
+            }
         }
 
         return nullptr;
@@ -85,8 +89,10 @@ public:
         auto iter = pop.root()->skipListIndeces->begin();
  
         for (; iter != pop.root()->skipListIndeces->end(); iter++) {
-            if (compare(*iter, relation, table, attribute))
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found skiplist in persistent storage");
                 return *iter;
+            }
         }
 
         return nullptr;
@@ -109,8 +115,10 @@ public:
         auto iter = pop.root()->hashMapIndeces->begin();
  
         for (; iter != pop.root()->hashMapIndeces->end(); iter++) {
-            if (compare(*iter, relation, table, attribute))
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found hashmap in persistent storage");
                 return *iter;
+            }
         }
 
         return nullptr;

@@ -132,9 +132,7 @@ public:
                 transaction::run(pop, [&] {
                     list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
                 });
-            transaction::run(pop, [&] {
-                list->insertValue(value); 
-            });
+            list->insertValue(value); 
         }
         else {
             transaction::run(pop, [&] {
@@ -144,8 +142,8 @@ public:
                 throw new std::runtime_error("out of memory");
             transaction::run(pop, [&] {
                 m_SkipList->insert(key, list);
-                list->insertValue(value);
             });
+            list->insertValue(value);
         }
 
         m_CountTuples++;

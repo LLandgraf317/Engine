@@ -227,30 +227,35 @@ struct NodeBucketList {
         morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
         pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-        transaction::run(pop, [&] {
-            value_count = value_count + 1;
-            if (first == nullptr) {
-
+        if (first == nullptr) {
+            transaction::run(pop, [&] {
+                value_count = value_count + 1;
                 first = make_persistent<NodeBucket<T>>();
                 last = first;
 
                 first->insertLast(val);
-            }
-            else {
-                if (last->isFull()) {
-                    auto tmp = make_persistent<NodeBucket<T>>();
+            });
+        }
+        else {
+            if (last->isFull()) {
+                persistent_ptr<NodeBucket<T>> tmp;
+                transaction::run(pop, [&] {
+                    tmp = make_persistent<NodeBucket<T>>();
                     if (tmp == nullptr)
                         throw new std::runtime_error("out of memory");
                     tmp->insertLast(val);
-                    last->setNext(tmp);
-                    tmp->setPrev(last);
-                    last = tmp;
-                }
-                else {
-                    last->insertLast(val);
-                }
+                });
+
+                last->setNext(tmp);
+                tmp->setPrev(last);
+                last = tmp;
             }
-        });
+            else {
+                transaction::run(pop, [&] {
+                    last->insertLast(val);
+                });
+            }
+        }
     }
 
     bool deleteValue(T val)

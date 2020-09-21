@@ -147,6 +147,7 @@ struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structu
         else {
             size_t sum_count_values = bucket_lists_list->getCountValues();
 
+            //general_memory_manager::get_instance().allocateNuma(sizeof(column<uncompr_f>), 0);
             column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
             uint64_t* value_data = valueCol->get_data();
 

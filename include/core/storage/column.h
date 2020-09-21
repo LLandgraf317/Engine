@@ -31,6 +31,9 @@
 #include <core/utils/basic_types.h>
 #include <core/utils/helper_types.h>
 
+#include <core/memory/management/abstract_mm.h>
+#include <core/memory/management/general_mm.h>
+
 #include <type_traits>
 
 #include <cstring>
@@ -120,7 +123,7 @@ class column {
          m_MetaData{ 0, 0, 0, p_SizeAllocatedByte},
 #ifdef MSV_NO_SELFMANAGED_MEMORY
          m_DataUnaligned{
-            malloc( get_size_with_alignment_padding( p_SizeAllocatedByte ) )
+            general_memory_manager::get_instance( ).allocateNuma( p_SizeAllocatedByte, numa_node )
          },
          m_Data{ create_aligned_ptr( m_DataUnaligned ) },
 #else

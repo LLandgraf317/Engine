@@ -121,6 +121,22 @@ void seq_insert_col( T /*primCol*/, T /*valCol*/, T /*delCol*/)
     }*/
 }
 
+#if 0
+    uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
+
+    for (int i = 0; i < node_number; i++) {
+        std::cout << "Measures for node " << i << std::endl;
+        measure("Durations of seq insert on volatile columns: ",
+                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i], delColNode[i]);
+        measure("Duration of seq insert on local pers tree: ", seq_insert_tree, trees[i]);
+        measure("Duration of seq insert on local pers column: ",
+                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i],
+                valColPersConv[i], delColPersConv[i]);
+    }
+
+    uint64_t momentary_max_key = primColNode[0]->get_count_values();
+#endif
+
 void seq_insert_tree(pptr<TreeType> tree)
 {
     uint64_t resMax = 0;
@@ -262,7 +278,25 @@ void random_select_col_threads(T prim, T val)
         trace_l(T_DEBUG, "Ending Thread ", i);
         pthread_join((data[i].thread) , nullptr);
     }
-}*/
+}
+*/
+/*#ifdef EXEC_JOIN_BENCH
+        forKeyColPers[i]->prepareDest();
+        table2PrimPers[i]->prepareDest();
+#endif*/
+
+/*#ifdef EXEC_JOIN_BENCH
+            delete_persistent<PersistentColumn>(forKeyColPers[i]);
+            delete_persistent<PersistentColumn>(table2PrimPers[i]);
+
+            delete_persistent<MultiValTreeIndex>(treesFor[i]);
+            delete_persistent<SkipListIndex>(skiplistsFor[i]);
+            delete_persistent<HashMapIndex>(hashmapsFor[i]);
+            
+            delete_persistent<MultiValTreeIndex>(treesTable2[i]);
+            delete_persistent<SkipListIndex>(skiplistsTable2[i]);
+            delete_persistent<HashMapIndex>(hashmapsTable2[i]);
+#endif*/
 
 template<class T>
 class ArrayList : public std::list<T>
@@ -283,7 +317,48 @@ inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua
 {
     return nested_loop_join<ps, uncompr_f, uncompr_f>(f, s, inExtNum);
 }
+////////////////////////////////////////////////////////////////////////TREADING FOR DS GENERATION ////////////////////////////////////////////////////////
+// Threaded DS Creation
+uint64_t thread_num_counter = 0;
 
+struct thread_info {
+    pthread_t thread_id;
+    int thread_num;
+};
+
+// Array of thread_info
+thread_info* thread_infos = nullptr;
+
+template<class index_structure>
+struct CreateIndexArgs {
+    pptr<index_structure> index;
+    pptr<PersistentColumn> valCol;
+};
+
+template<class index_structure>
+void * generate( void * argPtr )
+{
+    CreateIndexArgs<index_structure> * indexArgs = (CreateIndexArgs<index_structure>*) argPtr;
+
+    IndexGen<persistent_ptr<index_structure>>::generateKeyToPos(indexArgs->index, indexArgs->valCol);
+
+    RootManager& root_mgr = RootManager::getInstance();
+    root_mgr.drainAll();
+
+    free(argPtr);
+
+    return nullptr;
+}
+
+void joinAllPThreads() {
+    for (unsigned i = 0; i < thread_num_counter; i++) {
+        trace_l(T_INFO, "Joined generation thread ", i);
+        pthread_join(thread_infos[i].thread_id, nullptr);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////GENERATION FUNCTIONS////////////////////////////////////////////////////////
+//
 struct NVMDSBenchParamList {
     ArrayList<pptr<PersistentColumn>> &primColPers;
     ArrayList<pptr<PersistentColumn>> &valColPers;
@@ -424,18 +499,40 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
     NVMStorageManager::pushHashmap(hashmap);
 
     try {
-        trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-        IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing Skiplist");
-        IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
-        root_mgr.drainAll();
-        trace_l(T_DEBUG, "Constructing HashMap");
-        IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
-        root_mgr.drainAll();
-    }
-    catch (...) {
+        {
+            trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
+            CreateIndexArgs<MultiValTreeIndex>* args = new CreateIndexArgs<MultiValTreeIndex>();
+            args->index = tree;
+            args->valCol = valCol;
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<MultiValTreeIndex>, args);
+            thread_num_counter++;
+            //IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
+        }
 
+        {
+            trace_l(T_DEBUG, "Constructing Skiplist");
+            CreateIndexArgs<SkipListIndex>* args = new CreateIndexArgs<SkipListIndex>();
+            args->index = skiplist;
+            args->valCol = valCol;
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<SkipListIndex>, args);
+            thread_num_counter++;
+            //IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
+        }
+
+        {
+            trace_l(T_DEBUG, "Constructing HashMap");
+            CreateIndexArgs<HashMapIndex>* args = new CreateIndexArgs<HashMapIndex>();
+            args->index = hashmap;
+            args->valCol = valCol;
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<HashMapIndex>, args);
+            thread_num_counter++;
+            //IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
+        }
+    }
+    catch (const std::exception& e) {
+
+        std::cerr << e.what();
+        trace_l(T_WARN, "Warning: exception during generation thrown");
     }
 
     list.trees.push_back(tree);
@@ -457,31 +554,14 @@ void cleanAllDS(NVMDSBenchParamList & list)
         list.valColPers[i]->prepareDest();
         list.primColPers[i]->prepareDest();
 
-/*#ifdef EXEC_JOIN_BENCH
-        forKeyColPers[i]->prepareDest();
-        table2PrimPers[i]->prepareDest();
-#endif*/
-
         transaction::run(pop, [&] {
             delete_persistent<PersistentColumn>(list.valColPers[i]);
             delete_persistent<PersistentColumn>(list.primColPers[i]);
-
-            //delete_persistent<PersistentColumn>(forKeyColPers[i]);
-            //delete_persistent<PersistentColumn>(table2PrimPers[i]);
 
             delete_persistent<MultiValTreeIndex>(list.trees[i]);
             delete_persistent<SkipListIndex>(list.skiplists[i]);
             delete_persistent<HashMapIndex>(list.hashmaps[i]);
 
-/*#ifdef EXEC_JOIN_BENCH
-            delete_persistent<MultiValTreeIndex>(treesFor[i]);
-            delete_persistent<SkipListIndex>(skiplistsFor[i]);
-            delete_persistent<HashMapIndex>(hashmapsFor[i]);
-            
-            delete_persistent<MultiValTreeIndex>(treesTable2[i]);
-            delete_persistent<SkipListIndex>(skiplistsTable2[i]);
-            delete_persistent<HashMapIndex>(hashmapsTable2[i]);
-#endif*/
         });
     }
 }
@@ -498,6 +578,8 @@ int main(int /*argc*/, char** /*argv*/)
 
     initializer.initPmemPool();
     auto node_number = initializer.getNumaNodeCount();
+
+    thread_infos = (thread_info*) calloc( 6 * node_number, sizeof(thread_info) );
 
     trace_l(T_DEBUG, "Current max node number: ", node_number);
 
@@ -565,11 +647,6 @@ int main(int /*argc*/, char** /*argv*/)
 
         trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
-        /*generateNVMDSBenchSetup(delColPers, valColPers, primColPers, forKeyColPers, table2PrimPersConv,
-                trees, skiplists, hashmaps,
-                treesFor, skiplistsFor, hashmapsFor,
-                treesTable2, skiplistsTable2, hashmapsTable2);*/
-
         if (initializer.isNVMRetrieved(i)) {
             auto primCol  = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("prim"), i);
             auto valCol   = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("val"), i);
@@ -581,6 +658,8 @@ int main(int /*argc*/, char** /*argv*/)
             
             
             // push
+            primColPers.push_back(primCol);
+            valColPers.push_back(valCol);
 
             trees.push_back(tree);
             skiplists.push_back(skiplist);
@@ -598,15 +677,17 @@ int main(int /*argc*/, char** /*argv*/)
             valColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(valColPers[i]->convert()));
         }
 
-        vtrees.push_back( std::shared_ptr<VolatileTreeIndex>( new VolatileTreeIndex(i, std::string("test"), std::string("1"), std::string("valPos")) ) );
+        /*vtrees.push_back( std::shared_ptr<VolatileTreeIndex>( new VolatileTreeIndex(i, std::string("test"), std::string("1"), std::string("valPos")) ) );
         IndexGen<VolatileTreeIndex*>::generateKeyToPos( &*vtrees[i], valColPers[i]);
 
         vskiplists.push_back( std::shared_ptr<VSkipListIndex>( new VSkipListIndex(i, std::string("test"), std::string("1"), std::string("valPos")) ) );
         IndexGen<VSkipListIndex*>::generateKeyToPos( &*vskiplists[i], valColPers[i]);
 
         vhashmaps.push_back( std::shared_ptr<VHashMapIndex>( new VHashMapIndex(MAX_SEL_ATTR, i, std::string("test"), std::string("1"), std::string("valPos")) ) );
-        IndexGen<VHashMapIndex*>::generateKeyToPos( &*vhashmaps[i], valColPers[i]);
+        IndexGen<VHashMapIndex*>::generateKeyToPos( &*vhashmaps[i], valColPers[i]);*/
     }
+
+    joinAllPThreads();
     root_mgr.drainAll();
 
     // Benchmark: sequential insertion
@@ -614,25 +695,10 @@ int main(int /*argc*/, char** /*argv*/)
     auto status = numa_run_on_node(0);
     trace_l(T_INFO, "numa_run_on_node(0) returned ", status);
 
-#if 0
-    uint64_t max_primary_key = primColNode[0]->get_count_values() - 1;
-
-    for (int i = 0; i < node_number; i++) {
-        std::cout << "Measures for node " << i << std::endl;
-        measure("Durations of seq insert on volatile columns: ",
-                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColNode[i], valColNode[i], delColNode[i]);
-        measure("Duration of seq insert on local pers tree: ", seq_insert_tree, trees[i]);
-        measure("Duration of seq insert on local pers column: ",
-                seq_insert_col<std::shared_ptr<const column<uncompr_f>>>, primColPersConv[i],
-                valColPersConv[i], delColPersConv[i]);
-    }
-
-    uint64_t momentary_max_key = primColNode[0]->get_count_values();
-#endif
 
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
-    std::cout << "Operator,Node number,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns,Selectivity\n";
+    std::cout << "Operator,Node number,Volatile columns,Persistent tree,Persistent skiplist,Persistent hashmap,Persistent columns,VolTree,VolSkipList,VolHashmap,Selectivity\n";
 
     for (uint64_t sel_attr = 0; sel_attr < MAX_SEL_ATTR; sel_attr++ ) {
         const float selectivity = sel_distr[sel_attr].selectivity;
@@ -649,16 +715,14 @@ int main(int /*argc*/, char** /*argv*/)
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*skiplists[i]), attr_value);
                 measure("Duration of selection on persistent hashmaps: ", 
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>::apply, &(*hashmaps[i]), attr_value);
-                measure("Duration of selection on volatile tree: ",
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);
                 measure("Duration of selection on persistent columns: ",
                         my_select_wit_t<equal, ps, uncompr_f, uncompr_f>::apply, valColPersConv[i].get(), attr_value, 0);
-                measure("Duration of selection on volatile tree: ",
+                /*measure("Duration of selection on volatile tree: ",
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VolatileTreeIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vtrees[i]), 0);
                 measure("Duration of selection on volatile skiplist: ",
                         index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VSkipListIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vskiplists[i]), 0);
                 measure("Duration of selection on volatile hashmap: ",
-                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VHashMapIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vhashmaps[i]), 0);
+                        index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, VHashMapIndex *, VNodeBucketList<uint64_t> *>::apply, &(*vhashmaps[i]), 0);*/
                 std::cout << selectivity;
                 std::cout << "\n";
             }
@@ -690,6 +754,15 @@ int main(int /*argc*/, char** /*argv*/)
                 measure("Duration of between selection on persistent column: ",
                         my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
                             ::apply, valColPersConv[i].get(), attr_value, attr_value, 0);
+                /*measure("Duration of between selection on volatile tree: ",
+                        index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, VolatileTreeIndex *>
+                            ::apply, &(*vtrees[i]), attr_value, attr_value);
+                measure("Duration of between selection on volatile skiplist: ",
+                        index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, VSkipListIndex *>
+                            ::apply, &(*vskiplists[i]), attr_value, attr_value);
+                measure("Duration of between selection on volatile hashmap: ",
+                        index_between_wit_t<std::greater_equal, std::less_equal, uncompr_f, uncompr_f, VHashMapIndex *>
+                            ::apply, &(*vhashmaps[i]), attr_value, attr_value);*/
                 std::cout << selectivity;
                 std::cout << "\n";
             }
@@ -738,6 +811,12 @@ int main(int /*argc*/, char** /*argv*/)
                     group_agg_sum<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>>, &(*hashmaps[i]), MAX_SEL_ATTR + 1);
             measure("Duration of aggregation on persistent column: ",
                     agg_sum_dua, valColPersConv[i].get(), primColPersConv[i].get(), MAX_SEL_ATTR);
+            /*measureTuple("Duration of aggregation on volatile tree: ",
+                    group_agg_sum<VolatileTreeIndex*, VNodeBucketList<uint64_t>*>, &(*vtrees[i]), MAX_SEL_ATTR + 1);
+            measureTuple("Duration of aggregation on volatile skiplist: ",
+                    group_agg_sum<VSkipListIndex*, VNodeBucketList<uint64_t>*>, &(*vskiplists[i]), MAX_SEL_ATTR + 1);
+            measureTuple("Duration of aggregation on volatile tree: ",
+                    group_agg_sum<VHashMapIndex*, VNodeBucketList<uint64_t>*>, &(*vhashmaps[i]), MAX_SEL_ATTR + 1);*/
             std::cout << 1;
             std::cout << "\n";
         }

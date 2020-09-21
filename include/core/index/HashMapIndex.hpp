@@ -116,13 +116,7 @@ public:
 
     void insert(uint64_t key, uint64_t value)
     {
-        RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
-
-        transaction::run(pop, [&] {
-            m_HashMap->insert(key, value);	
-        });
-
+        m_HashMap->insert(key, value);	
         m_CountTuples++;
     }
 

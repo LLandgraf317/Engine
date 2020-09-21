@@ -60,13 +60,18 @@ public:
 
     void insert(KeyType key, ValueType value)
     {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
         auto offset = m_HashStrategy.apply(key);
         if (m_Map[offset] == nullptr) {
-            m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
+            transaction::run(pop, [&] {
+                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
 
-            pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
-            tmp->insertValue(value);
-            m_Map[offset]->insertValue(std::make_tuple(key, tmp));
+                pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+                tmp->insertValue(value);
+                m_Map[offset]->insertValue(std::make_tuple(key, tmp));
+            });
 
             return;
         }
@@ -80,7 +85,11 @@ public:
             }
         }
 
-        pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+        pptr<NodeBucketList<ValueType>> tmp;
+
+        transaction::run(pop, [&] {
+            tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+        });
         tmp->insertValue(value);
         m_Map[offset]->insertValue(std::make_tuple(key, tmp));
     }
