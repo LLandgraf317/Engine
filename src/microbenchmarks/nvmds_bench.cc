@@ -340,7 +340,7 @@ void * generate( void * argPtr )
 {
     CreateIndexArgs<index_structure> * indexArgs = (CreateIndexArgs<index_structure>*) argPtr;
 
-    IndexGen<persistent_ptr<index_structure>>::generateKeyToPos(indexArgs->index, indexArgs->valCol);
+    IndexGen<persistent_ptr<index_structure>>::generateFast(indexArgs->index, indexArgs->valCol);
 
     RootManager& root_mgr = RootManager::getInstance();
     root_mgr.drainAll();
@@ -424,17 +424,17 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
     });
 
     trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(treeFor, forKeyColPers);
+    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateFast(treeFor, forKeyColPers);
     root_mgr.drainAll();
     trace_l(T_DEBUG, "Constructing Skiplist");
-    IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplistFor, forKeyColPers);
+    IndexGen<persistent_ptr<SkipListIndex>>::generateFast(skiplistFor, forKeyColPers);
     root_mgr.drainAll();
     trace_l(T_DEBUG, "Constructing HashMap");
-    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmapFor, forKeyColPers);
+    IndexGen<persistent_ptr<HashMapIndex>>::generateFast(hashmapFor, forKeyColPers);
     root_mgr.drainAll();
 
     trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree2, table2PrimCol);
+    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateFast(tree2, table2PrimCol);
     root_mgr.drainAll();
     trace_l(T_DEBUG, "Constructing Skiplist");
     IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist2, table2PrimCol);

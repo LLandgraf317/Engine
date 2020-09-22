@@ -1,6 +1,8 @@
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
 
+#include <core/memory/management/utils/alignment_helper.h>
+
 #include <core/index/VHashMap.hpp>
 #include <vector/scalar/extension_scalar.h>
 #include <core/index/VNodeBucketList.h>

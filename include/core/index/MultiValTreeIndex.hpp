@@ -12,6 +12,9 @@ namespace morphstore {
 
 class MultiValTreeIndex {
 
+    template<class T>
+    friend class IndexGen;
+
     pptr<MultiValTree> m_Tree;
     pptr<char[]> m_Relation;
     pptr<char[]> m_Attribute;
@@ -24,6 +27,12 @@ class MultiValTreeIndex {
     p<size_t> m_PmemNode;
     p<bool> m_Init;
     p<size_t> m_CountTuples;
+
+protected:
+    pptr<MultiValTree> getDS()
+    {
+        return m_Tree;
+    }
 
 public:
     MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
@@ -54,6 +63,15 @@ public:
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        m_Tree->scan([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t>> & val) {
+            if (val != nullptr) {
+                val->prepareDest();
+                transaction::run(pop, [&] {
+                    delete_persistent<NodeBucketList<uint64_t>>(val);
+                });
+            }
+        });
 
         transaction::run(pop, [&] {
             delete_persistent<MultiValTree>(m_Tree);
@@ -131,6 +149,7 @@ public:
 
         m_CountTuples = m_CountTuples + 1;
     }
+
 
     bool lookup(uint64_t key, uint64_t val)
     {

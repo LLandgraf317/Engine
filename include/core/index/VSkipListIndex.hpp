@@ -100,6 +100,7 @@ public:
             if (list == nullptr)
                 list = new VNodeBucketList<uint64_t>(m_PmemNode);
             list->insertValue(value); 
+            m_SkipList->insert(key, list);
         }
         else {
             list = new VNodeBucketList<uint64_t>(m_PmemNode);

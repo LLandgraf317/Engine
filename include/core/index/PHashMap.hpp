@@ -4,9 +4,12 @@
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
+#include <libpmemobj++/pool.hpp>
 
 #include <functional>
 #include <list>
+
+using pmem::obj::pool;
 
 namespace morphstore {
 
@@ -56,6 +59,21 @@ public:
                 >(p_DistinctElementCountEstimate);
         for (size_t i = 0; i<m_MapElemCount; i++)
             m_Map[i] = nullptr;
+    }
+
+    void insert(KeyType key, pptr<NodeBucketList<ValueType>> bucket)
+    {
+        RootManager& mgr = RootManager::getInstance();
+        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        auto offset = m_HashStrategy.apply(key);
+
+        if (m_Map[offset] == nullptr) {
+            transaction::run(pop, [&] {
+                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
+            });
+        }
+        m_Map[offset]->insertValue(std::make_tuple(key, bucket));
     }
 
     void insert(KeyType key, ValueType value)

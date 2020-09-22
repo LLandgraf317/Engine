@@ -8,8 +8,10 @@
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/p.hpp>
 #include <libpmemobj++/transaction.hpp>
+#include <libpmemobj++/make_persistent_atomic.hpp>
 
 using pmem::obj::make_persistent;
+using pmem::obj::make_persistent_atomic;
 using pmem::obj::persistent_ptr;
 using pmem::obj::delete_persistent;
 using pmem::obj::p;
@@ -72,7 +74,7 @@ public:
         this->prev = prev;
     }
 
-    bool isFull()
+    inline bool isFull()
     {
         return fill_count < MAX_ENTRIES;
     }
@@ -81,7 +83,7 @@ public:
     {
         assert(fill_count < MAX_ENTRIES);
         bucket_list[fill_count] = val;
-	fill_count++;
+        fill_count++;
     }
 
     inline T getLastAndDecr()
@@ -158,6 +160,21 @@ struct NodeBucketList {
         }
     };
 
+    void prepareDest()
+    {
+        morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
+        pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        auto next = first;
+        while (next != nullptr) {
+            auto del = next;
+            next = next->next;
+            transaction::run(pop,[&]() {
+                delete_persistent<NodeBucket<T>>(del);
+            });
+        }
+    }
+
     inline Iterator begin() const
     {
         return Iterator(first, 0);
@@ -204,6 +221,23 @@ struct NodeBucketList {
         return value_count;
     }
 
+    void recalculateCountValues()
+    {
+        size_t tmp = 0;
+        auto curr = first;
+        while (curr != nullptr) {
+            tmp += curr->fill_count;
+            curr = curr->next;
+        }
+
+        value_count = tmp;
+    }
+
+    void setCountValues(size_t count)
+    {
+        value_count = count;
+    }
+
     bool lookup(T val) const
     {
         if (first == nullptr)
@@ -229,8 +263,10 @@ struct NodeBucketList {
 
         if (first == nullptr) {
             transaction::run(pop, [&] {
-                value_count = value_count + 1;
                 first = make_persistent<NodeBucket<T>>();
+                assert(first->next == nullptr);
+                assert(first->prev == nullptr);
+
                 last = first;
 
                 first->insertLast(val);
@@ -256,6 +292,8 @@ struct NodeBucketList {
                 });
             }
         }
+
+        value_count = value_count + 1;
     }
 
     bool deleteValue(T val)

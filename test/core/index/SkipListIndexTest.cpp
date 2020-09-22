@@ -54,8 +54,8 @@ public:
                 const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(convCol, i);
                 const column<uncompr_f> * outPosIndex = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f, index_structure_ptr, node_bucket_list_ptr>::apply(index, i);
 
-                trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
-                trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+                //trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+                //trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
 
                 assert(outPosOrig->get_count_values() == outPosIndex->get_count_values());
 
@@ -87,7 +87,7 @@ public:
                 delete outPosIndex;
             }
 
-            trace_l(T_INFO, "Sum of col: ", sum_col, ", sum of index: ", sum_ind);
+            //trace_l(T_INFO, "Sum of col: ", sum_col, ", sum of index: ", sum_ind);
         }
 
         // Between operator
@@ -97,8 +97,8 @@ public:
             const column<uncompr_f> * outPosIndex = index_between_wit_t<std::greater, std::less, uncompr_f, uncompr_f, index_structure_ptr>
                             ::apply( index, 8, 12);
 
-            trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
-            trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+            //trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+            //trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
 
             assert(outPosOrig->get_count_values() == outPosIndex->get_count_values());
 
@@ -108,8 +108,8 @@ public:
             std::sort(orig, orig + outPosOrig->get_count_values());
             std::sort(ind, ind + outPosIndex->get_count_values());
 
-            trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
-            trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
+            //trace_l(T_INFO, "orig selection: ", outPosOrig->get_count_values(), " poses");
+            //trace_l(T_INFO, "index selection: ", outPosIndex->get_count_values(), " poses");
 
             const column<uncompr_f> * outComp = calc_binary<
                             std::minus,
@@ -141,8 +141,8 @@ public:
             std::sort(orig, orig + sumColCol->get_count_values());
             std::sort(ind, ind + sumColInd->get_count_values());
 
-            trace_l(T_INFO, "orig selection: ", sumColCol->get_count_values(), " poses");
-            trace_l(T_INFO, "index selection: ", sumColInd->get_count_values(), " poses");
+            //trace_l(T_INFO, "orig selection: ", sumColCol->get_count_values(), " poses");
+            //trace_l(T_INFO, "index selection: ", sumColInd->get_count_values(), " poses");
 
             assert(sumColCol->get_count_values() == sumColInd->get_count_values());
             
@@ -260,9 +260,9 @@ int main( void ) {
     IndexGen<VHashMapIndex*>          ::generateKeyToPos(vhash, col);
     IndexGen<VSkipListIndex*>         ::generateKeyToPos(vskip, col);
 
-    IndexTest<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>> >    ::test(skiplist, col);
     IndexTest<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>> >::test(tree, col);
     IndexTest<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>> >     ::test(hashmap, col);
+    IndexTest<persistent_ptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>> >    ::test(skiplist, col);
 
     IndexTest<VolatileTreeIndex*, VNodeBucketList<uint64_t>*>::test(vtree, col);
     IndexTest<VHashMapIndex*, VNodeBucketList<uint64_t>*>::test(vhash, col);

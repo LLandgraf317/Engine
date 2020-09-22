@@ -19,6 +19,8 @@ using pmem::obj::make_persistent;
 namespace morphstore {
 
 class SkipListIndex {
+    template<class T>
+    friend class IndexGen;
 
     using CustomSkiplist = simplePSkiplist<uint64_t, persistent_ptr<NodeBucketList<uint64_t>>, 8>;
 private:
@@ -27,13 +29,19 @@ private:
     p<size_t> m_PmemNode;
     p<bool> m_Init;
 
-    pptr<char[]> m_Table;
-    pptr<char[]> m_Relation;
-    pptr<char[]> m_Attribute;
+    persistent_ptr<char[]> m_Table;
+    persistent_ptr<char[]> m_Relation;
+    persistent_ptr<char[]> m_Attribute;
 
     p<size_t> m_rl;
     p<size_t> m_tl;
     p<size_t> m_al;
+
+protected:
+    persistent_ptr<CustomSkiplist> getDS()
+    {
+        return m_SkipList;
+    }
 
 public:
     SkipListIndex(int p_PmemNode) : SkipListIndex(p_PmemNode, std::string("null"), std::string("null"), std::string("null")) {
@@ -66,6 +74,15 @@ public:
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        m_SkipList->scan([&] (const uint64_t &, const persistent_ptr<NodeBucketList<uint64_t>> & val) {
+            if (val != nullptr) {
+                val->prepareDest();
+                transaction::run(pop, [&] {
+                    delete_persistent<NodeBucketList<uint64_t>>(val);
+                });
+            }
+        });
 
         transaction::run(pop, [&] {
             delete_persistent<CustomSkiplist>(m_SkipList);
@@ -111,9 +128,9 @@ public:
         return m_PmemNode;
     }
 
-    pptr<const NodeBucketList<uint64_t>> find(uint64_t key)
+    persistent_ptr<NodeBucketList<uint64_t>> find(uint64_t key)
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        persistent_ptr<NodeBucketList<uint64_t>> list;
         bool success = m_SkipList->search(key, list);
         if (!success)
             return nullptr;
@@ -123,26 +140,32 @@ public:
 
     void insert(uint64_t key, uint64_t value)
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        persistent_ptr<NodeBucketList<uint64_t>> list;
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
         if (m_SkipList->search(key, list)) {
-            if (list == nullptr)
+            if (list == nullptr) {
+                //trace_l(T_INFO, "Skiplist search returned true, but list is null");
                 transaction::run(pop, [&] {
                     list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
                 });
+            }
+            m_SkipList->insert(key, list);
             list->insertValue(value); 
         }
         else {
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
             });
+            //trace_l(T_INFO, "Inserting new entry");
             if (list == nullptr)
                 throw new std::runtime_error("out of memory");
+            bool success;
             transaction::run(pop, [&] {
-                m_SkipList->insert(key, list);
+                success = m_SkipList->insert(key, list);
             });
+            //trace_l(T_INFO, "success: ", success);
             list->insertValue(value);
         }
 
@@ -151,17 +174,20 @@ public:
 
     bool lookup(uint64_t key, uint64_t val) const
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        persistent_ptr<NodeBucketList<uint64_t>> list;
         bool success = m_SkipList->search(key, list);
-        if (!success || list == nullptr)
+        if (!success || list == nullptr) {
+            //trace_l(T_INFO, "Did not find any list for key ", key, ", success = ", success);
             return false;
+        }
 
+        //trace_l(T_INFO, "Looking up ", val);
         return list->lookup(val);
     }
 
     bool deleteEntry(uint64_t key, uint64_t value)
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        persistent_ptr<NodeBucketList<uint64_t>> list;
         bool success = m_SkipList->search(key, list);
         
         if (!success || list == nullptr)
@@ -176,7 +202,7 @@ public:
         }
     }
 
-    using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
+    using ScanFunc = std::function<void(const uint64_t &key, const persistent_ptr<NodeBucketList<uint64_t>> &val)>;
     void scan(ScanFunc func) const
     {
         m_SkipList->scan(func);
@@ -185,7 +211,7 @@ public:
     void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
 
         //trace_l(T_INFO, "Got values ", minKey, " and ", maxKey);
-        std::list<pptr<NodeBucketList<uint64_t>>> list;
+        std::list<persistent_ptr<NodeBucketList<uint64_t>>> list;
 
         m_SkipList->scanValue(minKey, maxKey, list);
         size_t sum_count_values = 0;
@@ -216,7 +242,7 @@ public:
 
     void printContents()
     {
-        auto printLambda = [&](const uint64_t &key, const pptr<NodeBucketList<uint64_t>> buck) {
+        auto printLambda = [&](const uint64_t &key, const persistent_ptr<NodeBucketList<uint64_t>> buck) {
             if (buck == nullptr) {
                 trace_l(T_INFO, "key, bucket is nullptr");
             }

@@ -1,4 +1,5 @@
 #pragma once
+#include <core/memory/management/utils/alignment_helper.h>
 
 #include <core/memory/management/abstract_mm.h>
 #include <core/memory/management/general_mm.h>

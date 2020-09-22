@@ -8,7 +8,7 @@ using namespace morphstore;
 using namespace vectorlib;
 
 int main( void ) {
-    VolatileBPTree<uint64_t, uint64_t, 10, 10> * tree = new VolatileBPTree<uint64_t, uint64_t, 10, 10>();
+    VolatileBPTree<uint64_t, uint64_t, 10, 10> * tree = new VolatileBPTree<uint64_t, uint64_t, 10, 10>(0);
 
     for (uint64_t i = 0; i < 1000; i++)
         tree->insert(i,i);

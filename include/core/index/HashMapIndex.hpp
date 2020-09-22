@@ -14,6 +14,9 @@ namespace morphstore {
 
 class HashMapIndex {
 
+    template<class T>
+    friend class IndexGen;
+
     using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
@@ -33,6 +36,12 @@ class HashMapIndex {
     p<bool> m_Init;
     p<uint64_t> m_EstimateElemCount;
     p<size_t> m_CountTuples;
+
+protected:
+    pptr<CustomHashmap> getDS()
+    {
+        return m_HashMap;
+    }
 
 public:
 
@@ -60,6 +69,15 @@ public:
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+
+        m_HashMap->apply([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t>> & val) {
+            if (val != nullptr) {
+                val->prepareDest();
+                transaction::run(pop, [&] {
+                    delete_persistent<NodeBucketList<uint64_t>>(val);
+                });
+            }
+        });
 
         transaction::run(pop, [&] {
             delete_persistent<CustomHashmap>(m_HashMap);

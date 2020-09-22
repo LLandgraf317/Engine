@@ -32,6 +32,20 @@ int main( void )
 
     transaction::run(pop, [&]() {
         bucket_list->insertValue(8);
+    });
+
+    {
+        auto iter = bucket_list->begin();
+
+        bucket_list->printAll();
+        bucket_list->printAllIter();
+
+        assert(iter.get() == 8);
+        iter++;
+        assert(iter == bucket_list->end());
+    }
+
+    transaction::run(pop, [&]() {
         bucket_list->insertValue(9);
     });
 
@@ -45,7 +59,6 @@ int main( void )
         iter++;
         assert(iter.get() == 9);
         iter++;
-
         assert(iter == bucket_list->end());
     }
 

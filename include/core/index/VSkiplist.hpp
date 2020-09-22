@@ -224,7 +224,8 @@ class VSkiplist {
           return true;
       }
     }
-    node = node->forward[0];
+    if (node->forward[0])
+        node = node->forward[0];
     if(node && node->key == key) {
       val = node->value;
       return true;
@@ -239,6 +240,9 @@ class VSkiplist {
       auto next = node->forward[0];
       //trace_l(T_DEBUG, "Scanning for ", node->key, " and ", node->value);
       func(node->key, node->value);
+
+      node = next;
+      next = next->forward[0];
 
       while (next) {
           node = next;
