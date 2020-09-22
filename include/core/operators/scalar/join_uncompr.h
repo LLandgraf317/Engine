@@ -149,6 +149,45 @@ ds_join(DS1_ptr ds1, DS2_ptr ds2)
 
     return std::make_tuple(outPosLCol, outPosRCol);
 }
+
+template< class DS1_ptr, class DS2_ptr, class node_bucket_list_ptr1, class node_bucket_list_ptr2 >
+const column<uncompr_f> *
+ds_nto1_join(DS1_ptr fact_table, DS2_ptr dim_table)
+{
+    const size_t inDataLCount = fact_table->getCountValues();
+    const size_t size = 
+             (inDataLCount * sizeof(uint64_t));
+    auto outPosLCol = new column<uncompr_f>(size);
+    auto outPosRCol = new column<uncompr_f>(size);
+
+    uint64_t * outPosLData = outPosLCol->get_data();
+
+    // assume both data structures realize a attr -> pos mapping
+    unsigned iOut = 0;
+    auto materialize_lambda = [&](const uint64_t& given_key, node_bucket_list_ptr1 const val)
+    {
+        auto positions = dim_table->find(given_key);
+
+        if (val == nullptr)
+            return;
+        if (positions == nullptr)
+            return;
+
+        auto iter1 = val->begin();
+        for (; iter1 != val->end(); iter1++) {
+            auto iter2 = positions->begin();
+
+            outPosLData[iOut] = iter1.get();
+            iOut++;
+        }
+    };
+    fact_table->scan(materialize_lambda);
+
+    const size_t outSize = iOut * sizeof(uint64_t);
+    outPosLCol->set_meta_data(iOut, outSize);
+
+    return outPosLCol;
+}
         
 
 template<>
