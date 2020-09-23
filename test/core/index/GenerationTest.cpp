@@ -31,6 +31,7 @@ using pmem::obj::delete_persistent;
     /*index1->scan([] (const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val) {
         trace_l(T_INFO, "Key ", key, " with count values ", val->getCountValues());
     });*/
+pobj_alloc_class_desc alloc_class;
 
 template<class index_structure>
 void check(pptr<PersistentColumn> keyColPers, pptr<index_structure> index1, pptr<index_structure> index2)
@@ -84,11 +85,10 @@ void check(pptr<PersistentColumn> keyColPers, pptr<index_structure> index1, pptr
 }
 
 int main( void ) {
-    RootInitializer::getInstance().initPmemPool();
+    RootInitializer::getInstance().initPmemPool(std::string("generationtest"), std::string("NVMDS"), 3ul << 29);
 
     RootManager& root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);
-    pobj_alloc_class_desc alloc_class;
 
     const size_t SEED = 66;
     const size_t pmemNode = 0;
@@ -132,7 +132,12 @@ int main( void ) {
     check<SkipListIndex>(keyColPers, s1, s2);
     check<HashMapIndex>(keyColPers, h1, h2);
 
+    keyColPers->prepareDest();
+    transaction::run(pop, [&] () { 
+        delete_persistent<PersistentColumn>(keyColPers);
+    });
 
+    RootInitializer::getInstance().cleanUp();
 
     return 0;
 }

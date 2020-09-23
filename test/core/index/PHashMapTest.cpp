@@ -52,7 +52,7 @@ int main( void ) {
 
     //using ps = scalar<v64<uint64_t>>;
 
-    RootInitializer::getInstance().initPmemPool();
+    RootInitializer::getInstance().initPmemPool(std::string("phashmaptest"), std::string("NVMDS"), 50ul << 20);
     RootManager& root_mgr = RootManager::getInstance();
 
     auto pop = root_mgr.getPop(0);
@@ -109,6 +109,8 @@ int main( void ) {
         delete_persistent<HashMapIndex>(index);
         delete_persistent<PersistentColumn>(col);
     });
+
+    RootInitializer::getInstance().cleanUp();
 
     trace_l(T_INFO, "Success");
     return 0;

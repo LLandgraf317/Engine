@@ -72,12 +72,11 @@ bool numa_prechecks()
     return numa_available() >= 0;
 }
 
-const size_t INSERTCOUNT = 4000;
-
 template<class T>
 void seq_insert_col( T /*primCol*/, T /*valCol*/, T /*delCol*/)
 {
     /*
+    const size_t INSERTCOUNT = 4000;
     auto val_count = primCol->get_count_values();
     uint64_t max = 0;
     uint64_t* outPos = primCol->get_data();
@@ -137,11 +136,11 @@ void seq_insert_col( T /*primCol*/, T /*valCol*/, T /*delCol*/)
     uint64_t momentary_max_key = primColNode[0]->get_count_values();
 #endif
 
-void seq_insert_tree(pptr<TreeType> tree)
+/*void seq_insert_tree(pptr<TreeType> tree)
 {
     uint64_t resMax = 0;
     // scan for largest key
-    auto getMax = [&resMax](const uint64_t &key, const std::tuple<uint64_t> &/*val*/)
+    auto getMax = [&resMax](const uint64_t &key, const std::tuple<uint64_t> &val)
     {
         if (key > resMax) resMax = key;
     };
@@ -157,146 +156,7 @@ void seq_insert_tree(pptr<TreeType> tree)
             trace_l(T_DEBUG, "Insertion on ", i);
         tree->insert(resMax + i + 1, dis(gen));
     }
-}
-
-/*template< class T >
-struct ThreadSelect {
-public:
-    pthread_t thread;
-    T prim;
-    T val;
-    TreeType* tree;
-    int thread_num;
-};
-
-void* aggregateTree(void* ptr)
-{
-    ThreadSelect<column<uncompr_f>*>* t = reinterpret_cast<ThreadSelect<column<uncompr_f>*>*>(ptr);
-    TreeType* tree = t->tree;
-    auto iter = tree->begin();
-    uint64_t sum = 0;
-
-    while (iter != tree->end()) {
-        sum += std::get<0>((*iter).second);
-        iter++;
-    }
-
-    return nullptr;
-}
-
-template<class T>
-void* aggregateCol(void* ptr)
-{
-    ThreadSelect<T>* t = reinterpret_cast<ThreadSelect<T>*>(ptr);
-    agg_sum<ps, uncompr_f >(t->prim);
-
-    trace_l(T_DEBUG, "End of thread");
-    
-    return nullptr;
-}
-
-const size_t NUM_THREADS = 1;
-
-template<class T>
-void parallel_aggregate_col(T col)
-{
-    trace_l(T_DEBUG, "Aggregate col ");
-    ThreadSelect<T> threads[NUM_THREADS];
-
-    for (size_t i = 0; i < NUM_THREADS; i++) {
-        trace_l(T_DEBUG, "Started Thread t = ", i);
-        threads[i].prim = col;
-        threads[i].thread_num = i;
-        pthread_create(&threads[i].thread, nullptr, aggregateCol<T>, &threads[i]);
-    }
-
-    for (size_t i = 0; i < NUM_THREADS; i++) {
-        trace_l(T_DEBUG, "Joining thread ", i);
-        pthread_join(threads[i].thread, nullptr);
-    }
-
-    trace_l(T_DEBUG, "End parallel aggregate");
-}
-
-void parallel_aggregate_tree(TreeType* tree)
-{
-    ThreadSelect<column<uncompr_f>*> thread_infos[NUM_THREADS];
-
-    for (size_t i = 0; i < NUM_THREADS; i++) {
-        thread_infos[i].tree = tree;
-        thread_infos[i].thread_num = i;
-        pthread_create(&thread_infos[i].thread, nullptr, aggregateTree, &thread_infos[i]);
-    }
-
-    for (size_t i = 0; i < NUM_THREADS; i++) {
-        pthread_join(thread_infos[i].thread, nullptr);
-    }
-}
-
-const int SELECT_ITERATIONS = SELECTION_IT;
-const int SELECTIVITY_SIZE = SELECTION_SIZE;
-const int SELECTIVITY_PARALLEL = SELECTION_THREADS;*/
-
-/* T must be a pointer type */
-/*template<class T>
-void* random_select_col(void* ptr)
-{
-    ThreadSelect<T>* data = reinterpret_cast<ThreadSelect<T>*>(ptr);
-    auto seed_add = data->thread_num;
-    auto prim = data->prim;
-    // Lets just implement a selection on primary keys for the attribute values of val
-    // Lets assume the rows are not sorted for their primary keys 
-    std::srand(SEED + seed_add);
-
-    for (int sel = 0; sel < SELECT_ITERATIONS; sel++) {
-
-        uint64_t random_select_start = std::rand() / RAND_MAX * prim->get_count_values();
-        uint64_t random_select_end = random_select_start + SELECTIVITY_SIZE - 1;
-
-        my_between_wit_t<greaterequal, lessequal, ps, uncompr_f, uncompr_f >
-            ::apply(prim.get(), random_select_start, random_select_end);
-    }
-
-    trace_l(T_DEBUG, "Returning thread ", data->thread_num);
-    return nullptr;
-}
-
-template<class T>
-void random_select_col_threads(T prim, T val)
-{
-    ThreadSelect<T> data[SELECTIVITY_PARALLEL];
-
-    for (int i = 0; i < SELECTIVITY_PARALLEL; i++) {
-        trace_l(T_DEBUG, "Starting Thread ", i);
-        data[i].prim = prim;
-        data[i].val = val;
-        data[i].thread_num = i;
-        pthread_create(&(data[i].thread), nullptr, random_select_col<T>, &data[i]);    
-    }
-
-    for (int i = 0; i < SELECTIVITY_PARALLEL; i++) {
-        trace_l(T_DEBUG, "Ending Thread ", i);
-        pthread_join((data[i].thread) , nullptr);
-    }
-}
-*/
-/*#ifdef EXEC_JOIN_BENCH
-        forKeyColPers[i]->prepareDest();
-        table2PrimPers[i]->prepareDest();
-#endif*/
-
-/*#ifdef EXEC_JOIN_BENCH
-            delete_persistent<PersistentColumn>(forKeyColPers[i]);
-            delete_persistent<PersistentColumn>(table2PrimPers[i]);
-
-            delete_persistent<MultiValTreeIndex>(treesFor[i]);
-            delete_persistent<SkipListIndex>(skiplistsFor[i]);
-            delete_persistent<HashMapIndex>(hashmapsFor[i]);
-            
-            delete_persistent<MultiValTreeIndex>(treesTable2[i]);
-            delete_persistent<SkipListIndex>(skiplistsTable2[i]);
-            delete_persistent<HashMapIndex>(hashmapsTable2[i]);
-#endif*/
+}*/
 
 template<class T>
 class ArrayList : public std::list<T>
@@ -313,10 +173,6 @@ inline const column<uncompr_f> * agg_sum_dua(const column<uncompr_f>* f, const c
     return agg_sum<ps, uncompr_f, uncompr_f, uncompr_f>(f, s, inExtNum);
 }
 
-inline std::tuple<const column<uncompr_f> *, const column<uncompr_f> *> nest_dua(const column<uncompr_f>* f, const column<uncompr_f>* s, size_t inExtNum)
-{
-    return nested_loop_join<ps, uncompr_f, uncompr_f>(f, s, inExtNum);
-}
 ////////////////////////////////////////////////////////////////////////TREADING FOR DS GENERATION ////////////////////////////////////////////////////////
 // Threaded DS Creation
 uint64_t thread_num_counter = 0;
@@ -369,89 +225,6 @@ struct NVMDSBenchParamList {
 
     std::vector<sel_and_val> & sel_distr;
 };
-
-struct JoinBenchParamList {
-    ArrayList<pptr<PersistentColumn>> &forKeyColPers;
-    ArrayList<pptr<PersistentColumn>> &table2PrimPers;
-
-    ArrayList<pptr<MultiValTreeIndex>> &treesFor;
-    ArrayList<pptr<SkipListIndex>> &skiplistsFor;
-    ArrayList<pptr<HashMapIndex>> &hashmapsFor;
-
-    ArrayList<pptr<MultiValTreeIndex>> &treesTable2;
-    ArrayList<pptr<SkipListIndex>> &skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> &hashmapsTable2;
-};
-
-void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
-
-    RootManager& root_mgr = RootManager::getInstance();
-    auto pop = root_mgr.getPop(pmemNode);
-
-    auto forKeyColPers = generate_with_distr_pers(
-        ARRAY_SIZE, std::uniform_int_distribution<uint64_t>(0, 99), false, SEED, pmemNode); 
-    auto table2PrimCol = generate_sorted_unique_pers(100, pmemNode);
-
-    list.forKeyColPers.push_back(forKeyColPers);
-    list.table2PrimPers.push_back(table2PrimCol);
-
-    pptr<MultiValTreeIndex> treeFor;
-    pptr<SkipListIndex> skiplistFor;
-    pptr<HashMapIndex> hashmapFor;
-
-    transaction::run(pop, [&] {
-        treeFor = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, std::string(""), std::string(""), std::string(""));
-    });
-    transaction::run(pop, [&] {
-        skiplistFor = pmem::obj::make_persistent<SkipListIndex>(pmemNode);
-    });
-    transaction::run(pop, [&] {
-        hashmapFor = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string(""), std::string(""), std::string(""));
-    });
-
-    pptr<MultiValTreeIndex> tree2;
-    pptr<SkipListIndex> skiplist2;
-    pptr<HashMapIndex> hashmap2;
-
-    transaction::run(pop, [&] {
-        tree2 = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, std::string(""), std::string(""), std::string(""));
-    });
-    transaction::run(pop, [&] {
-        skiplist2 = pmem::obj::make_persistent<SkipListIndex>(pmemNode);
-    });
-    transaction::run(pop, [&] {
-        hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string(""), std::string(""), std::string(""));
-    });
-
-    trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateFast(treeFor, forKeyColPers);
-    root_mgr.drainAll();
-    trace_l(T_DEBUG, "Constructing Skiplist");
-    IndexGen<persistent_ptr<SkipListIndex>>::generateFast(skiplistFor, forKeyColPers);
-    root_mgr.drainAll();
-    trace_l(T_DEBUG, "Constructing HashMap");
-    IndexGen<persistent_ptr<HashMapIndex>>::generateFast(hashmapFor, forKeyColPers);
-    root_mgr.drainAll();
-
-    trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateFast(tree2, table2PrimCol);
-    root_mgr.drainAll();
-    trace_l(T_DEBUG, "Constructing Skiplist");
-    IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist2, table2PrimCol);
-    root_mgr.drainAll();
-    trace_l(T_DEBUG, "Constructing HashMap");
-    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap2, table2PrimCol);
-
-    list.treesFor.push_back(treeFor);
-    list.skiplistsFor.push_back(skiplistFor);
-    list.hashmapsFor.push_back(hashmapFor);
-
-    list.treesTable2.push_back(tree2);
-    list.skiplistsTable2.push_back(skiplist2);
-    list.hashmapsTable2.push_back(hashmap2);
-
-    root_mgr.drainAll();
-}
 
 void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
 {
@@ -576,7 +349,7 @@ int main(int /*argc*/, char** /*argv*/)
 
     auto initializer = RootInitializer::getInstance();
 
-    initializer.initPmemPool();
+    initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
     auto node_number = initializer.getNumaNodeCount();
 
     thread_infos = (thread_info*) calloc( 6 * node_number, sizeof(thread_info) );
@@ -594,41 +367,24 @@ int main(int /*argc*/, char** /*argv*/)
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> delColNode;
+    //ArrayList<std::shared_ptr<const column<uncompr_f>>> delColNode;
 
     ArrayList<std::shared_ptr<VolatileTreeIndex>> vtrees;
     ArrayList<std::shared_ptr<VSkipListIndex>> vskiplists;
     ArrayList<std::shared_ptr<VHashMapIndex>> vhashmaps;
 
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColNode;
-
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> table2PrimNode;
-
     ArrayList<pptr<PersistentColumn>> primColPers;
     ArrayList<pptr<PersistentColumn>> valColPers;
-    ArrayList<pptr<PersistentColumn>> delColPers;
-    ArrayList<pptr<PersistentColumn>> forKeyColPers;
-
-    ArrayList<pptr<PersistentColumn>> table2PrimPers;
+    //ArrayList<pptr<PersistentColumn>> delColPers;
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> primColPersConv;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColPersConv;
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColPersConv;
-
-    ArrayList<std::shared_ptr<const column<uncompr_f>>> table2PrimPersConv;
+    //ArrayList<std::shared_ptr<const column<uncompr_f>>> delColPersConv;
 
     ArrayList<pptr<MultiValTreeIndex>> trees;
     ArrayList<pptr<SkipListIndex>> skiplists;
     ArrayList<pptr<HashMapIndex>> hashmaps;
 
-    ArrayList<pptr<MultiValTreeIndex>> treesFor;
-    ArrayList<pptr<SkipListIndex>> skiplistsFor;
-    ArrayList<pptr<HashMapIndex>> hashmapsFor;
-
-    ArrayList<pptr<MultiValTreeIndex>> treesTable2;
-    ArrayList<pptr<SkipListIndex>> skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> hashmapsTable2;
 
     // Generation Phase
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
@@ -636,14 +392,6 @@ int main(int /*argc*/, char** /*argv*/)
     for (unsigned int i = 0; i < node_number; i++) {
         primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique( ARRAY_SIZE, i) ));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_share_vector( ARRAY_SIZE, sel_distr, i) ));
-
-        /*forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
-            ARRAY_SIZE,
-            std::uniform_int_distribution<uint64_t>(0, 99),
-            false,
-            SEED,
-               i))); 
-        table2PrimNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(100, i)) );*/
 
         trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
@@ -768,30 +516,6 @@ int main(int /*argc*/, char** /*argv*/)
             }
         }
 
-#ifdef EXEC_JOIN_BENCH
-        for (unsigned int i = 0; i < node_number; i++) {
-            for (unsigned j = 0; j < EXP_ITER/10; j++ ) {
-                std::cout << "Join," << i << ",";
-                measureTuple("Duration of join on volatile column: ",
-                        nest_dua
-                            , forKeyColNode[i].get(), table2PrimNode[i].get(), ARRAY_SIZE*100);
-                measureTuple("Duration of join on persistent tree: ",
-                        ds_join<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                            , treesFor[i], treesTable2[i]);
-                measureTuple("Duration of join on persistent tree: ",
-                        ds_join<pptr<SkipListIndex>, pptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                            , skiplistsFor[i], skiplistsTable2[i]);
-                measureTuple("Duration of join on persistent tree: ",
-                        ds_join<pptr<HashMapIndex>, pptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                            , hashmapsFor[i], hashmapsTable2[i]);
-                measureTupleEnd("Duration of join on persistent column: ",
-                        nest_dua
-                            , forKeyColPersConv[i].get(), table2PrimPersConv[i].get(), ARRAY_SIZE*100);
-
-                std::cout << "\n";
-            }
-        }
-#endif
     }
 
     // Benchmark: group by
@@ -831,10 +555,6 @@ int main(int /*argc*/, char** /*argv*/)
         valColPers[i]->prepareDest();
         delColPers[i]->prepareDest();
 
-#ifdef EXEC_JOIN_BENCH
-        forKeyColPers[i]->prepareDest();
-        table2PrimPers[i]->prepareDest();
-#endif
 
         transaction::run(pop, [&] {
             delete_persistent<PersistentColumn>(primColPers[i]);
@@ -849,15 +569,6 @@ int main(int /*argc*/, char** /*argv*/)
             delete_persistent<SkipListIndex>(skiplists[i]);
             delete_persistent<HashMapIndex>(hashmaps[i]);
 
-#ifdef EXEC_JOIN_BENCH
-            delete_persistent<MultiValTreeIndex>(treesFor[i]);
-            delete_persistent<SkipListIndex>(skiplistsFor[i]);
-            delete_persistent<HashMapIndex>(hashmapsFor[i]);
-            
-            delete_persistent<MultiValTreeIndex>(treesTable2[i]);
-            delete_persistent<SkipListIndex>(skiplistsTable2[i]);
-            delete_persistent<HashMapIndex>(hashmapsTable2[i]);
-#endif
         });
     }*/
 

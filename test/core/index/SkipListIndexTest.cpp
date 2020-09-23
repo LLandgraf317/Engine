@@ -228,7 +228,7 @@ int main( void ) {
     const size_t ARRAY_SIZE = 10000;
     const size_t SEED = 42;
 
-    RootInitializer::getInstance().initPmemPool();
+    RootInitializer::getInstance().initPmemPool(std::string("skiplisttest"), std::string("NVMDS"), 1ul << 30);
 
     RootManager& root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);
@@ -275,6 +275,8 @@ int main( void ) {
         delete_persistent<HashMapIndex>(hashmap);
         delete_persistent<PersistentColumn>(col);
     });
+
+    RootInitializer::getInstance().cleanUp();
 
     return 0;
 }

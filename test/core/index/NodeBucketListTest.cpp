@@ -16,7 +16,7 @@ using namespace morphstore;
 int main( void )
 {
     constexpr auto ARRAY_SIZE = 10000ul / sizeof(uint64_t);
-    RootInitializer::getInstance().initPmemPool();
+    RootInitializer::getInstance().initPmemPool(std::string("nodebuckettest"), std::string("NVMDS"), 50ul << 20);
 
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);
@@ -81,6 +81,7 @@ int main( void )
         }
     }
 
+    RootInitializer::getInstance().cleanUp();
   
     trace_l(T_INFO, "Success");     
     return 0;
