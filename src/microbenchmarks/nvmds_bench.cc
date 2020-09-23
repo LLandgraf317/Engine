@@ -65,7 +65,7 @@ pobj_alloc_class_desc alloc_class;
 constexpr uint64_t SEED = 42;
 constexpr unsigned EXP_ITER = 100;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
-constexpr uint64_t JOIN_KEY_SIZE = 1000;
+//constexpr uint64_t JOIN_KEY_SIZE = 1000;
 
 bool numa_prechecks()
 {

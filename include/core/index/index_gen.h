@@ -69,6 +69,8 @@ public:
         uint64_t* key_data = keyCol->get_data();
         uint64_t* val_data = valCol->get_data();
 
+        uint64_t index_count_values = 0;
+
         std::vector<std::tuple<uint64_t, uint64_t>> sortVec;
         for (size_t i = 0; i < count_values; i++) {
             sortVec.push_back(std::make_tuple(key_data[i], val_data[i]));
@@ -111,6 +113,7 @@ public:
                 //trace_l(T_INFO, "Got new key ", currentKey);
 
                 currentList->setCountValues(insertCount);
+                index_count_values += insertCount;
                 insertCount = 0;
                 currentList = index->find(currentKey);
                 if (currentList == nullptr) {
@@ -151,6 +154,8 @@ public:
 
         trace_l(T_INFO, "Inserted for key ", currentKey, " value count ", insertCount);
         currentList->setCountValues(insertCount);
+        index_count_values += insertCount;
+        index->m_CountTuples = index_count_values;
     }
 
 };

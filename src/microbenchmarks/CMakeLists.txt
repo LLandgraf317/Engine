@@ -95,5 +95,12 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     )
     target_link_libraries(
         nvmds_bench PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+   
+    add_executable( nvmds_join nvmds_join.cc)
+    target_compile_options( nvmds_join PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        nvmds_join PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
 endif( BUILD_ALL OR BUILD_MICROBMS )

@@ -126,7 +126,7 @@ ds_join(DS1_ptr ds1, DS2_ptr ds2)
             return;
         if (positions == nullptr)
             return;
-        trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
+        //trace_l(T_INFO, "Bucket 1 has ", val->getCountValues(), " positions, Bucket 2 has ", val->getCountValues(), " positions.");
 
         auto iter1 = val->begin();
         for (; iter1 != val->end(); iter1++) {
