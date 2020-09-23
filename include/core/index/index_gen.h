@@ -108,7 +108,7 @@ public:
         while (iter != sortVec.end()) {
 
             if (currentKey != std::get<0>(*iter)) {
-                trace_l(T_INFO, "Inserted for key ", currentKey, " value count ", insertCount);
+                //trace_l(T_INFO, "Inserted for key ", currentKey, " value count ", insertCount);
                 currentKey = std::get<0>(*iter);
                 //trace_l(T_INFO, "Got new key ", currentKey);
 
@@ -152,7 +152,7 @@ public:
             iter++;
         }
 
-        trace_l(T_INFO, "Inserted for key ", currentKey, " value count ", insertCount);
+        //trace_l(T_INFO, "Inserted for key ", currentKey, " value count ", insertCount);
         currentList->setCountValues(insertCount);
         index_count_values += insertCount;
         index->m_CountTuples = index_count_values;
