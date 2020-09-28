@@ -12,7 +12,8 @@
 
 namespace morphstore {
 
-class HashMapIndex {
+template<unsigned t_bucket_size = OSP_SIZE>
+class PHashMapIndex {
 
     template<class T>
     friend class IndexGen;
@@ -45,7 +46,7 @@ protected:
 
 public:
 
-    HashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string relation, std::string table, std::string attribute)
+    PHashMapIndex(uint64_t estimateElemCount, uint64_t pMemNode, std::string relation, std::string table, std::string attribute)
 	    : m_PmemNode(pMemNode), m_Init(false), m_EstimateElemCount(estimateElemCount)
     {
         RootManager& mgr = RootManager::getInstance();

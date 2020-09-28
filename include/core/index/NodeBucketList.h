@@ -2,6 +2,7 @@
 
 #include <core/tracing/trace.h>
 #include <core/access/RootManager.h>
+#include <core/memory/constants.h>
 
 #include <stdexcept>
 
@@ -17,18 +18,19 @@ using pmem::obj::delete_persistent;
 using pmem::obj::p;
 using pmem::obj::transaction;
 
+using morphstore::OSP_SIZE;
 
-template<typename T>
+template<typename T, unsigned t_bucket_size>
 struct NodeBucket {
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
 
     uint64_t fill_count;
-    pptr<NodeBucket<T>> next;
-    pptr<NodeBucket<T>> prev;
-    T bucket_list[(4096 - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket>)) / sizeof(T)];
+    pptr<NodeBucket<T, t_bucket_size>> next;
+    pptr<NodeBucket<T, t_bucket_size>> prev;
+    T bucket_list[(t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T)];
 
-    const size_t MAX_ENTRIES = (4096 - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T>>)) / sizeof(T);
+    const size_t MAX_ENTRIES = (t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T);
 
 public:
     NodeBucket()
@@ -54,22 +56,22 @@ public:
         bucket_list[i] = val;
     }
 
-    pptr<NodeBucket<T>> getNext()
+    pptr<NodeBucket<T, t_bucket_size>> getNext()
     {
         return next;
     }
 
-    pptr<NodeBucket<T>> getPrev()
+    pptr<NodeBucket<T, t_bucket_size>> getPrev()
     {
         return prev;
     }
 
-    void setNext(pptr<NodeBucket<T>> next)
+    void setNext(pptr<NodeBucket<T, t_bucket_size>> next)
     {
         this->next = next;
     }
 
-    void setPrev(pptr<NodeBucket<T>> prev)
+    void setPrev(pptr<NodeBucket<T, t_bucket_size>> prev)
     {
         this->prev = prev;
     }
@@ -94,7 +96,7 @@ public:
 
 };
 
-template<typename T>
+template<typename T, unsigned t_bucket_size = OSP_SIZE>
 struct NodeBucketList {
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
@@ -102,11 +104,11 @@ struct NodeBucketList {
     p<size_t> value_count;
     p<size_t> m_PmemNode;
 
-    pptr<NodeBucket<T>> first;
-    pptr<NodeBucket<T>> last;
+    pptr<NodeBucket<T, t_bucket_size>> first;
+    pptr<NodeBucket<T, t_bucket_size>> last;
 
     class Iterator {
-        pptr<NodeBucket<T>> curr;
+        pptr<NodeBucket<T, t_bucket_size>> curr;
         uint64_t iterator_count;
 
       public:	
@@ -121,7 +123,7 @@ struct NodeBucketList {
             return Iterator(iter.curr, iter.iterator_count);
         }
 
-        Iterator(pptr<NodeBucket<T>> but, uint64_t it) : curr(but), iterator_count(it)
+        Iterator(pptr<NodeBucket<T, t_bucket_size>> but, uint64_t it) : curr(but), iterator_count(it)
         { }
 
         inline void operator++()
@@ -170,7 +172,7 @@ struct NodeBucketList {
             auto del = next;
             next = next->next;
             transaction::run(pop,[&]() {
-                delete_persistent<NodeBucket<T>>(del);
+                delete_persistent<NodeBucket<T, t_bucket_size>>(del);
             });
         }
     }
@@ -263,7 +265,7 @@ struct NodeBucketList {
 
         if (first == nullptr) {
             transaction::run(pop, [&] {
-                first = make_persistent<NodeBucket<T>>();
+                first = make_persistent<NodeBucket<T, t_bucket_size>>();
                 assert(first->next == nullptr);
                 assert(first->prev == nullptr);
 
@@ -274,9 +276,9 @@ struct NodeBucketList {
         }
         else {
             if (last->isFull()) {
-                persistent_ptr<NodeBucket<T>> tmp;
+                persistent_ptr<NodeBucket<T, t_bucket_size>> tmp;
                 transaction::run(pop, [&] {
-                    tmp = make_persistent<NodeBucket<T>>();
+                    tmp = make_persistent<NodeBucket<T, t_bucket_size>>();
                     if (tmp == nullptr)
                         throw new std::runtime_error("out of memory");
                     tmp->insertLast(val);
@@ -313,7 +315,7 @@ struct NodeBucketList {
                             first = nullptr;
                             last = nullptr;
                         }
-                        delete_persistent<NodeBucket<T>>(toDel);
+                        delete_persistent<NodeBucket<T, t_bucket_size>>(toDel);
                     }
 
                     auto tmp = last->getLastAndDecr();

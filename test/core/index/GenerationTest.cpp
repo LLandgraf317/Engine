@@ -4,18 +4,14 @@
 #include <core/memory/management/utils/alignment_helper.h>
 
 #include <core/access/RootManager.h>
+#include <core/access/root.h>
 
-#include <core/index/SkipListIndex.hpp>
-#include <core/index/VSkipListIndex.hpp>
-#include <core/index/MultiValTreeIndex.hpp>
-#include <core/index/HashMapIndex.hpp>
-#include <core/index/VHashMapIndex.hpp>
-#include <core/index/VolatileTreeIndex.hpp>
 #include <core/index/NodeBucketList.h>
 #include <core/index/VNodeBucketList.h>
 
 #include <core/storage/column_gen.h>
 #include <core/index/index_gen.h>
+#include <core/index/IndexDef.h>
 
 #include <iostream>
 #include <chrono>

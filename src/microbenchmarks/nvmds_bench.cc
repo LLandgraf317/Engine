@@ -8,13 +8,8 @@
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 
-#include <core/index/MultiValTreeIndex.hpp>
-#include <core/index/VolatileTreeIndex.hpp>
-#include <core/index/SkipListIndex.hpp>
-#include <core/index/VSkipListIndex.hpp>
-#include <core/index/HashMapIndex.hpp>
-#include <core/index/VHashMapIndex.hpp>
 #include <core/index/index_gen.h>
+#include <core/index/IndexDef.h>
 
 #include <core/utils/measure.h>
 

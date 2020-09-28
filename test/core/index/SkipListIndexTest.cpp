@@ -17,12 +17,8 @@
 #include <core/morphing/uncompr.h>
 #include <vector/scalar/extension_scalar.h>
 
-#include <core/index/SkipListIndex.hpp>
-#include <core/index/VSkipListIndex.hpp>
-#include <core/index/MultiValTreeIndex.hpp>
-#include <core/index/HashMapIndex.hpp>
-#include <core/index/VHashMapIndex.hpp>
-#include <core/index/VolatileTreeIndex.hpp>
+#include <core/index/IndexDef.h>
+
 #include <core/index/NodeBucketList.h>
 #include <core/index/VNodeBucketList.h>
 #include <core/index/index_gen.h>

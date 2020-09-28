@@ -1,5 +1,6 @@
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
+#include <core/memory/constants.h>
 
 #include <core/access/RootManager.h>
 #include <core/access/NVMStorageManager.h>
@@ -7,12 +8,7 @@
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
 
-#include <core/index/MultiValTreeIndex.hpp>
-#include <core/index/VolatileTreeIndex.hpp>
-#include <core/index/SkipListIndex.hpp>
-#include <core/index/VSkipListIndex.hpp>
-#include <core/index/HashMapIndex.hpp>
-#include <core/index/VHashMapIndex.hpp>
+#include <core/index/IndexDef.h>
 #include <core/index/index_gen.h>
 
 #include <core/morphing/format.h>
@@ -52,7 +48,7 @@ using ps = scalar<v64<uint64_t>>;
 pobj_alloc_class_desc alloc_class;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 constexpr uint64_t SEED = 42;
-constexpr uint64_t MAX_ATTR = 100000;
+constexpr uint64_t MAX_ATTR = 1000;
 constexpr unsigned EXP_ITER = 10;
 
 template<class T>

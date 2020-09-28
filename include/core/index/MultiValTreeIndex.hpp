@@ -3,6 +3,7 @@
 #include <core/index/TreeDef.h>
 #include <core/index/NodeBucketList.h>
 #include <core/storage/PersistentColumn.h>
+#include <core/memory/constants.h>
 
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/make_persistent_atomic.hpp>
@@ -10,12 +11,13 @@
 
 namespace morphstore {
 
-class MultiValTreeIndex {
+template<unsigned t_bucket_size = OSP_SIZE>
+class PTreeIndex {
 
     template<class T>
     friend class IndexGen;
 
-    pptr<MultiValTree> m_Tree;
+    pptr<MultiValTree<t_bucket_size>> m_Tree;
     pptr<char[]> m_Relation;
     pptr<char[]> m_Attribute;
     pptr<char[]> m_Table;
@@ -29,13 +31,13 @@ class MultiValTreeIndex {
     p<size_t> m_CountTuples;
 
 protected:
-    pptr<MultiValTree> getDS()
+    pptr<MultiValTree<t_bucket_size>> getDS()
     {
         return m_Tree;
     }
 
 public:
-    MultiValTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
+    PTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), pMemNode);
@@ -49,7 +51,7 @@ public:
         m_Relation = make_persistent<char[]>(relation.length() + 1);
         m_rl = relation.length() + 1;
 
-        m_Tree = make_persistent<MultiValTree>(alloc_class);
+        m_Tree = make_persistent<MultiValTree<t_bucket_size>>(alloc_class);
 
         pop.memcpy_persist(m_Table.get(), table.c_str(), table.length() + 1);
         pop.memcpy_persist(m_Attribute.get(), attribute.c_str(), attribute.length() + 1);
@@ -74,7 +76,7 @@ public:
         });
 
         transaction::run(pop, [&] {
-            delete_persistent<MultiValTree>(m_Tree);
+            delete_persistent<MultiValTree<t_bucket_size>>(m_Tree);
         });
 
         delete_persistent_atomic<char[]>(m_Relation, m_rl);

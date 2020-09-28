@@ -8,6 +8,7 @@
 
 #include <core/access/RootManager.h>
 #include <core/tracing/trace.h>
+#include <core/index/IndexDef.h>
 
 #include "config.h"
 
@@ -19,9 +20,6 @@
 namespace morphstore {
 
 class PersistentColumn;
-class MultiValTreeIndex;
-class HashMapIndex;
-class SkipListIndex;
 
 using pmem::obj::persistent_ptr;
 using pmem::obj::vector;

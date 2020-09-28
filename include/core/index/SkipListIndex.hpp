@@ -18,7 +18,8 @@ using pmem::obj::make_persistent;
 
 namespace morphstore {
 
-class SkipListIndex {
+template<unsigned t_bucket_size = OSP_SIZE>
+class PSkipListIndex {
     template<class T>
     friend class IndexGen;
 
@@ -44,11 +45,11 @@ protected:
     }
 
 public:
-    SkipListIndex(int p_PmemNode) : SkipListIndex(p_PmemNode, std::string("null"), std::string("null"), std::string("null")) {
+    PSkipListIndex(int p_PmemNode) : PSkipListIndex(p_PmemNode, std::string("null"), std::string("null"), std::string("null")) {
 
     }
 
-    SkipListIndex(int p_PmemNode, std::string relation, std::string table, std::string attribute) : m_PmemNode(p_PmemNode)
+    PSkipListIndex(int p_PmemNode, std::string relation, std::string table, std::string attribute) : m_PmemNode(p_PmemNode)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);

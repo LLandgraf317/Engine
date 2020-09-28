@@ -36,4 +36,6 @@ constexpr auto BRANCHKEYS = getBranchKeysPBPTree() & ~1;  ///< make this one eve
 constexpr auto ELEMENTS = LEAFKEYS * ipow(BRANCHKEYS + 1, TARGET_DEPTH);
 
 using TreeType = PBPTree<CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS>;
-using MultiValTree = PBPTree<CustomKey, pptr<NodeBucketList<uint64_t>>, BRANCHKEYS, LEAFKEYS>;
+
+template<unsigned bucket_size>
+using MultiValTree = PBPTree<CustomKey, pptr<NodeBucketList<uint64_t, bucket_size>>, BRANCHKEYS, LEAFKEYS>;

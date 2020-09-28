@@ -1,9 +1,8 @@
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
 
-#include <core/index/PHashMap.hpp>
-#include <core/index/HashMapIndex.hpp>
 #include <core/access/root.h>
+#include <core/index/IndexDef.h>
 #include <core/access/RootManager.h>
 #include <core/storage/column_gen.h>
 #include <core/storage/PersistentColumn.h>

@@ -3,10 +3,10 @@
 #include <core/access/RootManager.h>
 #include <core/access/root.h>
 
+#include <core/memory/constants.h>
+#include <core/index/IndexDef.h>
+
 #include <core/storage/PersistentColumn.h>
-#include <core/index/MultiValTreeIndex.hpp>
-#include <core/index/SkipListIndex.hpp>
-#include <core/index/HashMapIndex.hpp>
 
 namespace morphstore {
 

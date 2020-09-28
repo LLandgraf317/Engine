@@ -3,6 +3,7 @@
 
 #include <libpmemobj++/persistent_ptr.hpp>
 #include <core/storage/PersistentColumn.h>
+#include <core/memory/constants.h>
 
 #include <cassert>
 
@@ -92,11 +93,11 @@ public:
             index->getDS()->insert(currentKey, currentList);
         }
         
-        persistent_ptr<NodeBucket<uint64_t>> currentBucket = currentList->last;
+        persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> currentBucket = currentList->last;
         
         if (currentBucket == nullptr) {
             transaction::run(pop, [&] {
-                currentBucket = make_persistent<NodeBucket<uint64_t>>();
+                currentBucket = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
             });
             currentList->first = currentBucket;
             currentList->last = currentBucket;
@@ -124,9 +125,9 @@ public:
                 }
 
                 if (currentList->last == nullptr) {
-                    persistent_ptr<NodeBucket<uint64_t>> tmp;
+                    persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> tmp;
                     transaction::run(pop, [&] {
-                        tmp = make_persistent<NodeBucket<uint64_t>>();
+                        tmp = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
                     });
                     currentList->first = tmp;
                     currentList->last = tmp;
@@ -138,9 +139,9 @@ public:
             }
 
             if (currentBucket->isFull()) {
-                persistent_ptr<NodeBucket<uint64_t>> tmp;
+                persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> tmp;
                 transaction::run(pop, [&] {
-                    tmp = make_persistent<NodeBucket<uint64_t>>();
+                    tmp = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
                 });
                 currentBucket->next = tmp;
                 tmp->prev = currentBucket;
