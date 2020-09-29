@@ -11,4 +11,9 @@ namespace morphstore {
     using MultiValTreeIndex = PTreeIndex<OSP_SIZE>;
     using HashMapIndex = PHashMapIndex<OSP_SIZE>;
     using SkipListIndex = PSkipListIndex<OSP_SIZE>;
+
+    using CLTreeIndex = PTreeIndex<CL_SIZE>;
+    using CLHashMapIndex = PHashMapIndex<CL_SIZE>;
+    using CLSkipListIndex = PSkipListIndex<CL_SIZE>;
+
 }

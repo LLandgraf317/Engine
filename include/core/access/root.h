@@ -31,6 +31,10 @@ struct root {
     persistent_ptr<vector<persistent_ptr<MultiValTreeIndex>>> treeIndeces;
     persistent_ptr<vector<persistent_ptr<SkipListIndex>>> skipListIndeces;
     persistent_ptr<vector<persistent_ptr<HashMapIndex>>> hashMapIndeces;
+
+    persistent_ptr<vector<persistent_ptr<CLTreeIndex>>> clTreeIndeces;
+    persistent_ptr<vector<persistent_ptr<CLSkipListIndex>>> clSkipListIndeces;
+    persistent_ptr<vector<persistent_ptr<CLHashMapIndex>>> clHashMapIndeces;
 };
 
 struct root_retrieval {

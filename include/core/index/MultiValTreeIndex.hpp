@@ -11,10 +11,13 @@
 
 namespace morphstore {
 
-template<unsigned t_bucket_size = OSP_SIZE>
+template<uint64_t t_bucket_size = OSP_SIZE>
 class PTreeIndex {
 
-    template<class T>
+        //template<template<uint64_t> class> class t_pptr, template<uint64_t> class T, t_bucket_size
+    /*template< template <template <uint64_t> class> class t_pptr, template<uint64_t> class t_index, uint64_t t_size>
+    friend class IndexGen;*/
+    //template<template < template <uint64_t> class t_index> class t_pptr>
     friend class IndexGen;
 
     pptr<MultiValTree<t_bucket_size>> m_Tree;
@@ -66,11 +69,11 @@ public:
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-        m_Tree->scan([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t>> & val) {
+        m_Tree->scan([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr) {
                 val->prepareDest();
                 transaction::run(pop, [&] {
-                    delete_persistent<NodeBucketList<uint64_t>>(val);
+                    delete_persistent<NodeBucketList<uint64_t, t_bucket_size>>(val);
                 });
             }
         });
@@ -119,9 +122,9 @@ public:
         return m_CountTuples;
     }
 
-    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
+    pptr<NodeBucketList<uint64_t, t_bucket_size>> find(uint64_t key)
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        pptr<NodeBucketList<uint64_t, t_bucket_size>> list;
         bool success = m_Tree->lookup(key, &list);
        
         if (success)
@@ -143,7 +146,7 @@ public:
             pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
             transaction::run(pop, [&] {
-                list = make_persistent<NodeBucketList<uint64_t>>(m_PmemNode);
+                list = make_persistent<NodeBucketList<uint64_t, t_bucket_size>>(m_PmemNode);
                 m_Tree->insert(key, list);
             });
             list->insertValue(value);
@@ -155,7 +158,7 @@ public:
 
     bool lookup(uint64_t key, uint64_t val)
     {
-        pptr<NodeBucketList<uint64_t>> list;
+        pptr<NodeBucketList<uint64_t, t_bucket_size>> list;
 
         if (m_Tree->lookup(key, &list)) {
             return list->lookup(val);

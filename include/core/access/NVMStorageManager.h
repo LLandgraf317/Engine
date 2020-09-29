@@ -68,9 +68,31 @@ public:
                 return *iter;
             }
         }
-
         return nullptr;
+    }
 
+    static void pushCLTree(persistent_ptr<CLTreeIndex> tree)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(tree->getPmemNode());
+
+        pop.root()->clTreeIndeces->push_back(tree);
+    }
+
+    static pptr<CLTreeIndex> getCLTree(std::string relation, std::string table, std::string attribute, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        auto iter = pop.root()->clTreeIndeces->begin();
+ 
+        for (; iter != pop.root()->clTreeIndeces->end(); iter++) {
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found tree in persistent storage");
+                return *iter;
+            }
+        }
+        return nullptr;
     }
 
     static void pushSkiplist(persistent_ptr<SkipListIndex> skiplist)
@@ -94,9 +116,31 @@ public:
                 return *iter;
             }
         }
-
         return nullptr;
+    }
 
+    static void pushCLSkiplist(persistent_ptr<CLSkipListIndex> skiplist)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(skiplist->getPmemNode());
+
+        pop.root()->clSkipListIndeces->push_back(skiplist);
+    }
+
+    static pptr<CLSkipListIndex> getCLSkiplist(std::string relation, std::string table, std::string attribute, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        auto iter = pop.root()->clSkipListIndeces->begin();
+ 
+        for (; iter != pop.root()->clSkipListIndeces->end(); iter++) {
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found skiplist in persistent storage");
+                return *iter;
+            }
+        }
+        return nullptr;
     }
 
     static void pushHashmap(persistent_ptr<HashMapIndex> hashmap)
@@ -123,6 +167,30 @@ public:
 
         return nullptr;
 
+    }
+
+    static void pushCLHashmap(persistent_ptr<CLHashMapIndex> hashmap)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(hashmap->getPmemNode());
+
+        pop.root()->clHashMapIndeces->push_back(hashmap);
+    }
+
+    static pptr<CLHashMapIndex> getCLHashmap(std::string relation, std::string table, std::string attribute, size_t pmemNode)
+    {
+        RootManager& root_mgr = RootManager::getInstance();
+        auto pop = root_mgr.getPop(pmemNode);
+
+        auto iter = pop.root()->clHashMapIndeces->begin();
+ 
+        for (; iter != pop.root()->clHashMapIndeces->end(); iter++) {
+            if (compare(*iter, relation, table, attribute)) {
+                trace_l(T_DEBUG, "Found hashmap in persistent storage");
+                return *iter;
+            }
+        }
+        return nullptr;
     }
 
 };

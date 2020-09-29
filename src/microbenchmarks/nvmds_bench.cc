@@ -186,12 +186,12 @@ struct CreateIndexArgs {
     pptr<PersistentColumn> valCol;
 };
 
-template<class index_structure>
+template< class index_structure>
 void * generate( void * argPtr )
 {
     CreateIndexArgs<index_structure> * indexArgs = (CreateIndexArgs<index_structure>*) argPtr;
 
-    IndexGen<persistent_ptr<index_structure>>::generateFast(indexArgs->index, indexArgs->valCol);
+    IndexGen::generateFast<pptr<index_structure>, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
 
     RootManager& root_mgr = RootManager::getInstance();
     root_mgr.drainAll();

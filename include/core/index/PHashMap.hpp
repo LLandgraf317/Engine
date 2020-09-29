@@ -31,14 +31,15 @@ struct p_multiply_mod_hash {
 // Must be refitted to fit compression paradigm fully
 template<class VectorExtension,
     typename KeyType,
-    typename ValueType>
+    typename ValueType,
+    uint64_t t_bucket_size>
 class PHashMap {
 
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
-    using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType>>>; 
+    using HashMapElem = std::tuple<KeyType, pptr<NodeBucketList<ValueType, t_bucket_size>>>; 
 
-    pptr<pptr<NodeBucketList<HashMapElem>>[]> m_Map;
+    pptr<pptr<NodeBucketList<HashMapElem, OSP_SIZE>>[]> m_Map;
     p<size_t> m_MapElemCount;
     p<size_t> m_PmemNode;
 
@@ -55,13 +56,13 @@ public:
             m_HashStrategy(p_DistinctElementCountEstimate)
     {
         m_Map = make_persistent<
-            pptr<NodeBucketList<HashMapElem>>[]
+            pptr<NodeBucketList<HashMapElem, OSP_SIZE>>[]
                 >(p_DistinctElementCountEstimate);
         for (size_t i = 0; i<m_MapElemCount; i++)
             m_Map[i] = nullptr;
     }
 
-    void insert(KeyType key, pptr<NodeBucketList<ValueType>> bucket)
+    void insert(KeyType key, pptr<NodeBucketList<ValueType, t_bucket_size>> bucket)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
@@ -70,7 +71,7 @@ public:
 
         if (m_Map[offset] == nullptr) {
             transaction::run(pop, [&] {
-                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
+                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem, OSP_SIZE>>(m_PmemNode);
             });
         }
         m_Map[offset]->insertValue(std::make_tuple(key, bucket));
@@ -84,9 +85,9 @@ public:
         auto offset = m_HashStrategy.apply(key);
         if (m_Map[offset] == nullptr) {
             transaction::run(pop, [&] {
-                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem>>(m_PmemNode);
+                m_Map[offset] = make_persistent<NodeBucketList<HashMapElem, OSP_SIZE>>(m_PmemNode);
 
-                pptr<NodeBucketList<ValueType>> tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+                pptr<NodeBucketList<ValueType, t_bucket_size>> tmp = make_persistent<NodeBucketList<ValueType, t_bucket_size>>(m_PmemNode);
                 tmp->insertValue(value);
                 m_Map[offset]->insertValue(std::make_tuple(key, tmp));
             });
@@ -103,10 +104,10 @@ public:
             }
         }
 
-        pptr<NodeBucketList<ValueType>> tmp;
+        pptr<NodeBucketList<ValueType, t_bucket_size>> tmp;
 
         transaction::run(pop, [&] {
-            tmp = make_persistent<NodeBucketList<ValueType>>(m_PmemNode);
+            tmp = make_persistent<NodeBucketList<ValueType, t_bucket_size>>(m_PmemNode);
         });
         tmp->insertValue(value);
         m_Map[offset]->insertValue(std::make_tuple(key, tmp));
@@ -117,15 +118,15 @@ public:
         auto entry = m_Map[m_HashStrategy.apply(key)];
 
         if (entry == nullptr)
-            return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+            return std::make_tuple(0, pptr<NodeBucketList<ValueType, t_bucket_size>>(nullptr));
 
-        typename NodeBucketList<HashMapElem>::Iterator iter = entry->begin();
+        typename NodeBucketList<HashMapElem, OSP_SIZE>::Iterator iter = entry->begin();
         for (; iter != entry->end(); iter++) {
             if (std::get<0>(iter.get()) == key)
                 return iter.get();
         }
 
-        return std::make_tuple(0, pptr<NodeBucketList<ValueType>>(nullptr));
+        return std::make_tuple(0, pptr<NodeBucketList<ValueType, t_bucket_size>>(nullptr));
     }
 
     bool lookup(KeyType key, ValueType value)
@@ -148,7 +149,7 @@ public:
         return false;
     }
 
-    using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType>> &val)>;
+    using ScanFunc = std::function<void(const KeyType &key, const pptr<NodeBucketList<ValueType, t_bucket_size>> &val)>;
     void apply(ScanFunc func)
     {
         for (size_t i = 0; i < m_MapElemCount; i++) {
@@ -158,7 +159,7 @@ public:
 
             for (; key_bucket_iter != m_Map[i]->end(); key_bucket_iter++) {
                 HashMapElem pair = key_bucket_iter.get();
-                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                pptr<NodeBucketList<ValueType, t_bucket_size>> node_bucket = std::get<1>(pair);
                 func(std::get<0>(pair), node_bucket);
             }
         }
@@ -178,13 +179,13 @@ public:
                 if (key < minKey || key > maxKey)
                         continue;
 
-                pptr<NodeBucketList<ValueType>> node_bucket = std::get<1>(pair);
+                pptr<NodeBucketList<ValueType, t_bucket_size>> node_bucket = std::get<1>(pair);
                 func(key, node_bucket);
             }
         }
     }
 
-    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<pptr<NodeBucketList<ValueType>>> &outList) const {
+    inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, std::list<pptr<NodeBucketList<ValueType, t_bucket_size>>> &outList) const {
         for (size_t i = 0; i < m_MapElemCount; i++) {
             if (m_Map[i] == nullptr)
                 continue;
@@ -199,7 +200,7 @@ public:
                 if (key > maxKey)
                     continue;
 
-                pptr<NodeBucketList<ValueType>> value = std::get<1>(pair);
+                pptr<NodeBucketList<ValueType, t_bucket_size>> value = std::get<1>(pair);
                 outList.push_back(value);
             }
         }

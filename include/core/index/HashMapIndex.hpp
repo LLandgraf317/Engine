@@ -12,16 +12,16 @@
 
 namespace morphstore {
 
-template<unsigned t_bucket_size = OSP_SIZE>
+template<uint64_t t_bucket_size = OSP_SIZE>
 class PHashMapIndex {
 
-    template<class T>
+    //template<template < template <uint64_t> class t_index> class t_pptr>
     friend class IndexGen;
 
     using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     template <typename Object>
     using pptr = pmem::obj::persistent_ptr<Object>;
-    using CustomHashmap = PHashMap<ps, uint64_t, uint64_t>;
+    using CustomHashmap = PHashMap<ps, uint64_t, uint64_t, t_bucket_size>;
 
     pptr<CustomHashmap> m_HashMap;
     p<uint64_t> m_PmemNode;
@@ -71,11 +71,11 @@ public:
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
 
-        m_HashMap->apply([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t>> & val) {
+        m_HashMap->apply([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr) {
                 val->prepareDest();
                 transaction::run(pop, [&] {
-                    delete_persistent<NodeBucketList<uint64_t>>(val);
+                    delete_persistent<NodeBucketList<uint64_t, t_bucket_size>>(val);
                 });
             }
         });
@@ -125,9 +125,9 @@ public:
     }
 
     //const column<uncompr_f> * find(uint64_t key)
-    pptr<NodeBucketList<uint64_t>> find(uint64_t key)
+    pptr<NodeBucketList<uint64_t, t_bucket_size>> find(uint64_t key)
     {
-        using HashMapElem = std::tuple<uint64_t, pptr<NodeBucketList<uint64_t>>>; 
+        using HashMapElem = std::tuple<uint64_t, pptr<NodeBucketList<uint64_t, t_bucket_size>>>; 
         HashMapElem res = m_HashMap->lookup(key);
 
         return std::get<1>(res);
@@ -144,7 +144,7 @@ public:
         return m_HashMap->lookup(key, val);
     }
 
-    using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t>> &val)>;
+    using ScanFunc = std::function<void(const uint64_t &key, const pptr<NodeBucketList<uint64_t, t_bucket_size>> &val)>;
     void scan(const uint64_t &minKey, const uint64_t &maxKey, ScanFunc func) const
     {
         m_HashMap->apply(minKey, maxKey, func);
@@ -156,7 +156,7 @@ public:
     }
 
     inline void scanValue(const uint64_t &minKey, const uint64_t &maxKey, column<uncompr_f>* &outCol) const {
-        std::list<pptr<NodeBucketList<uint64_t>>> list;
+        std::list<pptr<NodeBucketList<uint64_t, t_bucket_size>>> list;
 
         m_HashMap->scanValue(minKey, maxKey, list);
         size_t sum_count_values = 0;
@@ -169,7 +169,7 @@ public:
         uint64_t * data = outCol->get_data();
 
         for (auto i : list) {
-            NodeBucketList<uint64_t>::Iterator iter = (*i).begin();
+            typename NodeBucketList<uint64_t, t_bucket_size>::Iterator iter = (*i).begin();
             while (iter != (*i).end()) {
                 *data = iter.get();
                 data++;

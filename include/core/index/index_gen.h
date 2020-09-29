@@ -11,10 +11,11 @@ namespace morphstore {
 
 using pmem::obj::persistent_ptr;
 
-template<class index_structure_ptr>
 class IndexGen {
 public:
-    static void generateFromPersistentColumn(index_structure_ptr index, persistent_ptr<PersistentColumn> keyCol, persistent_ptr<PersistentColumn> valueCol)
+
+    template<class t_pptr>
+    static void generateFromPersistentColumn(t_pptr index, persistent_ptr<PersistentColumn> keyCol, persistent_ptr<PersistentColumn> valueCol)
     {
         if (index->isInit()) return; // Should throw exception instead
 
@@ -30,7 +31,9 @@ public:
         index->setInit();
     }
 
-    static void generateKeyToPos(index_structure_ptr index, persistent_ptr<PersistentColumn> keyCol)
+    //template< template <template <uint64_t t_bucket_size> class t_index> class t_pptr>
+    template<class t_pptr>
+    static void generateKeyToPos(t_pptr index, persistent_ptr<PersistentColumn> keyCol)
     {
         RootManager& root_mgr = RootManager::getInstance();
         if (index->isInit()) return; // Should throw exception
@@ -51,16 +54,19 @@ public:
         index->setInit();
     }
 
-    static void generateFast(index_structure_ptr index, persistent_ptr<PersistentColumn> keyCol)
+    //template< template <template <uint64_t t_bucket_size> class t_index> class t_pptr>
+    template<class t_pptr, uint64_t t_bucket_size>
+    static void generateFast(t_pptr index, persistent_ptr<PersistentColumn> keyCol)
     {
         auto count_values = keyCol->get_count_values();
         const column<uncompr_f> * posCol = generate_sorted_unique(count_values, 0);
         auto keyColVol = keyCol->convert();
-        batchInsert(index, keyColVol, posCol);
+        batchInsert<t_pptr, t_bucket_size>(index, keyColVol, posCol);
         delete keyColVol;
     }
 
-    static void batchInsert(index_structure_ptr index, const column<uncompr_f> * keyCol, const column<uncompr_f> * valCol)
+    template< class t_pptr, uint64_t t_bucket_size >
+    static void batchInsert(t_pptr index, const column<uncompr_f> * keyCol, const column<uncompr_f> * valCol)
     {
         RootManager& root_mgr = RootManager::getInstance();
         size_t pmemNode = index->getPmemNode();
@@ -84,20 +90,20 @@ public:
 
         uint64_t currentKey = std::get<0>(*sortVec.begin());
         //trace_l(T_INFO, "First key is ", currentKey);
-        persistent_ptr<NodeBucketList<uint64_t>> currentList = index->find(currentKey);
+        persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> currentList = index->find(currentKey);
 
         if (currentList == nullptr) {
             transaction::run(pop, [&] {
-                currentList = make_persistent<NodeBucketList<uint64_t>>(pmemNode);
+                currentList = make_persistent<NodeBucketList<uint64_t, t_bucket_size>>(pmemNode);
             });
             index->getDS()->insert(currentKey, currentList);
         }
         
-        persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> currentBucket = currentList->last;
+        persistent_ptr<NodeBucket<uint64_t, t_bucket_size>> currentBucket = currentList->last;
         
         if (currentBucket == nullptr) {
             transaction::run(pop, [&] {
-                currentBucket = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
+                currentBucket = make_persistent<NodeBucket<uint64_t, t_bucket_size>>();
             });
             currentList->first = currentBucket;
             currentList->last = currentBucket;
@@ -119,15 +125,15 @@ public:
                 currentList = index->find(currentKey);
                 if (currentList == nullptr) {
                     transaction::run(pop, [&] {
-                        currentList = make_persistent<NodeBucketList<uint64_t>>(pmemNode);
+                        currentList = make_persistent<NodeBucketList<uint64_t, t_bucket_size>>(pmemNode);
                     });
                     index->getDS()->insert(currentKey, currentList);
                 }
 
                 if (currentList->last == nullptr) {
-                    persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> tmp;
+                    persistent_ptr<NodeBucket<uint64_t, t_bucket_size>> tmp;
                     transaction::run(pop, [&] {
-                        tmp = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
+                        tmp = make_persistent<NodeBucket<uint64_t, t_bucket_size>>();
                     });
                     currentList->first = tmp;
                     currentList->last = tmp;
@@ -139,9 +145,9 @@ public:
             }
 
             if (currentBucket->isFull()) {
-                persistent_ptr<NodeBucket<uint64_t, OSP_SIZE>> tmp;
+                persistent_ptr<NodeBucket<uint64_t, t_bucket_size>> tmp;
                 transaction::run(pop, [&] {
-                    tmp = make_persistent<NodeBucket<uint64_t, OSP_SIZE>>();
+                    tmp = make_persistent<NodeBucket<uint64_t, t_bucket_size>>();
                 });
                 currentBucket->next = tmp;
                 tmp->prev = currentBucket;

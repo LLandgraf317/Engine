@@ -98,12 +98,12 @@ struct CreateIndexArgs {
     pptr<PersistentColumn> valCol;
 };
 
-template<class index_structure>
+template<class index_structure, uint64_t t_bucket_size>
 void * generate( void * argPtr )
 {
     CreateIndexArgs<index_structure> * indexArgs = (CreateIndexArgs<index_structure>*) argPtr;
 
-    IndexGen<persistent_ptr<index_structure>>::generateFast(indexArgs->index, indexArgs->valCol);
+    IndexGen::generateFast<pptr<index_structure>, t_bucket_size>(indexArgs->index, indexArgs->valCol);
 
     RootManager& root_mgr = RootManager::getInstance();
     root_mgr.drainAll();
@@ -128,9 +128,9 @@ struct JoinBenchParamList {
     ArrayList<pptr<SkipListIndex>> &skiplistsFor;
     ArrayList<pptr<HashMapIndex>> &hashmapsFor;
 
-    ArrayList<pptr<MultiValTreeIndex>> &treesTable2;
-    ArrayList<pptr<SkipListIndex>> &skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> &hashmapsTable2;
+    ArrayList<pptr<CLTreeIndex>> &treesTable2;
+    ArrayList<pptr<CLSkipListIndex>> &skiplistsTable2;
+    ArrayList<pptr<CLHashMapIndex>> &hashmapsTable2;
 };
 
 std::string rel_name = "jointest";
@@ -155,9 +155,9 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
     pptr<SkipListIndex> skiplistFor;
     pptr<HashMapIndex> hashmapFor;
 
-    pptr<MultiValTreeIndex> tree2;
-    pptr<SkipListIndex> skiplist2;
-    pptr<HashMapIndex> hashmap2;
+    pptr<CLTreeIndex> tree2;
+    pptr<CLSkipListIndex> skiplist2;
+    pptr<CLHashMapIndex> hashmap2;
 
     transaction::run(pop, [&] {
         treeFor = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, rel_name, table1, attrFor);
@@ -170,13 +170,13 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
     });
 
     transaction::run(pop, [&] {
-        tree2 = make_persistent<MultiValTreeIndex>(pmemNode, alloc_class, rel_name, table2, attr2);
+        tree2 = make_persistent<CLTreeIndex>(pmemNode, alloc_class, rel_name, table2, attr2);
     });
     transaction::run(pop, [&] {
-        skiplist2 = pmem::obj::make_persistent<SkipListIndex>(pmemNode, rel_name, table2, attr2);
+        skiplist2 = pmem::obj::make_persistent<CLSkipListIndex>(pmemNode, rel_name, table2, attr2);
     });
     transaction::run(pop, [&] {
-        hashmap2 = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, rel_name, table2, attr2);
+        hashmap2 = pmem::obj::make_persistent<CLHashMapIndex>(2, pmemNode, rel_name, table2, attr2);
     });
 
     try {
@@ -185,7 +185,7 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
             CreateIndexArgs<MultiValTreeIndex>* args = new CreateIndexArgs<MultiValTreeIndex>();
             args->index = treeFor;
             args->valCol = forKeyColPers;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<MultiValTreeIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<MultiValTreeIndex, OSP_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
         }
@@ -195,7 +195,7 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
             CreateIndexArgs<SkipListIndex>* args = new CreateIndexArgs<SkipListIndex>();
             args->index = skiplistFor;
             args->valCol = forKeyColPers;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<SkipListIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<SkipListIndex, OSP_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
         }
@@ -205,37 +205,37 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
             CreateIndexArgs<HashMapIndex>* args = new CreateIndexArgs<HashMapIndex>();
             args->index = hashmapFor;
             args->valCol = forKeyColPers;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<HashMapIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<HashMapIndex, OSP_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
         }
 
         {
             trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
-            CreateIndexArgs<MultiValTreeIndex>* args = new CreateIndexArgs<MultiValTreeIndex>();
+            CreateIndexArgs<CLTreeIndex>* args = new CreateIndexArgs<CLTreeIndex>();
             args->index = tree2;
             args->valCol = table2PrimCol;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<MultiValTreeIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<CLTreeIndex, CL_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, valCol);
         }
 
         {
             trace_l(T_DEBUG, "Constructing Skiplist");
-            CreateIndexArgs<SkipListIndex>* args = new CreateIndexArgs<SkipListIndex>();
+            CreateIndexArgs<CLSkipListIndex>* args = new CreateIndexArgs<CLSkipListIndex>();
             args->index = skiplist2;
             args->valCol = table2PrimCol;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<SkipListIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<CLSkipListIndex, CL_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<SkipListIndex>>::generateKeyToPos(skiplist, valCol);
         }
 
         {
             trace_l(T_DEBUG, "Constructing HashMap");
-            CreateIndexArgs<HashMapIndex>* args = new CreateIndexArgs<HashMapIndex>();
+            CreateIndexArgs<CLHashMapIndex>* args = new CreateIndexArgs<CLHashMapIndex>();
             args->index = hashmap2;
             args->valCol = table2PrimCol;
-            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<HashMapIndex>, args);
+            pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<CLHashMapIndex, CL_SIZE>, args);
             thread_num_counter++;
             //IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(hashmap, valCol);
         }
@@ -276,9 +276,9 @@ void deleteAll(JoinBenchParamList list)
             delete_persistent<SkipListIndex>(list.skiplistsFor[i]);
             delete_persistent<HashMapIndex>(list.hashmapsFor[i]);
             
-            delete_persistent<MultiValTreeIndex>(list.treesTable2[i]);
-            delete_persistent<SkipListIndex>(list.skiplistsTable2[i]);
-            delete_persistent<HashMapIndex>(list.hashmapsTable2[i]);
+            delete_persistent<CLTreeIndex>(list.treesTable2[i]);
+            delete_persistent<CLSkipListIndex>(list.skiplistsTable2[i]);
+            delete_persistent<CLHashMapIndex>(list.hashmapsTable2[i]);
         });
     }
 }
@@ -306,9 +306,9 @@ int main( void ) {
     ArrayList<pptr<SkipListIndex>> skiplistsFor;
     ArrayList<pptr<HashMapIndex>> hashmapsFor;
 
-    ArrayList<pptr<MultiValTreeIndex>> treesTable2;
-    ArrayList<pptr<SkipListIndex>> skiplistsTable2;
-    ArrayList<pptr<HashMapIndex>> hashmapsTable2;
+    ArrayList<pptr<CLTreeIndex>> treesTable2;
+    ArrayList<pptr<CLSkipListIndex>> skiplistsTable2;
+    ArrayList<pptr<CLHashMapIndex>> hashmapsTable2;
 
     for (unsigned i = 0; i < node_number; i++) {
         forKeyColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_with_distr(
@@ -327,9 +327,9 @@ int main( void ) {
             auto skiplistFor    = NVMStorageManager::getSkiplist(rel_name, table1, attrFor, i);
             auto hashmapFor     = NVMStorageManager::getHashmap( rel_name, table1, attrFor, i);
 
-            auto tree2        = NVMStorageManager::getTree(    rel_name, table2, attr2, i);
-            auto skiplist2    = NVMStorageManager::getSkiplist(rel_name, table2, attr2, i);
-            auto hashmap2     = NVMStorageManager::getHashmap( rel_name, table2, attr2, i);
+            auto tree2        = NVMStorageManager::getCLTree(    rel_name, table2, attr2, i);
+            auto skiplist2    = NVMStorageManager::getCLSkiplist(rel_name, table2, attr2, i);
+            auto hashmap2     = NVMStorageManager::getCLHashmap( rel_name, table2, attr2, i);
 
             forKeyColPers.push_back(forKey);
             table2PrimPers.push_back(table2prim);
@@ -361,13 +361,13 @@ int main( void ) {
                     nest_dua
                         , forKeyColNode[i].get(), table2PrimNode[i].get(), ARRAY_SIZE*100);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
+                    ds_join<pptr<MultiValTreeIndex>, pptr<CLTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , treesFor[i], treesTable2[i]);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<SkipListIndex>, pptr<SkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
+                    ds_join<pptr<SkipListIndex>, pptr<CLSkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , skiplistsFor[i], skiplistsTable2[i]);
             measureTuple("Duration of join on persistent tree: ",
-                    ds_join<pptr<HashMapIndex>, pptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
+                    ds_join<pptr<HashMapIndex>, pptr<CLHashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
                         , hashmapsFor[i], hashmapsTable2[i]);
             measureTupleEnd("Duration of join on persistent column: ",
                     nest_dua
