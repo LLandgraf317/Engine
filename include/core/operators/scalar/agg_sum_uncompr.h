@@ -109,6 +109,52 @@ group_agg_sum(
     return std::make_tuple<const column<uncompr_f>*, const column<uncompr_f>*>(keyCol, sumCol);
 }
 
+template<class index_structure_ptr, class node_bucket_list_ptr>
+std::tuple<const column<uncompr_f> *, const column<uncompr_f> *>
+group_sum_tuple_count(
+        const index_structure_ptr inDataIndex,
+        size_t inExtCount
+) {
+    std::map<uint64_t, uint64_t> bucket_map;
+    auto materialize_lambda = [&](const uint64_t& key, node_bucket_list_ptr const val)
+    {
+        if (val != nullptr) {
+            size_t sum = val->getCountValues();
+            bucket_map.emplace(key, sum);
+        }
+    };
+    inDataIndex->scan(materialize_lambda);
+
+    //const size_t total_count = bucket_map.size();
+
+    column<uncompr_f> * keyCol = new column<uncompr_f>(sizeof(uint64_t) * inExtCount);
+    column<uncompr_f> * sumCol = new column<uncompr_f>(sizeof(uint64_t) * inExtCount);
+
+    uint64_t* key_data = keyCol->get_data();
+    uint64_t* sum_data = sumCol->get_data();
+    size_t i = 0;
+
+    for (auto iter = bucket_map.begin(); iter != bucket_map.end(); iter++) {
+        key_data[i] = iter->first;
+        sum_data[i] = iter->second;
+        i++;
+        if (i >= inExtCount)
+            break;
+    }
+
+    while (i < inExtCount) {
+        key_data[i] = 0;
+        sum_data[i] = 0;
+        i++;
+    }
+
+    keyCol->set_meta_data(inExtCount, inExtCount * sizeof(uint64_t));
+    sumCol->set_meta_data(inExtCount, inExtCount * sizeof(uint64_t));
+
+    return std::make_tuple<const column<uncompr_f>*, const column<uncompr_f>*>(keyCol, sumCol);
+}
+
+
 
 template<>
 const column<uncompr_f> *
