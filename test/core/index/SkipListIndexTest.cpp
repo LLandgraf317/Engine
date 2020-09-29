@@ -249,12 +249,12 @@ int main( void ) {
            generate_with_outliers_and_selectivity_pers(ARRAY_SIZE,
                0, 30, 0.5, 40, MAX_VALUE, 0.005, false, 0, SEED);
 
-    IndexGen<persistent_ptr<SkipListIndex>>    ::generateKeyToPos(skiplist, col);
-    IndexGen<persistent_ptr<MultiValTreeIndex>>::generateKeyToPos(tree, col);
-    IndexGen<persistent_ptr<HashMapIndex>>     ::generateKeyToPos(hashmap, col);
-    IndexGen<VolatileTreeIndex*>      ::generateKeyToPos(vtree, col);
-    IndexGen<VHashMapIndex*>          ::generateKeyToPos(vhash, col);
-    IndexGen<VSkipListIndex*>         ::generateKeyToPos(vskip, col);
+    IndexGen    ::generateKeyToPos(skiplist, col);
+    IndexGen    ::generateKeyToPos(tree, col);
+    IndexGen    ::generateKeyToPos(hashmap, col);
+    IndexGen      ::generateKeyToPos(vtree, col);
+    IndexGen         ::generateKeyToPos(vhash, col);
+    IndexGen         ::generateKeyToPos(vskip, col);
 
     IndexTest<persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>> >::test(tree, col);
     IndexTest<persistent_ptr<HashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>> >     ::test(hashmap, col);

@@ -36,13 +36,13 @@ void check(pptr<PersistentColumn> keyColPers, pptr<index_structure> index1, pptr
     auto pop = root_mgr.getPop(0);
 
     auto start = std::chrono::system_clock::now();
-    IndexGen<pptr<index_structure>>::generateKeyToPos(index1, keyColPers);
+    IndexGen::generateKeyToPos(index1, keyColPers);
     auto end = std::chrono::system_clock::now();
 
     std::chrono::duration<double> dur1 = end - start;
 
     start = std::chrono::system_clock::now();
-    IndexGen<pptr<index_structure>>::generateFast(index2, keyColPers);
+    IndexGen::generateFast<pptr<index_structure>, OSP_SIZE>(index2, keyColPers);
     end = std::chrono::system_clock::now();
 
     std::chrono::duration<double> dur2 = end - start;

@@ -74,7 +74,7 @@ int main( void ) {
     });
 
     trace_l(T_INFO, "Generating index");
-    IndexGen<persistent_ptr<HashMapIndex>>::generateKeyToPos(index, col);
+    IndexGen::generateKeyToPos(index, col);
     trace_l(T_INFO, "Index construction finished");
 
     const column<uncompr_f> * outPosOrig = my_select_wit_t<equal, scalar<v64<uint64_t>>, uncompr_f, uncompr_f>::apply(col->convert(), 0);
