@@ -76,6 +76,12 @@ public:
         });
     }
 
+    size_t memory_footprint()
+    {
+        size_t sum = m_byteSize + m_tl.get_ro() + m_al.get_ro() + m_rl.get_ro() + sizeof(PersistentColumn);
+        return sum;
+    }
+
     std::string getTable()
     {
         return std::string(m_Table.get());

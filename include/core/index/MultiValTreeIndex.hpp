@@ -122,6 +122,11 @@ public:
         return m_CountTuples;
     }
 
+    size_t memory_footprint()
+    {
+        return m_Tree->memory_footprint() + sizeof(PTreeIndex<t_bucket_size>);
+    }
+
     pptr<NodeBucketList<uint64_t, t_bucket_size>> find(uint64_t key)
     {
         pptr<NodeBucketList<uint64_t, t_bucket_size>> list;

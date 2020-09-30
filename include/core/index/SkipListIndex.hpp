@@ -138,7 +138,7 @@ public:
         sum += m_SkipList->memory_footprint();
         //using ScanFunc = std::function<void(const uint64_t &key, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> &val)>;
         //
-        auto lambda = [&] (const uint64_t & key, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
+        auto lambda = [&] (const uint64_t & /*key*/, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr)
                 sum += val->memory_footprint();
         };

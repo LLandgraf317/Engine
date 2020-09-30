@@ -221,6 +221,19 @@ struct NVMDSBenchParamList {
     std::vector<sel_and_val> & sel_distr;
 };
 
+void printMemoryFootprint(NVMDSBenchParamList & list, size_t nodeCount)
+{
+    trace_l(T_INFO, "Printing memory footprints");
+    for (size_t i = 0; i < nodeCount; i++) {
+        trace_l(T_INFO, "Size of data structures on node ", i, ":");
+        trace_l(T_INFO, "Persistent column: ", list.valColPers[i]->memory_footprint(), " bytes");
+        trace_l(T_INFO, "Persistent tree: ", list.trees[i]->memory_footprint(), " bytes");
+        trace_l(T_INFO, "Persistent skiplist: ", list.skiplists[i]->memory_footprint(), " bytes");
+        trace_l(T_INFO, "Persistent hashmap: ", list.hashmaps[i]->memory_footprint(), " bytes");
+        trace_l(T_INFO, "");
+    }
+}
+
 void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
 {
     auto primCol = generate_sorted_unique_pers( ARRAY_SIZE, pmemNode);
@@ -436,8 +449,11 @@ int main(int /*argc*/, char** /*argv*/)
     // Benchmark: sequential insertion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile
     auto status = numa_run_on_node(0);
+
+    NVMDSBenchParamList l = {primColPers, valColPers, trees, skiplists, hashmaps, sel_distr};
     trace_l(T_INFO, "numa_run_on_node(0) returned ", status);
 
+    printMemoryFootprint(l, node_number);
 
     // Benchmark: select range
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile

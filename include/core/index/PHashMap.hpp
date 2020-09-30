@@ -68,7 +68,7 @@ public:
         for (size_t i = 0; i < m_MapElemCount; i++) {
             if (m_Map[i] != nullptr) {
                 for (auto j = m_Map[i]->begin(); j != m_Map[i]->end(); j++) {
-                    sum += j->memory_footprint();
+                    sum += std::get<1>(j.get())->memory_footprint();
                 } 
                 sum += m_Map[i]->memory_footprint();
             }
