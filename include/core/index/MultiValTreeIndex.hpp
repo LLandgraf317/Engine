@@ -124,7 +124,16 @@ public:
 
     size_t memory_footprint()
     {
-        return m_Tree->memory_footprint() + sizeof(PTreeIndex<t_bucket_size>);
+        size_t sum = m_Tree->memory_footprint() + sizeof(PTreeIndex<t_bucket_size>);
+
+        auto lambda = [&] (const uint64_t &, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
+            if (val != nullptr)
+                sum += val->memory_footprint();
+        };
+
+        scan(lambda);
+
+        return sum;
     }
 
     pptr<NodeBucketList<uint64_t, t_bucket_size>> find(uint64_t key)
