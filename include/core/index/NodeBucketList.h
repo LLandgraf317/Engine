@@ -187,6 +187,19 @@ struct NodeBucketList {
         return Iterator(nullptr, 0);
     }
 
+    size_t memory_footprint()
+    {
+        size_t sum = 0;
+        auto curr = first;
+        
+        while (curr != nullptr) {
+           sum += sizeof(NodeBucket<T, t_bucket_size>);
+           curr = curr->next;
+        }
+        sum += sizeof(NodeBucketList<T, t_bucket_size>);
+        return sum; 
+    }
+
     NodeBucketList(size_t pmemNode)
     {
         value_count = 0;

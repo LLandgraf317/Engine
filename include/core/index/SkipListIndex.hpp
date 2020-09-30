@@ -131,6 +131,22 @@ public:
         return m_PmemNode;
     }
 
+    size_t memory_footprint()
+    {
+        size_t sum = 0;
+
+        sum += m_SkipList->memory_footprint();
+        //using ScanFunc = std::function<void(const uint64_t &key, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> &val)>;
+        //
+        auto lambda = [&] (const uint64_t & key, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
+            if (val != nullptr)
+                sum += val->memory_footprint();
+        };
+        scan(lambda);
+
+        return sum + sizeof(PSkipListIndex<t_bucket_size>);
+    }
+
     persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> find(uint64_t key)
     {
         persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> list;

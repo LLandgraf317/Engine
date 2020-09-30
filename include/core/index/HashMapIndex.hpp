@@ -104,6 +104,13 @@ public:
         return std::string(m_Attribute.get());
     }
 
+    size_t memory_footprint()
+    {
+        size_t sum = m_HashMap->memory_footprint();
+
+        return sum + sizeof(PHashMapIndex<t_bucket_size>);
+    }
+
     void setInit()
     {
         m_Init = true;

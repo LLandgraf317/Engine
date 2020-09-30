@@ -62,6 +62,22 @@ public:
             m_Map[i] = nullptr;
     }
 
+    size_t memory_footprint()
+    {
+        size_t sum = 0;
+        for (size_t i = 0; i < m_MapElemCount; i++) {
+            if (m_Map[i] != nullptr) {
+                for (auto j = m_Map[i]->begin(); j != m_Map[i]->end(); j++) {
+                    sum += j->memory_footprint();
+                } 
+                sum += m_Map[i]->memory_footprint();
+            }
+        }
+        sum += sizeof(pptr<NodeBucketList<HashMapElem, OSP_SIZE>>) * m_MapElemCount;
+ 
+        return sum;
+    }
+
     void insert(KeyType key, pptr<NodeBucketList<ValueType, t_bucket_size>> bucket)
     {
         RootManager& mgr = RootManager::getInstance();
