@@ -81,7 +81,7 @@ void check(pptr<PersistentColumn> keyColPers, pptr<index_structure> index1, pptr
 }
 
 int main( void ) {
-    RootInitializer::getInstance().initPmemPool(std::string("generationtest"), std::string("NVMDS"), 3ul << 29);
+    RootInitializer::getInstance().initPmemPool(std::string("generationtest"), std::string("NVMDS"), 50ul << 20);
 
     RootManager& root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(0);

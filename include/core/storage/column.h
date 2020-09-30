@@ -80,8 +80,9 @@ class column {
 
       virtual ~column( ) {
 #ifdef MSV_NO_SELFMANAGED_MEMORY
-         if( m_PersistenceType == storage_persistence_type::globalScope ) {
-             free( m_DataUnaligned );
+         if( m_PersistenceType != storage_persistence_type::nvmScope ) {
+             //free( m_DataUnaligned );
+             general_memory_manager::get_instance( ).deallocateNuma( m_DataUnaligned, get_size_used_byte());
          }
 #else
          if( m_PersistenceType == storage_persistence_type::globalScope ) {
