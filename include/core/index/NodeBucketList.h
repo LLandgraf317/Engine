@@ -30,7 +30,7 @@ struct NodeBucket {
     pptr<NodeBucket<T, t_bucket_size>> prev;
     T bucket_list[(t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T)];
 
-    const size_t MAX_ENTRIES = (t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T);
+    static const size_t MAX_ENTRIES = (t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T);
 
 public:
     NodeBucket()
@@ -78,7 +78,7 @@ public:
 
     inline bool isFull()
     {
-        return fill_count < MAX_ENTRIES;
+        return fill_count == MAX_ENTRIES;
     }
 
     inline void insertLast(T val)
@@ -162,6 +162,11 @@ struct NodeBucketList {
         }
     };
 
+    static size_t max_entries_per_bucket()
+    {
+        return NodeBucket<T, t_bucket_size>::MAX_ENTRIES;
+    }
+
     void prepareDest()
     {
         morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
@@ -198,6 +203,18 @@ struct NodeBucketList {
         }
         sum += sizeof(NodeBucketList<T, t_bucket_size>);
         return sum; 
+    }
+
+    size_t count_buckets()
+    {
+        uint64_t count = 0;
+        auto curr = first;
+        while (curr != nullptr) {
+            count++;
+            curr = curr->next;
+        }
+
+        return count;
     }
 
     NodeBucketList(size_t pmemNode)
@@ -289,6 +306,7 @@ struct NodeBucketList {
         }
         else {
             if (last->isFull()) {
+                trace_l(T_DEBUG, "Last bucket is full");
                 persistent_ptr<NodeBucket<T, t_bucket_size>> tmp;
                 transaction::run(pop, [&] {
                     tmp = make_persistent<NodeBucket<T, t_bucket_size>>();

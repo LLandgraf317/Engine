@@ -223,13 +223,23 @@ struct NVMDSBenchParamList {
 
 void printMemoryFootprint(NVMDSBenchParamList & list, size_t nodeCount)
 {
+    auto lambda = [&] (const uint64_t & key, const pptr<NodeBucketList<uint64_t, 4096>> & val) {
+        trace_l(T_INFO, "Key: ", key, ", bucket count: ", val->count_buckets(), ", count values: ", val->getCountValues());
+    };
+
     trace_l(T_INFO, "Printing memory footprints");
     for (size_t i = 0; i < nodeCount; i++) {
         trace_l(T_INFO, "Size of data structures on node ", i, ":");
         trace_l(T_INFO, "Persistent column: ", list.valColPers[i]->memory_footprint(), " bytes");
         trace_l(T_INFO, "Persistent tree: ", list.trees[i]->memory_footprint(), " bytes");
+        list.trees[i]->scan(lambda);
+
         trace_l(T_INFO, "Persistent skiplist: ", list.skiplists[i]->memory_footprint(), " bytes");
+        list.skiplists[i]->scan(lambda);
+
         trace_l(T_INFO, "Persistent hashmap: ", list.hashmaps[i]->memory_footprint(), " bytes");
+        list.hashmaps[i]->scan(lambda);
+
         trace_l(T_INFO, "");
     }
 }
@@ -453,6 +463,8 @@ int main(int /*argc*/, char** /*argv*/)
     NVMDSBenchParamList l = {primColPers, valColPers, trees, skiplists, hashmaps, sel_distr};
     trace_l(T_INFO, "numa_run_on_node(0) returned ", status);
 
+    trace_l(T_INFO, "entries per bucket: ", NodeBucketList<uint64_t, 4096>::max_entries_per_bucket());
+    
     printMemoryFootprint(l, node_number);
 
     // Benchmark: select range

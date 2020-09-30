@@ -60,6 +60,7 @@ int main( void )
         assert(iter.get() == 9);
         iter++;
         assert(iter == bucket_list->end());
+        assert(bucket_list->count_buckets() == 1);
     }
 
     for (uint64_t i = 0; i < ARRAY_SIZE; i++) {
