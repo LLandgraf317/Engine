@@ -353,6 +353,7 @@ int main( void ) {
         }
     }
     
+    trace_l(T_INFO, "Starting join benchmark");
 
     for (unsigned int i = 0; i < node_number; i++) {
         for (unsigned j = 0; j < EXP_ITER; j++ ) {

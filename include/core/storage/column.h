@@ -65,7 +65,7 @@ class column {
          //
       };
 
-      column( size_t p_SizeAllocatedByte, int numa_node ) : column(
+      column( size_t p_SizeAllocatedByte, size_t numa_node ) : column(
          storage_persistence_type::queryScope,
          p_SizeAllocatedByte,
          numa_node
@@ -93,14 +93,20 @@ class column {
 
    // Must only be used by PersistentColumn.h
    protected:
-      column( size_t p_SizeAllocatedByte, int numa_node, voidptr_t data)
+      static column< F > * createCopy( size_t p_SizeAllocatedByte, size_t numa_node, voidptr_t data)
+      {
+          return new column< F >(storage_persistence_type::nvmScope, p_SizeAllocatedByte, numa_node, data);
+      }
+
+      column( storage_persistence_type type, size_t p_SizeAllocatedByte, size_t numa_node, voidptr_t data)
           :
          m_MetaData{ 0, 0, 0, p_SizeAllocatedByte},
          m_Data(data),
-         m_PersistenceType(storage_persistence_type::nvmScope),
+         m_PersistenceType(type),
          m_IsPreparedForRndAccess(true),
          m_NumaNode(numa_node)
     {
+        trace_l(T_INFO, "created copy with bytes ", p_SizeAllocatedByte, ", node ", numa_node, ", data ", (void*) data);
     }
       
    private:
@@ -119,7 +125,7 @@ class column {
       column(
          storage_persistence_type p_PersistenceType,
          size_t p_SizeAllocatedByte,
-         int numa_node
+         size_t numa_node
       ) :
          m_MetaData{ 0, 0, 0, p_SizeAllocatedByte},
 #ifdef MSV_NO_SELFMANAGED_MEMORY
@@ -138,7 +144,8 @@ class column {
          m_IsPreparedForRndAccess(false),
          m_NumaNode(numa_node)
       {
-         //
+          if (m_DataUnaligned == nullptr)
+              trace_l(T_DEBUG, "Warning: data is null");
       }
 
    public:
@@ -314,7 +321,8 @@ class column {
             )
             column(
                storage_persistence_type::globalScope,
-               p_SizeAllocByte
+               p_SizeAllocByte,
+               0ul
             );
       }
 };

@@ -143,7 +143,7 @@ public:
 
     const column<uncompr_f>* convert()
     {
-        auto col = new column<uncompr_f>(this->getAbsoluteSize(), m_numaNode, this->get_data());
+        auto col = column<uncompr_f>::createCopy(this->getAbsoluteSize(), m_numaNode, this->get_data());
         col->set_meta_data(this->get_count_values(), this->m_byteSize);
         return col; 
     }
