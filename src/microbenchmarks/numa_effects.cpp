@@ -103,12 +103,14 @@ int main( void ) {
         cols.push_back(col);
         auto largeCol = generate_sorted_unique_pers((256ul << 20) / sizeof(uint64_t), node);
         largeCols.push_back(largeCol);
+        root_mgr.drainAll();
 
         auto pop = root_mgr.getPop(node);
         transaction::run( pop, [&] () {
             trees.push_back( make_persistent<MultiValTreeIndex>(node, alloc_class, std::string(""), std::string(""), std::string("")) );
         });
         IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(trees[node], cols[node]);
+        root_mgr.drainAll();
     }
 
     numa_run_on_node(0);
