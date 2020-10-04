@@ -89,7 +89,7 @@ int main( void ) {
     // lets break it
     auto initializer = RootInitializer::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 750ul << 20);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 2ul << 30);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
