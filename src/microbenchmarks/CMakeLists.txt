@@ -102,5 +102,12 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     )
     target_link_libraries(
         nvmds_join PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+    
+    add_executable( numa_effects numa_effects.cpp)
+    target_compile_options( numa_effects PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        numa_effects PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
 endif( BUILD_ALL OR BUILD_MICROBMS )

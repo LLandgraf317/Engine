@@ -23,9 +23,15 @@
 #include <core/index/VNodeBucketList.h>
 #include <core/index/index_gen.h>
 
+#include <iostream>
+#include <chrono>
+
 pobj_alloc_class_desc alloc_class;
 
 using pmem::obj::persistent_ptr;
+using namespace morphstore;
+
+const uint64_t ITER_MAX = 1000000;
 
 void pseudo_random_access(pptr<PersistentColumn> col)
 {
@@ -39,48 +45,88 @@ void pseudo_random_access(pptr<PersistentColumn> col)
     uint64_t * data = col->get_data();
     uint64_t sum = 0;
 
+    auto start = std::chrono::system_clock::now();
     for (uint64_t i = 0; i < ITER_MAX; i++) {
 
         uint64_t pos = distrib(gen) * OSP_SIZE;
         uint64_t val = data[pos];
         sum += val;
     }
+    auto end = std::chrono::system_clock::now();
+
+    std::chrono::duration<double> dur = end - start;
+    std::cout << dur.count() << ",";
 }
 
 template<class t_index_structure_ptr>
-void pseudo_random_access_index(t_index_structure_ptr index)
+void pseudo_random_access_index(t_index_structure_ptr index, bool isEnd)
 {
     auto size = index->getCountValues();
 
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distrib(0, size-1);
+    uint64_t sum = 0;
 
-     
+    auto start = std::chrono::system_clock::now();
+    for (uint64_t i = 0; i < ITER_MAX; i++) {
+        auto buck = index->find(distrib(gen));
+        sum += buck->getCountValues();
+    } 
+    auto end = std::chrono::system_clock::now();
+
+    std::chrono::duration<double> dur = end - start;
+    std::cout << dur.count();
+    if (!isEnd)
+        std::cout << ",";
+    else 
+        std::cout << std::endl;
 }
 
 int main( void ) {
     // L3 Cache at target system is 32MB
     // lets break it
+    auto initializer = RootInitializer::getInstance();
 
-    pmem::obj::persistent_ptr<PersistentColumn> col0 = generate_sorted_unique_pers(8ul << 10, 0);
-    pmem::obj::persistent_ptr<PersistentColumn> col1 = generate_sorted_unique_pers(8ul << 10, 0);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 500ul << 20);
+    const auto node_count = initializer.getNumaNodeCount();
 
-    
+    RootManager& root_mgr = RootManager::getInstance();
 
-    pptr<MultiValTreeIndex> tree0;
-    pptr<MultiValTreeIndex> tree1;
+    std::vector<persistent_ptr<PersistentColumn>> cols;
+    std::vector<persistent_ptr<PersistentColumn>> largeCols;
+    std::vector<persistent_ptr<MultiValTreeIndex>> trees;
 
-    transaction::run( pop, [&] () {
-        tree0 = make_persistent<MultiValTreeIndex>(alloc_class, 0, std::string(""), std::string(""), std::string(""));
-    });
-    transaction::run( pop, [&] () {
-        tree1 = make_persistent<MultiValTreeIndex>(alloc_class, 0, std::string(""), std::string(""), std::string(""));
-    });
+    for (uint64_t node = 0; node < node_count; node++) {
+        auto col = generate_sorted_unique_pers((16ul << 10) / sizeof(uint64_t), node);
+        cols.push_back(col);
+        auto largeCol = generate_sorted_unique_pers((128ul << 20) / sizeof(uint64_t), node);
+        largeCols.push_back(largeCol);
 
-    IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(tree0, col0);
-    IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(tree1, col1);
+        auto pop = root_mgr.getPop(node);
+        transaction::run( pop, [&] () {
+            trees.push_back( make_persistent<MultiValTreeIndex>(node, alloc_class, std::string(""), std::string(""), std::string("")) );
+        });
+        IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(trees[node], cols[node]);
+    }
 
+    for (uint64_t node = 0; node < node_count; node++) {
+        pseudo_random_access(largeCols[node]);
+        pseudo_random_access_index(trees[node], true);
+    }
+
+    for (uint64_t node = 0; node < node_count; node++) {
+        largeCols[node]->prepareDest();
+        cols[node]->prepareDest();
+        trees[node]->prepareDest();
+        
+        auto pop = root_mgr.getPop(node);
+        transaction::run( pop, [&] () {
+            delete_persistent<PersistentColumn>(largeCols[node]);
+            delete_persistent<PersistentColumn>(cols[node]);
+            delete_persistent<MultiValTreeIndex>(trees[node]);
+        });
+    }
 
     return 0;
 }
