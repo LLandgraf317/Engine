@@ -32,7 +32,7 @@ pobj_alloc_class_desc alloc_class;
 using pmem::obj::persistent_ptr;
 using namespace morphstore;
 
-const uint64_t ITER_MAX = 10000000;
+const uint64_t ITER_MAX = 50000000;
 
 void pseudo_random_access(pptr<PersistentColumn> col)
 {
@@ -47,7 +47,7 @@ void pseudo_random_access(pptr<PersistentColumn> col)
     uint64_t sum = 0;
 
     auto start = std::chrono::system_clock::now();
-    for (uint64_t i = 0; i < ITER_MAX; i++) {
+    for (uint64_t i = 0; i < ITER_MAX*10; i++) {
 
         uint64_t pos = distrib(gen) * OSP_SIZE;
         uint64_t val = data[pos];
@@ -89,7 +89,7 @@ int main( void ) {
     // lets break it
     auto initializer = RootInitializer::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 500ul << 20);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 750ul << 20);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
@@ -99,7 +99,7 @@ int main( void ) {
     std::vector<persistent_ptr<MultiValTreeIndex>> trees;
 
     for (uint64_t node = 0; node < node_count; node++) {
-        auto col = generate_sorted_unique_pers((128ul << 10) / sizeof(uint64_t), node);
+        auto col = generate_sorted_unique_pers((128ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
         auto largeCol = generate_sorted_unique_pers((256ul << 20) / sizeof(uint64_t), node);
         largeCols.push_back(largeCol);
