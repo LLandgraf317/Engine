@@ -25,6 +25,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <numa.h>
 
 pobj_alloc_class_desc alloc_class;
 
@@ -109,6 +110,8 @@ int main( void ) {
         });
         IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(trees[node], cols[node]);
     }
+
+    numa_run_on_node(0);
 
     for (uint64_t node = 0; node < node_count; node++) {
         pseudo_random_access(largeCols[node]);
