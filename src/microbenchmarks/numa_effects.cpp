@@ -25,6 +25,8 @@
 
 pobj_alloc_class_desc alloc_class;
 
+using pmem::obj::persistent_ptr;
+
 void pseudo_random_access(pptr<PersistentColumn> col)
 {
     auto size = col->get_count_values();
@@ -50,6 +52,11 @@ void pseudo_random_access_index(t_index_structure_ptr index)
 {
     auto size = index->getCountValues();
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, size-1);
+
+     
 }
 
 int main( void ) {
@@ -58,6 +65,8 @@ int main( void ) {
 
     pmem::obj::persistent_ptr<PersistentColumn> col0 = generate_sorted_unique_pers(8ul << 10, 0);
     pmem::obj::persistent_ptr<PersistentColumn> col1 = generate_sorted_unique_pers(8ul << 10, 0);
+
+    
 
     pptr<MultiValTreeIndex> tree0;
     pptr<MultiValTreeIndex> tree1;
