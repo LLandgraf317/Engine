@@ -37,7 +37,7 @@ const uint64_t ITER_MAX = 50000000;
 void pseudo_random_access(pptr<PersistentColumn> col)
 {
     auto size = col->get_count_values();
-    const size_t pages = size / OSP_SIZE;
+    const size_t pages = size / CL_SIZE;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -49,7 +49,7 @@ void pseudo_random_access(pptr<PersistentColumn> col)
     auto start = std::chrono::system_clock::now();
     for (uint64_t i = 0; i < ITER_MAX*10; i++) {
 
-        uint64_t pos = distrib(gen) * OSP_SIZE;
+        uint64_t pos = distrib(gen) * CL_SIZE;
         uint64_t val = data[pos];
         sum += val;
     }
@@ -89,7 +89,7 @@ int main( void ) {
     // lets break it
     auto initializer = RootInitializer::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 2ul << 30);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 8ul << 30);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
