@@ -96,10 +96,10 @@ int main( void ) {
 
     std::vector<persistent_ptr<PersistentColumn>> cols;
     std::vector<persistent_ptr<PersistentColumn>> largeCols;
-    std::vector<persistent_ptr<MultiValTreeIndex>> trees;
+    std::vector<persistent_ptr<CLTreeIndex>> trees;
 
     for (uint64_t node = 0; node < node_count; node++) {
-        auto col = generate_sorted_unique_pers((128ul << 20) / sizeof(uint64_t), node);
+        auto col = generate_sorted_unique_pers((64ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
         auto largeCol = generate_sorted_unique_pers((256ul << 20) / sizeof(uint64_t), node);
         largeCols.push_back(largeCol);
@@ -107,9 +107,9 @@ int main( void ) {
 
         auto pop = root_mgr.getPop(node);
         transaction::run( pop, [&] () {
-            trees.push_back( make_persistent<MultiValTreeIndex>(node, alloc_class, std::string(""), std::string(""), std::string("")) );
+            trees.push_back( make_persistent<CLTreeIndex>(node, alloc_class, std::string(""), std::string(""), std::string("")) );
         });
-        IndexGen::generateFast<pptr<MultiValTreeIndex>, OSP_SIZE>(trees[node], cols[node]);
+        IndexGen::generateFast<pptr<CLTreeIndex>, CL_SIZE>(trees[node], cols[node]);
         root_mgr.drainAll();
     }
 
@@ -129,7 +129,7 @@ int main( void ) {
         transaction::run( pop, [&] () {
             delete_persistent<PersistentColumn>(largeCols[node]);
             delete_persistent<PersistentColumn>(cols[node]);
-            delete_persistent<MultiValTreeIndex>(trees[node]);
+            delete_persistent<CLTreeIndex>(trees[node]);
         });
     }
 
