@@ -30,6 +30,7 @@
 #include <core/morphing/morph_batch.h>
 #include <core/utils/basic_types.h>
 #include <core/utils/helper_types.h>
+#include <core/tracing/trace.h>
 
 #include <core/memory/management/abstract_mm.h>
 #include <core/memory/management/general_mm.h>
