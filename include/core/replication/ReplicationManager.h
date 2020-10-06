@@ -40,6 +40,13 @@ public:
     DataStructure m_Kind;
     uint64_t m_NumaNode;
 
+    ReplTuple(persistent_ptr<void> ptr, DataStructure ds, uint64_t node)
+    {
+        m_PPtr = ptr;
+        m_Kind = ds;
+        m_NumaNode = node;
+    }
+
     ReplTuple(void* ptr, DataStructure ds, uint64_t node) {
         switch (ds) {
             case PCOLUMN:
@@ -96,14 +103,20 @@ public:
         return kind; //TODO
     }
 
-    persistent_ptr<MultiValTreeIndex> getTree()
-    {
-        for (auto i : replication)
-            if (i.m_Kind == PTREE)
-                return static_cast<persistent_ptr<MultiValTreeIndex>>(i.m_PPtr);
+#define PGET(index_structure, structure_enum) \
+    persistent_ptr<index_structure> get##index_structure() \
+    { \
+        for (auto i : replication) \
+            if (i.m_Kind == structure_enum) { \
+                return static_cast<persistent_ptr<index_structure>>(i.m_PPtr); \
+            } \
+        return nullptr; \
+    } 
 
-        return nullptr;
-    }
+    PGET(MultiValTreeIndex, PTREE);
+    PGET(HashMapIndex, PHASHMAP);
+    PGET(SkipListIndex, PSKIPLIST);
+    PGET(PersistentColumn, PCOLUMN);
 
     bool containsIndex()
     {
@@ -140,7 +153,19 @@ public:
 
     }
 
-    void insert(persistent_ptr<MultiValTreeIndex> index)
+#define PINSERT(index_structure, structure_enum) \
+    void insert(persistent_ptr<index_structure> index) \
+    { \
+        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
+        status->add< persistent_ptr<index_structure> >(index, structure_enum, index->getPmemNode()); \
+    }
+
+    PINSERT(MultiValTreeIndex, DataStructure::PTREE);
+    PINSERT(SkipListIndex, DataStructure::PSKIPLIST);
+    PINSERT(HashMapIndex, DataStructure::PHASHMAP);
+    PINSERT(PersistentColumn, DataStructure::PCOLUMN);
+
+    /*void insert(persistent_ptr<MultiValTreeIndex> index)
     {
         auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute());
         status->add< persistent_ptr<MultiValTreeIndex> >(index, DataStructure::PTREE, index->getPmemNode());
@@ -150,7 +175,7 @@ public:
     {
         auto status = getStatus(i->getRelation(), i->getTable(), i->getAttribute());
         status->add< persistent_ptr<SkipListIndex> >(i, DataStructure::PSKIPLIST, i->getPmemNode());
-    }
+    }*/
 
     ReplicationStatus * getStatus(std::string relation, std::string table, std::string attribute)
     {
@@ -161,6 +186,16 @@ public:
         }
 
         return nullptr;
+    }
+
+    ReplicationStatus * getStatusOrNew(std::string relation, std::string table, std::string attribute)
+    {
+        auto status = getStatus(relation, table, attribute);
+        if (status == nullptr) {
+            state.emplace_back(relation, table, attribute);
+            status = getStatus(relation, table, attribute);
+        }
+        return status;
     }
 
     size_t getSelectivity(std::string relation, std::string table, std::string attribute)
@@ -178,17 +213,23 @@ public:
     void init(uint64_t numaNodeCount) {
         m_NumaNodeCount = numaNodeCount;
 
-        for (auto i : NVMStorageManager::getPTrees()) {
-            
-        }
-        for (auto i : NVMStorageManager::getPSkipLists()) {
-
-        }
-        for (auto i : NVMStorageManager::getPHashMaps()) {
-
-        }
-        for (auto i : NVMStorageManager::getPColumns()) {
-
+        for (uint64_t node = 0; node < m_NumaNodeCount; node++) {
+            for (auto i : NVMStorageManager::getPersistentColumns(node)) {
+                auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
+                status->add(i, DataStructure::PCOLUMN, i->getPmemNode());
+            }
+            for (auto i : NVMStorageManager::getHashMapIndexs(node)) {
+                auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
+                status->add(i, DataStructure::PHASHMAP, i->getPmemNode());
+            }
+            for (auto i : NVMStorageManager::getSkipListIndexs(node)) {
+                auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
+                status->add(i, DataStructure::PSKIPLIST, i->getPmemNode());
+            }
+            for (auto i : NVMStorageManager::getMultiValTreeIndexs(node)) {
+                auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
+                status->add(i, DataStructure::PTREE, i->getPmemNode());
+            }
         }
     }
 

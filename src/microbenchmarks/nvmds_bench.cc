@@ -285,9 +285,9 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
         hashmap = pmem::obj::make_persistent<HashMapIndex>(2, pmemNode, std::string("test"), std::string("1"), std::string("valPos"));
     });
 
-    NVMStorageManager::pushTree(tree);
-    NVMStorageManager::pushSkiplist(skiplist);
-    NVMStorageManager::pushHashmap(hashmap);
+    NVMStorageManager::pushMultiValTreeIndex(tree);
+    NVMStorageManager::pushSkipListIndex(skiplist);
+    NVMStorageManager::pushHashMapIndex(hashmap);
 
     try {
         {
@@ -414,11 +414,11 @@ int main(int /*argc*/, char** /*argv*/)
         trace_l(T_INFO, "Volatile columns for node ", i, " generated");
 
         if (initializer.isNVMRetrieved(i)) {
-            auto primCol  = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("prim"), i);
-            auto valCol   = NVMStorageManager::getColumn(  std::string("test"), std::string("1"), std::string("val"), i);
-            auto tree     = NVMStorageManager::getTree(    std::string("test"), std::string("1"), std::string("valPos"), i);
-            auto skiplist = NVMStorageManager::getSkiplist(std::string("test"), std::string("1"), std::string("valPos"), i);
-            auto hashmap  = NVMStorageManager::getHashmap( std::string("test"), std::string("1"), std::string("valPos"), i);
+            auto primCol  = NVMStorageManager::getPersistentColumn(  std::string("test"), std::string("1"), std::string("prim"), i);
+            auto valCol   = NVMStorageManager::getPersistentColumn(  std::string("test"), std::string("1"), std::string("val"), i);
+            auto tree     = NVMStorageManager::getMultiValTreeIndex(    std::string("test"), std::string("1"), std::string("valPos"), i);
+            auto skiplist = NVMStorageManager::getSkipListIndex(std::string("test"), std::string("1"), std::string("valPos"), i);
+            auto hashmap  = NVMStorageManager::getHashMapIndex( std::string("test"), std::string("1"), std::string("valPos"), i);
 
             // validate
             

@@ -320,16 +320,16 @@ int main( void ) {
         table2PrimNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique(MAX_ATTR, i)) );
 
         if (initializer.isNVMRetrieved(i)) {
-            auto forKey  = NVMStorageManager::getColumn(  rel_name, table1, attrFor, i);
-            auto table2prim = NVMStorageManager::getColumn(  rel_name, table2, attr2, i);
+            auto forKey  = NVMStorageManager::getPersistentColumn(  rel_name, table1, attrFor, i);
+            auto table2prim = NVMStorageManager::getPersistentColumn(  rel_name, table2, attr2, i);
 
-            auto treeFor        = NVMStorageManager::getTree(    rel_name, table1, attrFor, i);
-            auto skiplistFor    = NVMStorageManager::getSkiplist(rel_name, table1, attrFor, i);
-            auto hashmapFor     = NVMStorageManager::getHashmap( rel_name, table1, attrFor, i);
+            auto treeFor        = NVMStorageManager::getMultiValTreeIndex(    rel_name, table1, attrFor, i);
+            auto skiplistFor    = NVMStorageManager::getSkipListIndex(rel_name, table1, attrFor, i);
+            auto hashmapFor     = NVMStorageManager::getHashMapIndex( rel_name, table1, attrFor, i);
 
-            auto tree2        = NVMStorageManager::getCLTree(    rel_name, table2, attr2, i);
-            auto skiplist2    = NVMStorageManager::getCLSkiplist(rel_name, table2, attr2, i);
-            auto hashmap2     = NVMStorageManager::getCLHashmap( rel_name, table2, attr2, i);
+            auto tree2        = NVMStorageManager::getCLTreeIndex(    rel_name, table2, attr2, i);
+            auto skiplist2    = NVMStorageManager::getCLSkipListIndex(rel_name, table2, attr2, i);
+            auto hashmap2     = NVMStorageManager::getCLHashMapIndex( rel_name, table2, attr2, i);
 
             forKeyColPers.push_back(forKey);
             table2PrimPers.push_back(table2prim);
