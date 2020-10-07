@@ -104,12 +104,13 @@ const std::tuple<
     const column<uncompr_f> *,
     const column<uncompr_f> *
     >
-ds_join(DS1_ptr ds1, DS2_ptr ds2)
+ds_join(DS1_ptr ds1, DS2_ptr ds2, size_t estimate = 0)
 {
     const size_t inDataLCount = ds1->getCountValues();
     const size_t inDataRCount = ds2->getCountValues();
-    const size_t size = 
-             (inDataLCount * inDataRCount * sizeof(uint64_t));
+    const size_t size = (estimate != 0 ? estimate * sizeof(uint64_t) :
+             (inDataLCount * inDataRCount * sizeof(uint64_t)));
+    trace_l(T_DEBUG, "Trying to alloc ", size, " bytes two times");
     auto outPosLCol = new column<uncompr_f>(size);
     auto outPosRCol = new column<uncompr_f>(size);
 

@@ -360,19 +360,19 @@ int main( void ) {
             std::cout << "Join," << i << ",";
             measureTuple("Duration of join on volatile column: ",
                     nest_dua
-                        , forKeyColNode[i].get(), table2PrimNode[i].get(), ARRAY_SIZE*100);
+                        , forKeyColNode[i].get(), table2PrimNode[i].get(), ARRAY_SIZE);
             measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<MultiValTreeIndex>, pptr<CLTreeIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                        , treesFor[i], treesTable2[i]);
+                        , treesFor[i], treesTable2[i], ARRAY_SIZE);
             measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<SkipListIndex>, pptr<CLSkipListIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                        , skiplistsFor[i], skiplistsTable2[i]);
+                        , skiplistsFor[i], skiplistsTable2[i], ARRAY_SIZE);
             measureTuple("Duration of join on persistent tree: ",
                     ds_join<pptr<HashMapIndex>, pptr<CLHashMapIndex>, persistent_ptr<NodeBucketList<uint64_t>>, persistent_ptr<NodeBucketList<uint64_t>>>
-                        , hashmapsFor[i], hashmapsTable2[i]);
+                        , hashmapsFor[i], hashmapsTable2[i], ARRAY_SIZE);
             measureTupleEnd("Duration of join on persistent column: ",
                     nest_dua
-                        , forKeyColPersConv[i].get(), table2PrimPersConv[i].get(), ARRAY_SIZE*100);
+                        , forKeyColPersConv[i].get(), table2PrimPersConv[i].get(), ARRAY_SIZE);
 
             std::cout << "\n";
         }
