@@ -100,7 +100,11 @@ public:
 
     bool contains(DataStructure kind)
     {
-        return kind; //TODO
+        for (auto i : replication)
+            if (i.m_Kind == kind)
+                return true;
+
+        return false;
     }
 
 #define PGET(index_structure, structure_enum) \
@@ -148,11 +152,6 @@ public:
         return instance;
     }
 
-    void initialize()
-    {
-
-    }
-
 #define PINSERT(index_structure, structure_enum) \
     void insert(persistent_ptr<index_structure> index) \
     { \
@@ -164,18 +163,6 @@ public:
     PINSERT(SkipListIndex, DataStructure::PSKIPLIST);
     PINSERT(HashMapIndex, DataStructure::PHASHMAP);
     PINSERT(PersistentColumn, DataStructure::PCOLUMN);
-
-    /*void insert(persistent_ptr<MultiValTreeIndex> index)
-    {
-        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute());
-        status->add< persistent_ptr<MultiValTreeIndex> >(index, DataStructure::PTREE, index->getPmemNode());
-    }
-
-    void insert(persistent_ptr<SkipListIndex> i)
-    {
-        auto status = getStatus(i->getRelation(), i->getTable(), i->getAttribute());
-        status->add< persistent_ptr<SkipListIndex> >(i, DataStructure::PSKIPLIST, i->getPmemNode());
-    }*/
 
     ReplicationStatus * getStatus(std::string relation, std::string table, std::string attribute)
     {
@@ -205,7 +192,6 @@ public:
         if (status == nullptr) {
 
         }
-        //else if (status.contains(DataStructure
 
         return 0;
     }
@@ -232,13 +218,6 @@ public:
             }
         }
     }
-
-    template<typename index_structure_ptr>
-    index_structure_ptr getDataStructure()
-    {
-        return nullptr;
-    }
-
 };
 
 }
