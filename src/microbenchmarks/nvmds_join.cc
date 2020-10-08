@@ -247,7 +247,6 @@ void generateJoinBenchSetup(JoinBenchParamList & list, size_t pmemNode) {
     }
 
 
-    joinAllPThreads();
 
     list.treesFor.push_back(treeFor);
     list.skiplistsFor.push_back(skiplistFor);
@@ -292,6 +291,7 @@ int main( void ) {
     auto initializer = RootInitializer::getInstance();
     initializer.initPmemPool(std::string("NVMDSJoin"), std::string("NVMDS"));
     const auto node_number = initializer.getNumaNodeCount();
+    trace_l(T_INFO, "Allocating for ", node_number, " nodes");
     thread_infos = (thread_info*) calloc( 6 * node_number, sizeof(thread_info) );
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> forKeyColNode;
@@ -347,6 +347,8 @@ int main( void ) {
         else {
             JoinBenchParamList list = {forKeyColPers, table2PrimPers, treesFor, skiplistsFor, hashmapsFor, treesTable2, skiplistsTable2, hashmapsTable2};
             generateJoinBenchSetup(list, i);
+
+            joinAllPThreads();
 
             forKeyColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(forKeyColPers[i]->convert()));
             table2PrimPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(table2PrimPers[i]->convert()));
