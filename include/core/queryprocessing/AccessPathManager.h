@@ -22,6 +22,8 @@ public:
 
     size_t nvramRemaining(size_t nodeNumber)
     {
+        statvfs buf;
+
 
     }
 
