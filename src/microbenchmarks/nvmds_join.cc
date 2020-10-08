@@ -348,12 +348,13 @@ int main( void ) {
             JoinBenchParamList list = {forKeyColPers, table2PrimPers, treesFor, skiplistsFor, hashmapsFor, treesTable2, skiplistsTable2, hashmapsTable2};
             generateJoinBenchSetup(list, i);
 
-            joinAllPThreads();
-
             forKeyColPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(forKeyColPers[i]->convert()));
             table2PrimPersConv.push_back(std::shared_ptr<const column<uncompr_f>>(table2PrimPers[i]->convert()));
         }
     }
+
+    joinAllPThreads();
+    root_mgr.drainAll();
     
     trace_l(T_INFO, "Starting join benchmark");
 
