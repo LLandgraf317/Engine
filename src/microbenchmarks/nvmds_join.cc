@@ -354,7 +354,6 @@ int main( void ) {
     }
 
     joinAllPThreads();
-    root_mgr.drainAll();
     
     trace_l(T_INFO, "Starting join benchmark");
 
