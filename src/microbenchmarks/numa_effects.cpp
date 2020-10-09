@@ -4,6 +4,7 @@
 #include <core/access/root.h>
 #include <core/access/RootManager.h>
 #include <core/storage/column_gen.h>
+#include <core/replication/ReplicationManager.h>
 
 #include <core/operators/scalar/calc_uncompr.h>
 #include <core/operators/general_vectorized/between_compr.h>
@@ -88,12 +89,14 @@ int main( void ) {
     // L3 Cache at target system is 32MB
     // lets break it
     auto initializer = RootInitializer::getInstance();
+    auto repl_manager = ReplicationManager::getInstance();
 
     initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 30);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
 
+    std::vector<const column<uncompr_f> *> volCols;
     std::vector<persistent_ptr<PersistentColumn>> cols;
     std::vector<persistent_ptr<PersistentColumn>> largeCols;
     std::vector<persistent_ptr<CLTreeIndex>> trees;
@@ -101,7 +104,12 @@ int main( void ) {
     for (uint64_t node = 0; node < node_count; node++) {
         auto col = generate_sorted_unique_pers((64ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
+        auto volCol = generate_sorted_unique( (256ul << 20) / sizeof(uint64_t), node);
+        assert(repl_manager.isLocOnNode(volCol->get_data(), node));
         auto largeCol = generate_sorted_unique_pers((256ul << 20) / sizeof(uint64_t), node);
+        assert(repl_manager.isLocOnNode(largeCol->get_data(), node));
+
+        volCols.push_back(volCol);
         largeCols.push_back(largeCol);
         root_mgr.drainAll();
 

@@ -15,6 +15,8 @@
 #include <libpmemobj++/pool.hpp>
 #include <libpmemobj++/transaction.hpp>
 
+#include <numaif.h>
+
 namespace morphstore {
 
 enum DataStructure {
@@ -163,6 +165,13 @@ public:
     PINSERT(SkipListIndex, DataStructure::PSKIPLIST);
     PINSERT(HashMapIndex, DataStructure::PHASHMAP);
     PINSERT(PersistentColumn, DataStructure::PCOLUMN);
+
+    bool isLocOnNode(void* loc, size_t pmemNode)
+    {
+        int status;
+        numa_move_pages( 0 /*calling process this*/, 0 /* we dont move pages */, reinterpret_cast<void**>(loc), 0, &status, 0);
+        return pmemNode == static_cast<size_t>(status);
+    }
 
     ReplicationStatus * getStatus(std::string relation, std::string table, std::string attribute)
     {
