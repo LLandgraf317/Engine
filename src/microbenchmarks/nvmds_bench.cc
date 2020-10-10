@@ -456,15 +456,15 @@ int main(int /*argc*/, char** /*argv*/)
 
     // Checks for numa location property
     for (uint64_t i = 0; i < node_number; i++) {
-        repl_mgr.isLocOnNode(primColNode[i]->get_data(), i);
-        repl_mgr.isLocOnNode(valColNode[i]->get_data(), i);
+        assert(repl_mgr.isLocOnNode(primColNode[i]->get_data(), i));
+        assert(repl_mgr.isLocOnNode(valColNode[i]->get_data(), i));
 
-        repl_mgr.isLocOnNode(primColPersConv[i]->get_data(), i);
-        repl_mgr.isLocOnNode(valColPersConv[i]->get_data(), i);
+        assert(repl_mgr.isLocOnNode(primColPersConv[i]->get_data(), i));
+        assert(repl_mgr.isLocOnNode(valColPersConv[i]->get_data(), i));
 
-        repl_mgr.isLocOnNode(trees[i].get(), i);
-        repl_mgr.isLocOnNode(skiplists[i].get(), i);
-        repl_mgr.isLocOnNode(hashmaps[i].get(), i);
+        assert(repl_mgr.isLocOnNode(trees[i].get(), i));
+        assert(repl_mgr.isLocOnNode(skiplists[i].get(), i));
+        assert(repl_mgr.isLocOnNode(hashmaps[i].get(), i));
     }
 
     // Benchmark: sequential insertion
