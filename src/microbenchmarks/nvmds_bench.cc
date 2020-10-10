@@ -4,6 +4,7 @@
 
 #include <core/access/RootManager.h>
 #include <core/access/NVMStorageManager.h>
+#include <core/replication/ReplicationManager.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/storage/column_gen.h>
 #include <core/tracing/trace.h>
@@ -61,11 +62,6 @@ constexpr uint64_t SEED = 42;
 constexpr unsigned EXP_ITER = 100;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 //constexpr uint64_t JOIN_KEY_SIZE = 1000;
-
-bool numa_prechecks()
-{
-    return numa_available() >= 0;
-}
 
 template<class T>
 void seq_insert_col( T /*primCol*/, T /*valCol*/, T /*delCol*/)
@@ -360,12 +356,13 @@ void cleanAllDS(NVMDSBenchParamList & list)
 int main(int /*argc*/, char** /*argv*/)
 {
     // Setup phase: figure out node configuration
-    if (!numa_prechecks()) {
+    auto initializer = RootInitializer::getInstance();
+
+    if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
         return -1;
     }
 
-    auto initializer = RootInitializer::getInstance();
 
     initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
     auto node_number = initializer.getNumaNodeCount();
@@ -382,6 +379,7 @@ int main(int /*argc*/, char** /*argv*/)
     }
 
     RootManager& root_mgr = RootManager::getInstance();
+    ReplicationManager &repl_mgr = ReplicationManager::getInstance();
 
     ArrayList<std::shared_ptr<const column<uncompr_f>>> primColNode;
     ArrayList<std::shared_ptr<const column<uncompr_f>>> valColNode;
@@ -455,6 +453,19 @@ int main(int /*argc*/, char** /*argv*/)
 
     joinAllPThreads();
     root_mgr.drainAll();
+
+    // Checks for numa location property
+    for (uint64_t i = 0; i < node_number; i++) {
+        repl_mgr.isLocOnNode(primColNode[i]->get_data(), i);
+        repl_mgr.isLocOnNode(valColNode[i]->get_data(), i);
+
+        repl_mgr.isLocOnNode(primColPersConv[i]->get_data(), i);
+        repl_mgr.isLocOnNode(valColPersConv[i]->get_data(), i);
+
+        repl_mgr.isLocOnNode(trees[i].get(), i);
+        repl_mgr.isLocOnNode(skiplists[i].get(), i);
+        repl_mgr.isLocOnNode(hashmaps[i].get(), i);
+    }
 
     // Benchmark: sequential insertion
     // Configurations: local column, remote column, local B Tree Persistent, remote DRAM B Tree volatile

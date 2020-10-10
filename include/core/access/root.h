@@ -71,6 +71,11 @@ public:
         return m_ReadSuccessful[pmemNode];
     }
 
+    bool isNuma()
+    {
+        return numa_available() >= 0;
+    }
+
     root_retrieval getPoolRoot(int pmemNode)
     {
         root_retrieval retr;

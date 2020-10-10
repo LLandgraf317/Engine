@@ -89,6 +89,11 @@ int main( void ) {
     // L3 Cache at target system is 32MB
     // lets break it
     auto initializer = RootInitializer::getInstance();
+    if ( !initializer.isNuma() ) {
+        trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
+        return -1;
+    }
+
     auto repl_manager = ReplicationManager::getInstance();
 
     initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 30);
