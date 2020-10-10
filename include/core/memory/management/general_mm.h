@@ -125,7 +125,11 @@ class general_memory_manager : public abstract_memory_manager {
       }
 
       void* allocateNuma(size_t p_AllocSize, int numa_node) {
-         return numa_alloc_onnode(p_AllocSize, numa_node);
+         void* ptr = numa_alloc_onnode(p_AllocSize, numa_node);
+         int status = 0;
+         numa_move_pages( 0 /*calling process this*/, 0 /* we dont move pages */, reinterpret_cast<void**>(loc), 0, &status, 0);
+         assert(status == numa_node);
+         return ptr;
       }
 
       void deallocateNuma(void* ptr, size_t p_AllocSize) {
