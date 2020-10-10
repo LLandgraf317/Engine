@@ -85,6 +85,15 @@ void pseudo_random_access_index(t_index_structure_ptr index, bool isEnd)
         std::cout << std::endl;
 }
 
+std::ostream& operator<<(std::ostream& os, const bitmask& bm)
+{
+    for(size_t i=0;i<bm.size;++i) {
+        os << numa_bitmask_isbitset(&bm, i);
+    }
+
+    return os;
+}
+
 int main( void ) {
     // L3 Cache at target system is 32MB
     // lets break it
@@ -94,9 +103,17 @@ int main( void ) {
         return -1;
     }
 
+    auto allowed_mems = numa_get_mems_allowed();
+    auto allowed_cpus = numa_all_cpus_ptr;
+    auto no_nodes = numa_no_nodes_ptr;
+
+    std::cout << "Allowed mems bitmask " << *allowed_mems << std::endl;
+    std::cout << "Allowed cpus bitmask " << *allowed_cpus << std::endl;
+    std::cout << "No nodes bitmask " << *no_nodes << std::endl;
+
     auto repl_manager = ReplicationManager::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 30);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 20);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
@@ -107,11 +124,11 @@ int main( void ) {
     std::vector<persistent_ptr<CLTreeIndex>> trees;
 
     for (uint64_t node = 0; node < node_count; node++) {
-        auto col = generate_sorted_unique_pers((64ul << 20) / sizeof(uint64_t), node);
+        auto col = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
-        auto volCol = generate_sorted_unique( (256ul << 20) / sizeof(uint64_t), node);
+        auto volCol = generate_sorted_unique( (8ul << 20) / sizeof(uint64_t), node);
         assert(repl_manager.isLocOnNode(volCol->get_data(), node));
-        auto largeCol = generate_sorted_unique_pers((256ul << 20) / sizeof(uint64_t), node);
+        auto largeCol = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
         assert(repl_manager.isLocOnNode(largeCol->get_data(), node));
 
         volCols.push_back(volCol);
