@@ -169,7 +169,7 @@ public:
     bool isLocOnNode(void* loc, size_t pmemNode)
     {
         int status;
-        numa_move_pages( 0 /*calling process this*/, 0 /* we dont move pages */, reinterpret_cast<void**>(loc), 0, &status, 0);
+        numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(loc), nullptr, &status, 0);
         trace_l(T_DEBUG, "location on ", loc, " is located on node ", status, ", requested is ", pmemNode);
         return pmemNode == static_cast<size_t>(status);
     }

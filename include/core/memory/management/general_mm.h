@@ -132,7 +132,7 @@ class general_memory_manager : public abstract_memory_manager {
          *((uint64_t*)ptr) = 0;
          auto ret = numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(ptr), nullptr, &status, MPOL_MF_MOVE);
          trace_l(T_DEBUG, "Tried to alloc on node ", numa_node, ", allocated on ", status, ", move_pages returned ", ret, ", errno is ", errno);
-         assert(status == numa_node);
+         //assert(status == numa_node);
          return ptr;
       }
 
