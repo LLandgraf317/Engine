@@ -73,6 +73,7 @@ public:
 
     bool isNuma()
     {
+        numa_set_strict(1);
         return numa_available() >= 0;
     }
 

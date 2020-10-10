@@ -145,6 +145,7 @@ class column {
          m_IsPreparedForRndAccess(false),
          m_NumaNode(numa_node)
       {
+          trace_l(T_DEBUG, "Allocated on numa_node ", numa_node);
           if (m_DataUnaligned == nullptr)
               trace_l(T_DEBUG, "Warning: data is null");
       }
