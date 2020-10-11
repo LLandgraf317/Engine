@@ -159,7 +159,7 @@ public:
 
             std::cerr << "Binary of pop for node " << i << std::endl;
             printPool(*pop);
-            root_mgr.set(pop, i == 0 ? 1 : 0);
+            root_mgr.set(pop, i);
         }
     }
 

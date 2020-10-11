@@ -71,7 +71,7 @@ public:
     {
         //trace_l(T_DEBUG, "Set pop for node ", index);
         if (m_pops.size() <= index)
-            m_pops.resize(index+1);
+            m_pops.reserve(index+1);
         auto iter = m_pops.begin();
         iter = std::next(iter, index);
 

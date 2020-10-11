@@ -103,13 +103,13 @@ int main( void ) {
         return -1;
     }
 
-    auto allowed_mems = numa_get_mems_allowed();
+    /*auto allowed_mems = numa_get_mems_allowed();
     auto allowed_cpus = numa_all_cpus_ptr;
     auto no_nodes = numa_no_nodes_ptr;
 
     std::cout << "Allowed mems bitmask " << *allowed_mems << std::endl;
     std::cout << "Allowed cpus bitmask " << *allowed_cpus << std::endl;
-    std::cout << "No nodes bitmask " << *no_nodes << std::endl;
+    std::cout << "No nodes bitmask " << *no_nodes << std::endl;*/
 
     auto repl_manager = ReplicationManager::getInstance();
 
