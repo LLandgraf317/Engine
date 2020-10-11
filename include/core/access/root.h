@@ -77,6 +77,18 @@ public:
         return numa_available() >= 0;
     }
 
+    void printPool(pmem::obj::pool<root> pop)
+    {
+        uint64_t * addr = reinterpret_cast<uint64_t*>(&pop);
+
+        size_t c = 0;
+        do {
+            std::cerr << std::hex << addr[c] << " ";
+            c++;
+        } while (c < sizeof(pmem::obj::pool<root>));
+        std::cerr << std::endl;
+    }
+
     root_retrieval getPoolRoot(int pmemNode)
     {
         root_retrieval retr;
@@ -104,6 +116,8 @@ public:
 
             retr.read_from_file_successful = true;
         }
+        std::cerr << "Binary of pop for node " << pmemNode << std::endl;
+        printPool(retr.pop);
 
         return retr;
     }
