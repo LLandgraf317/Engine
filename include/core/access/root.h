@@ -47,6 +47,7 @@ class RootInitializer {
     std::string m_LayoutName;
     std::string m_FileName;
     uint64_t m_PoolSize;
+    
     static constexpr uint64_t POOL_SIZE = 1024 * 1024 * 1024ul * ENV_POOL_SIZE;  //< 4GB
     const std::string m_PmemPath = "/mnt/pmem";
     const std::string m_DirName = "morphstore/";
@@ -89,37 +90,40 @@ public:
         std::cerr << std::endl;
     }
 
-    root_retrieval getPoolRoot(int pmemNode)
+    pmem::obj::pool<root> getPoolRoot(size_t pmemNode)
     {
-        root_retrieval retr;
+        pmem::obj::pool<root> pop;
 
         std::string path = getDirectory(pmemNode) + m_FileName;
         const std::string& gPmem = getDirectory(pmemNode);
 
+        if (m_ReadSuccessful.size() <= pmemNode)
+            m_ReadSuccessful.resize(pmemNode + 1);
+
         if (access(path.c_str(), F_OK) != 0) {
             mkdir(gPmem.c_str(), 0777);
             trace_l(T_INFO, "Creating new file on ", path);
-            retr.pop = pmem::obj::pool<root>::create(path, m_LayoutName, m_PoolSize);
 
-            retr.read_from_file_successful = false;
+            pop = pmem::obj::pool<root>::create(path, m_LayoutName, m_PoolSize);
+            m_ReadSuccessful[pmemNode] = false;
 
-            pmem::obj::transaction::run(retr.pop, [&]() {
-                retr.pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
-                retr.pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
-                retr.pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
-                retr.pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
+            pmem::obj::transaction::run(pop, [&]() {
+                pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
+                pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
+                pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
+                pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
             });
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
-            retr.pop = pmem::obj::pool<root>::open(path, m_LayoutName);
+            pop = pmem::obj::pool<root>::open(path, m_LayoutName);
 
-            retr.read_from_file_successful = true;
+            m_ReadSuccessful[pmemNode] = true;
         }
         std::cerr << "Binary of pop for node " << pmemNode << std::endl;
-        printPool(retr.pop);
+        printPool(pop);
 
-        return retr;
+        return pop;
     }
 
     std::string getDirectory(size_t numaNode)
@@ -146,13 +150,12 @@ public:
 
         RootManager& root_mgr = RootManager::getInstance();
         for (unsigned int i = 0; i < node_number; i++) {
-            root_retrieval retr;
-            retr = getPoolRoot(i);
-            std::cerr << "Binary of pop for node " << i << std::endl;
-            printPool(retr.pop);
-            root_mgr.set(retr.pop, i);
+            pmem::obj::pool<root> pop;
+            pop = getPoolRoot(i);
 
-            m_ReadSuccessful.push_back(retr.read_from_file_successful);
+            std::cerr << "Binary of pop for node " << i << std::endl;
+            printPool(pop);
+            root_mgr.set(pop, i);
         }
     }
 
