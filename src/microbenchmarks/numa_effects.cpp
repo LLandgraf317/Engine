@@ -113,7 +113,7 @@ int main( void ) {
 
     auto repl_manager = ReplicationManager::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 20);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 512ul << 20);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
@@ -127,9 +127,9 @@ int main( void ) {
         auto col = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
         auto volCol = generate_sorted_unique( (8ul << 20) / sizeof(uint64_t), node);
-        assert(repl_manager.isLocOnNode(volCol->get_data(), node));
+        //assert(repl_manager.isLocOnNode(volCol->get_data(), node));
         auto largeCol = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
-        (repl_manager.isLocOnNode(largeCol->get_data(), node));
+        //assert(repl_manager.isLocOnNode(largeCol->get_data(), node));
 
         volCols.push_back(volCol);
         largeCols.push_back(largeCol);
@@ -141,6 +141,16 @@ int main( void ) {
         });
         IndexGen::generateFast<pptr<CLTreeIndex>, CL_SIZE>(trees[node], cols[node]);
         root_mgr.drainAll();
+    }
+
+
+    for (uint64_t node = 0; node < node_count; node++) {
+        void* addresses[3] = { cols[node]->get_data(), volCols[node]->get_data(), largeCols[node]->get_data() };
+        int status[3] = {0, 0, 0};
+
+        numa_move_pages( 0 /*calling process this*/, 3 /* we dont move pages */, addresses, nullptr, status, 0);
+        for (int i = 0; i < 3; i++)
+            trace_l(T_DEBUG, "location on ", addresses[i], " is located on node ", status[i], ", requested is ", node);
     }
 
     numa_run_on_node(0);
