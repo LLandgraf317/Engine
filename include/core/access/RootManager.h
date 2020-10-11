@@ -50,6 +50,23 @@ public:
             i.close();
     }
 
+    void printBin()
+    {
+        size_t node = 0;
+        for (auto i : m_pops) {
+            uint64_t * addr = reinterpret_cast<uint64_t*>(&i);
+
+            size_t c = 0;
+            std::cerr << "Binary of pop for node " << node << std::endl;
+            do {
+                std::cerr << std::hex << addr[c] << " ";
+                c++;
+            } while (c < sizeof(pmem::obj::pool<root>));
+            std::cerr << std::endl;
+            node++;
+        }
+    }
+
     void set(pmem::obj::pool<root> pop, size_t index)
     {
         //trace_l(T_DEBUG, "Set pop for node ", index);
