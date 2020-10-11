@@ -104,7 +104,7 @@ public:
             mkdir(gPmem.c_str(), 0777);
             trace_l(T_INFO, "Creating new file on ", path);
 
-            *pop = pmem::obj::pool<root>::create(path, m_LayoutName, m_PoolSize);
+            *pop = pmem::obj::pool<root>::create(path, m_LayoutName + std::to_string(pmemNode), m_PoolSize);
             m_ReadSuccessful[pmemNode] = false;
 
             pmem::obj::transaction::run(*pop, [&]() {
@@ -116,7 +116,7 @@ public:
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
-            *pop = pmem::obj::pool<root>::open(path, m_LayoutName);
+            *pop = pmem::obj::pool<root>::open(path, m_LayoutName + std::to_string(pmemNode));
 
             m_ReadSuccessful[pmemNode] = true;
         }
