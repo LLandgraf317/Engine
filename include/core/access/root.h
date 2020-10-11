@@ -113,6 +113,10 @@ public:
                 pop->root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
                 pop->root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
             });
+
+            int status;
+            numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(pop->root()->cols.get()), nullptr, &status, 0);
+            trace_l(T_DEBUG, "Cols vec pointer location on ", pop->root()->cols.get(), " is located on node ", status, ", requested is ", pmemNode);
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
