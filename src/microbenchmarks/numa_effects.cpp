@@ -129,7 +129,7 @@ int main( void ) {
         auto volCol = generate_sorted_unique( (8ul << 20) / sizeof(uint64_t), node);
         assert(repl_manager.isLocOnNode(volCol->get_data(), node));
         auto largeCol = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
-        assert(repl_manager.isLocOnNode(largeCol->get_data(), node));
+        (repl_manager.isLocOnNode(largeCol->get_data(), node));
 
         volCols.push_back(volCol);
         largeCols.push_back(largeCol);
