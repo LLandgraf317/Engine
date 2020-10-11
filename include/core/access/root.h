@@ -90,9 +90,9 @@ public:
         std::cerr << std::endl;
     }
 
-    pmem::obj::pool<root> getPoolRoot(size_t pmemNode)
+    pmem::obj::pool<root> * getPoolRoot(size_t pmemNode)
     {
-        pmem::obj::pool<root> pop;
+        pmem::obj::pool<root> * pop = new pmem::obj::pool<root>();
 
         std::string path = getDirectory(pmemNode) + m_FileName;
         const std::string& gPmem = getDirectory(pmemNode);
@@ -104,24 +104,24 @@ public:
             mkdir(gPmem.c_str(), 0777);
             trace_l(T_INFO, "Creating new file on ", path);
 
-            pop = pmem::obj::pool<root>::create(path, m_LayoutName, m_PoolSize);
+            *pop = pmem::obj::pool<root>::create(path, m_LayoutName, m_PoolSize);
             m_ReadSuccessful[pmemNode] = false;
 
-            pmem::obj::transaction::run(pop, [&]() {
-                pop.root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
-                pop.root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
-                pop.root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
-                pop.root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
+            pmem::obj::transaction::run(*pop, [&]() {
+                pop->root()->cols            = make_persistent<vector<persistent_ptr<PersistentColumn>>>();
+                pop->root()->skipListIndeces = make_persistent<vector<persistent_ptr<SkipListIndex>>>();
+                pop->root()->treeIndeces     = make_persistent<vector<persistent_ptr<MultiValTreeIndex>>>();
+                pop->root()->hashMapIndeces  = make_persistent<vector<persistent_ptr<HashMapIndex>>>();
             });
         }
         else {
             trace_l(T_INFO, "File already existed, opening and returning.");
-            pop = pmem::obj::pool<root>::open(path, m_LayoutName);
+            *pop = pmem::obj::pool<root>::open(path, m_LayoutName);
 
             m_ReadSuccessful[pmemNode] = true;
         }
         std::cerr << "Binary of pop for node " << pmemNode << std::endl;
-        printPool(pop);
+        printPool(*pop);
 
         return pop;
     }
@@ -150,11 +150,11 @@ public:
 
         RootManager& root_mgr = RootManager::getInstance();
         for (unsigned int i = 0; i < node_number; i++) {
-            pmem::obj::pool<root> pop;
+            pmem::obj::pool<root> * pop;
             pop = getPoolRoot(i);
 
             std::cerr << "Binary of pop for node " << i << std::endl;
-            printPool(pop);
+            printPool(*pop);
             root_mgr.set(pop, i);
         }
     }

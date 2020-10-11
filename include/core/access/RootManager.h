@@ -15,7 +15,7 @@ struct root;
 class RootManager {
 
 private:
-    std::vector<pmem::obj::pool<root>> m_pops;
+    std::vector<pmem::obj::pool<root> *> m_pops;
     bool m_init = false;
 
     RootManager() : m_pops() {}
@@ -32,29 +32,29 @@ public:
     {
     }
 
-    pmem::obj::pool<root> getPop(size_t node_number)
+    pmem::obj::pool<root> & getPop(size_t node_number)
     {
         //trace_l(T_DEBUG, "Getting pop for node ", node_number);
-        return m_pops[node_number];
+        return *m_pops[node_number];
     }
 
     void drainAll()
     {
         for (auto i : m_pops )
-            i.drain();
+            i->drain();
     }
 
     void closeAll()
     {
         for (auto i : m_pops )
-            i.close();
+            i->close();
     }
 
     void printBin()
     {
         size_t node = 0;
         for (auto i : m_pops) {
-            uint64_t * addr = reinterpret_cast<uint64_t*>(&i);
+            uint64_t * addr = reinterpret_cast<uint64_t*>(i);
 
             size_t c = 0;
             std::cerr << "Binary of pop for node " << node << std::endl;
@@ -67,7 +67,7 @@ public:
         }
     }
 
-    void set(pmem::obj::pool<root> pop, size_t index)
+    void set(pmem::obj::pool<root> * pop, size_t index)
     {
         //trace_l(T_DEBUG, "Set pop for node ", index);
         if (m_pops.size() <= index)
