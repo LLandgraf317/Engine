@@ -116,8 +116,8 @@ public:
 
             retr.read_from_file_successful = true;
         }
-        //std::cerr << "binary of pop for node " << pmemnode << std::endl;
-        //printPool(retr.pop);
+        std::cerr << "Binary of pop for node " << pmemNode << std::endl;
+        printPool(retr.pop);
 
         return retr;
     }
@@ -148,7 +148,7 @@ public:
         for (unsigned int i = 0; i < node_number; i++) {
             root_retrieval retr;
             retr = getPoolRoot(i);
-            std::cerr << "binary of pop for node " << i << std::endl;
+            std::cerr << "Binary of pop for node " << i << std::endl;
             printPool(retr.pop);
             root_mgr.set(retr.pop, i);
 
