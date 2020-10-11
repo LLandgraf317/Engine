@@ -2,8 +2,9 @@
 
 #include <core/memory/global/mm_hooks.h>
 #include <core/memory/management/allocators/global_scope_allocator.h>
+#include <core/tracing/trace.h>
 
-#include <list>
+#include <vector>
 
 #include <libpmemobj++/pool.hpp>
 
@@ -14,10 +15,10 @@ struct root;
 class RootManager {
 
 private:
-    std::list<pmem::obj::pool<root>> * m_pops;
+    std::vector<pmem::obj::pool<root>> m_pops;
     bool m_init = false;
 
-    RootManager() : m_pops(new std::list<pmem::obj::pool<root>>()) {}
+    RootManager() : m_pops() {}
 
 public:
     static RootManager& getInstance()
@@ -31,39 +32,33 @@ public:
     {
     }
 
-    std::list<pmem::obj::pool<root>>::iterator getPops()
+    pmem::obj::pool<root> getPop(size_t node_number)
     {
-        if (!m_init)
-            throw std::exception();
-
-        return m_pops->begin();
-    }
-
-    pmem::obj::pool<root> getPop(uint64_t node_number)
-    {
-        if (node_number >= m_pops->size())
-            throw std::exception();
-
-        return *std::next(m_pops->begin(), node_number);
+        //trace_l(T_DEBUG, "Getting pop for node ", node_number);
+        return m_pops[node_number];
     }
 
     void drainAll()
     {
-        for (auto i : (*m_pops) )
+        for (auto i : m_pops )
             i.drain();
     }
 
     void closeAll()
     {
-        for (auto i : (*m_pops) )
+        for (auto i : m_pops )
             i.close();
     }
 
-    void add(pmem::obj::pool<root> pop)
+    void set(pmem::obj::pool<root> pop, size_t index)
     {
-        if (!m_init)
-            m_init = true;
-        m_pops->push_back(pop); 
+        //trace_l(T_DEBUG, "Set pop for node ", index);
+        if (m_pops.size() <= index)
+            m_pops.reserve(index+1);
+        auto iter = m_pops.begin();
+        iter = std::next(iter, index);
+
+        m_pops.insert(iter, pop);
     }
 };
 

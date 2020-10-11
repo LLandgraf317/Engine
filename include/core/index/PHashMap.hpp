@@ -81,7 +81,7 @@ public:
     void insert(KeyType key, pptr<NodeBucketList<ValueType, t_bucket_size>> bucket)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         auto offset = m_HashStrategy.apply(key);
 
@@ -96,7 +96,7 @@ public:
     void insert(KeyType key, ValueType value)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         auto offset = m_HashStrategy.apply(key);
         if (m_Map[offset] == nullptr) {

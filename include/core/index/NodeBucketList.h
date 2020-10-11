@@ -170,7 +170,7 @@ struct NodeBucketList {
     void prepareDest()
     {
         morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
-        pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pmem::obj::pool<morphstore::root> pop = mgr.getPop(m_PmemNode);
 
         auto next = first;
         while (next != nullptr) {
@@ -291,7 +291,7 @@ struct NodeBucketList {
     {
 
         morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
-        pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pmem::obj::pool<morphstore::root> pop = mgr.getPop(m_PmemNode);
 
         if (first == nullptr) {
             transaction::run(pop, [&] {

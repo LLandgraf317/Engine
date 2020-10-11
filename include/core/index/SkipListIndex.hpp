@@ -54,7 +54,7 @@ public:
     PSkipListIndex(int p_PmemNode, std::string relation, std::string table, std::string attribute) : m_PmemNode(p_PmemNode)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         m_Init = false;
 
@@ -76,7 +76,7 @@ public:
     void prepareDest()
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         m_SkipList->scan([&] (const uint64_t &, const persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr) {
@@ -161,7 +161,7 @@ public:
     {
         persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> list;
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         if (m_SkipList->search(key, list)) {
             if (list == nullptr) {

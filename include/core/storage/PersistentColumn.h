@@ -69,7 +69,7 @@ public:
         delete_persistent_atomic<char[]>(m_Attribute, m_al);
 
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
 
         transaction::run(pop, [&] {
             pmemobj_tx_free( m_persistentData.raw() );
@@ -92,7 +92,7 @@ public:
         delete_persistent_atomic<char[]>(m_Table, m_tl);
 
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
 
         transaction::run(pop, [&] {
             m_Table = make_persistent<char[]>(table.length() + 1);
@@ -111,7 +111,7 @@ public:
         delete_persistent_atomic<char[]>(m_Relation, m_rl);
 
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
 
         transaction::run(pop, [&] {
             m_Relation = make_persistent<char[]>(relation.length() + 1);
@@ -130,7 +130,7 @@ public:
         delete_persistent_atomic<char[]>(m_Attribute, m_al);
 
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
 
         transaction::run(pop, [&] {
             m_Attribute = make_persistent<char[]>(attr_name.length() + 1);
@@ -151,7 +151,7 @@ public:
     void expand(size_t expansionSize)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
         //m_testVol = numa_realloc(m_testVol, getAbsoluteSize(), getAbsoluteSize() + expansionSize);
 
         transaction::run( pop, [&] {
@@ -164,7 +164,7 @@ public:
     void shrink(size_t shrinkSize)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_numaNode);
+        pool<root> pop = mgr.getPop(m_numaNode);
 
         transaction::run( pop, [&] {
             m_persistentData = pmemobj_tx_realloc(m_persistentData.raw(), getAbsoluteSize() - shrinkSize, 0);

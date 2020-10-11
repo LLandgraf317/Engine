@@ -134,7 +134,7 @@ public:
         root_retrieval retr;
         for (unsigned int i = 0; i < node_number; i++) {
             retr = getPoolRoot(i);
-            root_mgr.add(retr.pop);
+            root_mgr.set(retr.pop, i);
 
             m_ReadSuccessful.push_back(retr.read_from_file_successful);
         }

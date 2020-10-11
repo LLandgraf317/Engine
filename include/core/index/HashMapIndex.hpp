@@ -50,7 +50,7 @@ public:
 	    : m_PmemNode(pMemNode), m_Init(false), m_EstimateElemCount(estimateElemCount)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), pMemNode);
+        pool<root> pop = mgr.getPop(pMemNode);
 
         m_Table = make_persistent<char[]>(table.length() + 1);
         m_tl = table.length() + 1;
@@ -69,7 +69,7 @@ public:
     void prepareDest()
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         m_HashMap->apply([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr) {

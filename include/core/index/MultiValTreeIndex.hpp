@@ -43,7 +43,7 @@ public:
     PTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), pMemNode);
+        pool<root> pop = mgr.getPop(pMemNode);
 
         m_PmemNode = pMemNode;
 
@@ -67,7 +67,7 @@ public:
     void prepareDest()
     {
         RootManager& mgr = RootManager::getInstance();
-        pool<root> pop = *std::next(mgr.getPops(), m_PmemNode);
+        pool<root> pop = mgr.getPop(m_PmemNode);
 
         m_Tree->scan([&] (const uint64_t &, const pptr<NodeBucketList<uint64_t, t_bucket_size>> & val) {
             if (val != nullptr) {
@@ -157,7 +157,7 @@ public:
         }
         else {
             morphstore::RootManager& mgr = morphstore::RootManager::getInstance();
-            pmem::obj::pool<morphstore::root> pop = *std::next(mgr.getPops(), m_PmemNode);
+            pmem::obj::pool<morphstore::root> pop = mgr.getPop(m_PmemNode);
 
             transaction::run(pop, [&] {
                 list = make_persistent<NodeBucketList<uint64_t, t_bucket_size>>(m_PmemNode);
