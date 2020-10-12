@@ -82,9 +82,11 @@ int main( void ) {
 
     transaction::run(pop0, [&]() {
         foo0->bar = sum;
+        pop0.memcpy_persist(foo1.get(), foo0.get(), sizeof(Foo));
     });
     transaction::run(pop1, [&]() {
         foo1->bar = sum;
+        pop1.memcpy_persist(foo0.get(), foo1.get(), sizeof(Foo));
     });
 
     assert(isLocOnNode(foo0.get(), 0));
