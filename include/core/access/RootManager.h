@@ -34,7 +34,7 @@ public:
 
     pmem::obj::pool<root> & getPop(size_t node_number)
     {
-        //trace_l(T_DEBUG, "Getting pop for node ", node_number);
+        trace_l(T_DEBUG, "Getting pop for node ", node_number);
         return *m_pops[node_number];
     }
 
