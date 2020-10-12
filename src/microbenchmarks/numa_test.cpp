@@ -73,6 +73,8 @@ int main( void ) {
         foo1->bar = 1;
     });
 
+    pop0.flush(foo0);
+    pop1.flush(foo1);
 
     assert(isLocOnNode(foo0.get(), 0));
     assert(isLocOnNode(foo1.get(), 1));
