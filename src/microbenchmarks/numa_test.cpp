@@ -15,10 +15,12 @@
 
 using namespace pmem::obj;
 
-struct root {};
-
 struct Foo {
     p<uint64_t> bar;
+};
+
+struct root {
+    persistent_ptr<Foo> foo;
 };
 
 bool isLocOnNode(void* loc, int numaNode)
@@ -39,11 +41,12 @@ pmem::obj::pool<root> createPool(std::string dir)
 
     if (access(path.c_str(), F_OK) != 0) {
         std::cout << "Creating new file on " << path << std::endl;
-        pop = pmem::obj::pool<root>::create(path, "numatest");
+        pop = pmem::obj::pool<root>::create(path, "numatest", PMEMOBJ_MIN_POOL, S_IRWXU);
     }
     else {
         std::cout << "File " << path << " already existed, opening and returning." << std::endl;
         pop = pmem::obj::pool<root>::open(path, "numatest");
+        std::cout << "Pops root is " << pop.root()->foo->bar << std::endl;
     }
 
     return pop;
@@ -61,13 +64,17 @@ int main( void ) {
     pop1 = createPool(path1);
 
     persistent_ptr<Foo> foo0;
-    transaction::run(pop0, [&]() { 
+    transaction::run(pop0, [&]() {
+        pop0.root()->foo->bar = 0;
+
         foo0 = make_persistent<Foo>();
         foo0->bar = 0;
     });
 
     persistent_ptr<Foo> foo1;
     transaction::run(pop1, [&]() {
+        pop1.root()->foo->bar = 1;
+
         foo1 = make_persistent<Foo>();
         foo1->bar = 1;
     });
@@ -91,6 +98,8 @@ int main( void ) {
         pop1.memcpy_persist(foo0.get(), foo1.get(), sizeof(Foo));
     });
 
+    assert(isLocOnNode(&pop0.root()->foo->bar, 0));
+    assert(isLocOnNode(&pop1.root()->foo->bar, 1));
     assert(isLocOnNode(foo0.get(), 0));
     assert(isLocOnNode(foo1.get(), 1));
 
