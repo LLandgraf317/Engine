@@ -12,6 +12,7 @@
 #include <numa.h>
 #include <numaif.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 using namespace pmem::obj;
 
@@ -100,6 +101,11 @@ int main( void ) {
         foo1->bar = sum;
         pop1.memcpy_persist(foo0.get(), foo1.get(), sizeof(Foo));
     });
+
+    msync(&pop0.root()->foo->bar, sizeof(p<uint64_t>), MS_SYNC);
+    msync(&pop1.root()->foo->bar, sizeof(p<uint64_t>), MS_SYNC);
+    msync(foo0.get(), sizeof(Foo), MS_SYNC);
+    msync(foo1.get(), sizeof(Foo), MS_SYNC);
 
     assert(isLocOnNode(&pop0.root()->foo->bar, 0));
     assert(isLocOnNode(&pop1.root()->foo->bar, 1));
