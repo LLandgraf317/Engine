@@ -42,6 +42,9 @@ pmem::obj::pool<root> createPool(std::string dir)
     if (access(path.c_str(), F_OK) != 0) {
         std::cout << "Creating new file on " << path << std::endl;
         pop = pmem::obj::pool<root>::create(path, "numatest", PMEMOBJ_MIN_POOL, S_IRWXU);
+        transaction::run(pop, [&]() {
+            pop.root()->foo = make_persistent<Foo>();
+        });
     }
     else {
         std::cout << "File " << path << " already existed, opening and returning." << std::endl;
