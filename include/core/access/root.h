@@ -119,7 +119,7 @@ public:
             trace_l(T_DEBUG, "Cols vec pointer location on ", pop->root()->cols.get(), " is located on node ", status, ", requested is ", pmemNode);
         }
         else {
-            trace_l(T_INFO, "File already existed, opening and returning.");
+            trace_l(T_INFO, "File ", path, " already existed, opening and returning.");
             *pop = pmem::obj::pool<root>::open(path, m_LayoutName + std::to_string(pmemNode));
 
             m_ReadSuccessful[pmemNode] = true;
