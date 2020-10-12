@@ -50,7 +50,7 @@ class RootInitializer {
     
     static constexpr uint64_t POOL_SIZE = 1024 * 1024 * 1024ul * ENV_POOL_SIZE;  //< 4GB
     const std::string m_PmemPath = "/mnt/pmem";
-    const std::string m_DirName = "morphstore/";
+    const std::string m_DirName = "";
 
     std::vector<bool> m_ReadSuccessful;
 
