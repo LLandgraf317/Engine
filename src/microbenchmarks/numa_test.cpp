@@ -66,15 +66,26 @@ int main( void ) {
         foo0->bar = 0;
     });
 
-
     persistent_ptr<Foo> foo1;
     transaction::run(pop1, [&]() {
         foo1 = make_persistent<Foo>();
         foo1->bar = 1;
     });
 
+    uint64_t sum = foo1->bar + foo0->bar;
+
     pop0.flush(foo0);
+    pop0.drain();
+
     pop1.flush(foo1);
+    pop1.drain();
+
+    transaction::run(pop0, [&]() {
+        foo0->bar = sum;
+    });
+    transaction::run(pop1, [&]() {
+        foo1->bar = sum;
+    });
 
     assert(isLocOnNode(foo0.get(), 0));
     assert(isLocOnNode(foo1.get(), 1));
