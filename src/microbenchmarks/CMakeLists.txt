@@ -110,4 +110,11 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     target_link_libraries(
         numa_effects PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
+    add_executable( numa_test numa_test.cpp)
+    target_compile_options( numa_test PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        numa_test PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+
 endif( BUILD_ALL OR BUILD_MICROBMS )
