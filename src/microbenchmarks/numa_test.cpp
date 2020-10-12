@@ -74,9 +74,11 @@ int main( void ) {
 
     uint64_t sum = foo1->bar + foo0->bar;
 
+    pop0.persist(foo0);
     pop0.flush(foo0);
     pop0.drain();
 
+    pop1.persist(foo1);
     pop1.flush(foo1);
     pop1.drain();
 
