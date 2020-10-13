@@ -72,7 +72,10 @@ int main( void ) {
     std::string path0 = "/mnt/pmem0/";
     std::string path1 = "/mnt/pmem1/";
 
+    numa_run_on_node(0);
     pop0 = createPool(path0);
+
+    numa_run_on_node(1);
     pop1 = createPool(path1);
 
     numa_run_on_node(0);
