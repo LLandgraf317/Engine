@@ -156,7 +156,7 @@ struct NodeBucketList {
             return curr->getBucketEntry(iterator_count);
         }
 
-        T get()
+        inline T get()
         {
             return curr->getBucketEntry(iterator_count);
         }

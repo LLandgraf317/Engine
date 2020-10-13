@@ -133,6 +133,12 @@ public:
         return false;
     }
 
+#define CONSTRUCT(index_structure) \
+    void constructAsync() \
+    { \
+ \
+    } 
+
     template<typename t_index_structure_ptr>
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
     {

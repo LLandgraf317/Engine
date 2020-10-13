@@ -124,8 +124,8 @@ public:
 
             m_ReadSuccessful[pmemNode] = true;
         }
-        std::cerr << "Binary of pop for node " << pmemNode << std::endl;
-        printPool(*pop);
+        //std::cerr << "Binary of pop for node " << pmemNode << std::endl;
+        //printPool(*pop);
 
         return pop;
     }

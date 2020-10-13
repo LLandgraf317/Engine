@@ -242,6 +242,8 @@ void printMemoryFootprint(NVMDSBenchParamList & list, size_t nodeCount)
 
 void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
 {
+    numa_run_on_node(pmemNode);
+
     auto primCol = generate_sorted_unique_pers( ARRAY_SIZE, pmemNode);
     primCol->setRelation("test");
     primCol->setTable("1");

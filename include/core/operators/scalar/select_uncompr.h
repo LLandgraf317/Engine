@@ -151,7 +151,8 @@ struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structu
             column<uncompr_f> * valueCol = new column<uncompr_f>(sizeof(uint64_t) * sum_count_values);
             uint64_t* value_data = valueCol->get_data();
 
-            for (auto iter = bucket_lists_list->begin(); iter != bucket_lists_list->end(); iter++) {
+            auto end = bucket_lists_list->end();
+            for (auto iter = bucket_lists_list->begin(); iter != end; iter++) {
                 *value_data = iter.get();
                 value_data++;
             }
