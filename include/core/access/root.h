@@ -74,7 +74,6 @@ public:
 
     bool isNuma()
     {
-        numa_set_strict(1);
         return numa_available() >= 0;
     }
 
@@ -144,6 +143,8 @@ public:
 
     void initPmemPool(std::string filename, std::string layoutname, uint64_t poolSize = POOL_SIZE)
     {
+        numa_set_strict(1);
+
         m_FileName = filename;
         m_LayoutName = layoutname;
         m_PoolSize = poolSize;

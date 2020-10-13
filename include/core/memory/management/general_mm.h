@@ -127,11 +127,11 @@ class general_memory_manager : public abstract_memory_manager {
 
       void* allocateNuma(size_t p_AllocSize, int numa_node) {
          void* ptr = numa_alloc_onnode(p_AllocSize, numa_node);
-         int status = 0;
+         int ret_numa = 0;
          errno = 0;
-         *((uint64_t*)ptr) = 0;
-         auto ret = numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(ptr), nullptr, &status, MPOL_MF_MOVE);
-         trace_l(T_DEBUG, "Tried to alloc on node ", numa_node, ", allocated on ", status, ", move_pages returned ", ret, ", errno is ", errno);
+         auto ret = get_mempolicy(&ret_numa, NULL, 0, ptr, MPOL_F_NODE | MPOL_F_ADDR);
+         //auto ret = numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(ptr), nullptr, &status, MPOL_MF_MOVE);
+         trace_l(T_DEBUG, "Tried to alloc on node ", numa_node, ", allocated on ", ret_numa, ", move_pages returned ", ret, ", errno is ", errno);
          //assert(status == numa_node);
          return ptr;
       }
