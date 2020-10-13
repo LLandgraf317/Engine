@@ -79,6 +79,11 @@ int main( void ) {
         foo0->bar.get_rw() = 0;
     });
 
+    uint64_t * ptr = pop0.root()->foo->foo.get();
+    for (size_t i = 0; i < 4096; i++)
+        ptr[i] = i;
+    assert(isLocOnNode(pop0.root()->foo->foo.get(), 0));
+
     persistent_ptr<Foo> foo1;
     transaction::run(pop1, [&]() {
         pop1.root()->foo->bar.get_rw() = 1;
@@ -86,6 +91,11 @@ int main( void ) {
         foo1 = make_persistent<Foo>();
         foo1->bar.get_rw() = 1;
     });
+
+    uint64_t * ptr1 = pop1.root()->foo->foo.get();
+    for (size_t i = 0; i < 4096; i++)
+        ptr1[i] = i;
+    assert(isLocOnNode(pop1.root()->foo->foo.get(), 1));
 
 
     uint64_t sum = foo1->bar + foo0->bar;
@@ -112,8 +122,8 @@ int main( void ) {
     msync(foo0.get(), sizeof(Foo), MS_SYNC);
     msync(foo1.get(), sizeof(Foo), MS_SYNC);
 
-    assert(isLocOnNode(&pop0.root()->foo->bar, 0));
-    assert(isLocOnNode(&pop1.root()->foo->bar, 1));
+    assert(isLocOnNode(&pop0.root()->foo->bar.get_rw(), 0));
+    assert(isLocOnNode(&pop1.root()->foo->bar.get_rw(), 1));
     assert(isLocOnNode(foo0.get(), 0));
     assert(isLocOnNode(foo1.get(), 1));
 
