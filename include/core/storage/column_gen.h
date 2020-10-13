@@ -94,6 +94,8 @@ const column<uncompr_f> * generate_sorted_unique(
         uint64_t start = 0,
         uint64_t step = 1
 ) {
+    numa_run_on_node(node_number);
+
     const size_t allocationSize = countValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize, node_number);
     uint64_t * const res = resCol->get_data();
@@ -113,6 +115,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_sorted_unique_pers(
         uint64_t start = 0,
         uint64_t step = 1
 ) {
+    numa_run_on_node(numa_node_number);
+
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(numa_node_number);
 
@@ -136,6 +140,8 @@ const column<uncompr_f> * generate_boolean_col(
         size_t countValues,
         int numa_node_number)
 {
+    numa_run_on_node(numa_node_number);
+
     size_t allocationSize = countValues * sizeof(bool);
     auto resCol = new column<uncompr_f>(allocationSize, numa_node_number);
 
@@ -153,6 +159,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_boolean_col_pers(
         size_t countValues,
         int numa_node_number)
 {
+    numa_run_on_node(numa_node_number);
+
     size_t allocationSize = countValues * sizeof(bool);
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(numa_node_number);
@@ -190,6 +198,8 @@ const column<uncompr_f> * generate_share_vector(
         std::vector<sel_and_val> selectivity_and_resp_val,
         size_t numa_node_number)
 {
+    numa_run_on_node(numa_node_number);
+
     const uint64_t default_value = 0;
     float cumulative_prob = 0.0;
     size_t cumulative_count = 0;
@@ -232,6 +242,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_share_vector_pers(
         std::vector<sel_and_val> selectivity_and_resp_val,
         size_t numa_node_number)
 {
+    numa_run_on_node(numa_node_number);
+
     const uint64_t default_value = 0;
     float cumulative_prob = 0.0;
     size_t cumulative_count = 0;
@@ -399,6 +411,8 @@ const column<uncompr_f> * generate_with_distr(
         size_t seed = 0,
         int numa_node = 0
 ) {
+    numa_run_on_node(numa_node);
+
     const size_t allocationSize = countValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize, numa_node);
     uint64_t * const res = resCol->get_data();
@@ -427,6 +441,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_with_distr_pers(
         size_t seed = 0,
         int numa_node_number = 0
 ) {
+    numa_run_on_node(numa_node_number);
+
     const size_t allocationSize = countValues * sizeof(uint64_t);
     pmem::obj::persistent_ptr<PersistentColumn> resCol;
     auto root_mgr = RootManager::getInstance();
@@ -484,6 +500,8 @@ const column<uncompr_f> * generate_exact_number(
                 "p_ValMatch and p_ValOther must be different"
         );
     
+    numa_run_on_node(numa_node_number);
+
     const size_t allocationSize = p_CountValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize, numa_node_number);
     uint64_t * const res = resCol->get_data();
@@ -552,6 +570,8 @@ const persistent_ptr<PersistentColumn> generate_exact_number_pers(
         throw std::runtime_error(
                 "p_ValMatch and p_ValOther must be different"
         );
+
+    numa_run_on_node(numa_node_number);
     
     pmem::obj::persistent_ptr<PersistentColumn> resCol;
     auto root_mgr = RootManager::getInstance();
@@ -646,6 +666,7 @@ const column<uncompr_f> * generate_with_outliers_and_selectivity(
         throw std::runtime_error(
                 "p_SelectedShare + p_OutlierShare <= 1 must hold"
         );
+    numa_run_on_node(numa_node_number);
     
     const size_t allocationSize = p_CountValues * sizeof(uint64_t);
     auto resCol = new column<uncompr_f>(allocationSize, numa_node_number);
@@ -717,6 +738,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_with_outliers_and_selectivi
         throw std::runtime_error(
                 "p_SelectedShare + p_OutlierShare <= 1 must hold"
         );
+    numa_run_on_node(numa_node_number);
+
     pmem::obj::persistent_ptr<PersistentColumn> resCol;
     auto root_mgr = RootManager::getInstance();
     auto pop = root_mgr.getPop(numa_node_number);
