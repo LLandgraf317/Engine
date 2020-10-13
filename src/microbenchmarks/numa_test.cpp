@@ -27,13 +27,14 @@ struct root {
 
 bool isLocOnNode(void* loc, int numaNode)
 {
-    int status;
+    int ret_numa;
     void * page = reinterpret_cast<void*>(reinterpret_cast<uint64_t>(loc) & ~( (4096ul) - 1));
 
-    numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(page), nullptr, &status, 0);
-    std::cout << "Pointer location on " << page << " is located on node " << status << ", requested is " << numaNode << std::endl;
+    auto ret = get_mempolicy(&ret_numa, NULL, 0, page, MPOL_F_NODE | MPOL_F_ADDR);
+    //numa_move_pages( 0 /*calling process this*/, 1 /* we dont move pages */, reinterpret_cast<void**>(page), nullptr, &status, 0);
+    std::cout << "Pointer location on " << page << " is located on node " << ret_numa << ", requested is " << numaNode << ", status returned is "<< ret << std::endl;
 
-    return status == numaNode;
+    return ret_numa == numaNode;
 }
 
 pmem::obj::pool<root> createPool(std::string dir)
