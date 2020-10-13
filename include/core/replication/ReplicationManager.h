@@ -132,12 +132,7 @@ public:
         }
         return false;
     }
-
-#define CONSTRUCT(index_structure) \
-    void constructAsync() \
-    { \
- \
-    } 
+    
 
     template<typename t_index_structure_ptr>
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
@@ -147,10 +142,42 @@ public:
 
 };
 
+
+template<class index_structure>
+struct ReplCreateIndexArgs {
+    uint64_t node;
+    pptr<index_structure> index;
+    pptr<PersistentColumn> valCol;
+};
+
+struct repl_thread_info {
+    pthread_t thread_id;
+    int thread_num;
+};
+
+// Threading infrastructure of replication manager
+template< class index_structure>
+void * generateIndex( void * argPtr )
+{
+    ReplCreateIndexArgs<index_structure> * indexArgs = (ReplCreateIndexArgs<index_structure>*) argPtr;
+
+    numa_run_on_node(indexArgs->node);
+    IndexGen::generateFast<pptr<index_structure>, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
+
+    RootManager& root_mgr = RootManager::getInstance();
+    root_mgr.drainAll();
+
+    free(argPtr);
+
+    return nullptr;
+}
+
 class ReplicationManager {
 
     uint64_t m_NumaNodeCount;
     std::vector<ReplicationStatus> state;
+
+    std::list<repl_thread_info*> thread_infos;
 
 public:
     static ReplicationManager& getInstance()
@@ -160,17 +187,76 @@ public:
         return instance;
     }
 
-#define PINSERT(index_structure, structure_enum) \
+
+    void joinAllThreads()
+    {
+        while (thread_infos.begin() != thread_infos.end()) {
+            auto iter = thread_infos.begin();
+            pthread_join( (*iter)->thread_id, nullptr);
+            thread_infos.pop_front();
+        }
+    }
+
+
+#define PINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
     void insert(persistent_ptr<index_structure> index) \
     { \
         auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
         status->add< persistent_ptr<index_structure> >(index, structure_enum, index->getPmemNode()); \
-    }
+    } \
+    \
+    template<typename ...Args> \
+    persistent_ptr<index_structure> construct##index_structure##Async(size_t numa_node, persistent_ptr<PersistentColumn> valCol, Args... args) \
+    { \
+        persistent_ptr<index_structure> index; \
+      \
+        auto pop = RootManager::getInstance().getPop(numa_node); \
+        transaction::run(pop, [&]() { \
+            index = make_persistent<index_structure>(args... ); \
+        }); \
+      \
+        ReplCreateIndexArgs<index_structure>* threadArgs = new ReplCreateIndexArgs<index_structure>(); \
+        threadArgs->node = numa_node; \
+        threadArgs->index = index; \
+        threadArgs->valCol = valCol; \
+      \
+        repl_thread_info * info = new repl_thread_info(); \
+        pthread_create(&info->thread_id, nullptr, generateIndex<index_structure>, threadArgs); \
+        thread_infos.push_back(info); \
+      \
+        return index; \
+    } 
 
-    PINSERT(MultiValTreeIndex, DataStructure::PTREE);
-    PINSERT(SkipListIndex, DataStructure::PSKIPLIST);
-    PINSERT(HashMapIndex, DataStructure::PHASHMAP);
-    PINSERT(PersistentColumn, DataStructure::PCOLUMN);
+    PINSERT_AND_CONSTRUCT(MultiValTreeIndex, DataStructure::PTREE)
+    PINSERT_AND_CONSTRUCT(SkipListIndex, DataStructure::PSKIPLIST)
+    PINSERT_AND_CONSTRUCT(HashMapIndex, DataStructure::PHASHMAP)
+    PINSERT_AND_CONSTRUCT(PersistentColumn, DataStructure::PCOLUMN)
+
+
+    void constructAll( persistent_ptr<PersistentColumn> col )
+    {
+        auto initializer = RootInitializer::getInstance();
+        const auto node_number = initializer.getNumaNodeCount();
+
+        auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
+
+        for (size_t node = 0; node < node_number; node++) {
+            if (col->getPmemNode() != node) {
+                auto newCol = copy_column_to_node(col, node);
+                status->add(newCol, DataStructure::PCOLUMN, node);
+            }
+            else {
+                status->add(col, DataStructure::PCOLUMN, node);
+            }
+            auto tree = constructMultiValTreeIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
+            auto hash = constructHashMapIndexAsync(node, col, /*distict key count*/ tree->getKeyCount(), node, col->getRelation(), col->getTable(), col->getAttribute());
+            auto skip = constructSkipListIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
+
+            insert(tree);
+            insert(hash);
+            insert(skip);
+        }
+    }
 
     bool isLocOnNode(void* loc, size_t pmemNode)
     {

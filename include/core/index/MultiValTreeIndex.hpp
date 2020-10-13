@@ -40,7 +40,13 @@ protected:
     }
 
 public:
-    PTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc alloc_class, std::string relation, std::string table, std::string attribute)
+    PTreeIndex(uint64_t pMemNode, pobj_alloc_class_desc /*alloc_class*/, std::string relation, std::string table, std::string attribute)
+        : PTreeIndex(pMemNode, relation, table, attribute)
+    {
+
+    }
+
+    PTreeIndex(uint64_t pMemNode, std::string relation, std::string table, std::string attribute)
     {
         RootManager& mgr = RootManager::getInstance();
         pool<root> pop = mgr.getPop(pMemNode);
@@ -54,7 +60,7 @@ public:
         m_Relation = make_persistent<char[]>(relation.length() + 1);
         m_rl = relation.length() + 1;
 
-        m_Tree = make_persistent<MultiValTree<t_bucket_size>>(alloc_class);
+        m_Tree = make_persistent<MultiValTree<t_bucket_size>>(/*alloc_class*/);
 
         pop.memcpy_persist(m_Table.get(), table.c_str(), table.length() + 1);
         pop.memcpy_persist(m_Attribute.get(), attribute.c_str(), attribute.length() + 1);
@@ -131,6 +137,17 @@ public:
                 sum += val->memory_footprint();
         };
 
+        scan(lambda);
+
+        return sum;
+    }
+
+    size_t getKeyCount()
+    {
+        uint64_t sum = 0;
+        auto lambda = [&](const uint64_t&, const pptr<NodeBucketList<uint64_t>> &) {
+            sum++;
+        };
         scan(lambda);
 
         return sum;

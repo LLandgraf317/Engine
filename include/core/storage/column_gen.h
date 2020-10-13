@@ -78,6 +78,27 @@ const column<uncompr_f> * make_column(uint64_t const * const vec, size_t count) 
    return resCol;
 }
 
+pmem::obj::persistent_ptr<PersistentColumn> copy_column_to_node(pmem::obj::persistent_ptr<PersistentColumn> col, size_t numa_node)
+{
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node);
+
+    numa_run_on_node(numa_node);
+
+    const size_t target_size = col->get_count_values() * sizeof(uint64_t);
+    pmem::obj::persistent_ptr<PersistentColumn> resCol;
+
+    transaction::run(pop, [&]() {
+        resCol = make_persistent<PersistentColumn>(true, target_size, numa_node);
+    });
+
+    uint64_t * const res = resCol->get_data();
+    //transaction::run(pop, [&]() {
+    pop.memcpy_persist(res, col->get_data(), target_size);
+
+    return resCol;
+}
+
 /**
  * @brief Creates an uncompressed column and fills its data buffer with sorted
  * unique data elements according to an arithmetic sequence. Can be used to

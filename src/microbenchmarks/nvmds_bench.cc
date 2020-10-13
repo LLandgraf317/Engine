@@ -371,7 +371,6 @@ int main(int /*argc*/, char** /*argv*/)
         return -1;
     }
 
-
     initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
     auto node_number = initializer.getNumaNodeCount();
 

@@ -143,7 +143,7 @@ int main( void ) {
         root_mgr.drainAll();
     }
 
-    root_mgr.printBin();
+    //root_mgr.printBin();
 
     for (uint64_t node = 0; node < node_count; node++) {
         void* addresses[3] = { cols[node]->get_data(), volCols[node]->get_data(), largeCols[node]->get_data() };
