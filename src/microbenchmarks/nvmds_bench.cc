@@ -178,6 +178,7 @@ thread_info* thread_infos = nullptr;
 
 template<class index_structure>
 struct CreateIndexArgs {
+    uint64_t node;
     pptr<index_structure> index;
     pptr<PersistentColumn> valCol;
 };
@@ -186,6 +187,8 @@ template< class index_structure>
 void * generate( void * argPtr )
 {
     CreateIndexArgs<index_structure> * indexArgs = (CreateIndexArgs<index_structure>*) argPtr;
+
+    numa_run_on_node(indexArgs->node);
 
     IndexGen::generateFast<pptr<index_structure>, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
 
@@ -291,6 +294,7 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
         {
             trace_l(T_DEBUG, "Constructing MultiValTreeIndex");
             CreateIndexArgs<MultiValTreeIndex>* args = new CreateIndexArgs<MultiValTreeIndex>();
+            args->node = pmemNode;
             args->index = tree;
             args->valCol = valCol;
             pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<MultiValTreeIndex>, args);
@@ -301,6 +305,7 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
         {
             trace_l(T_DEBUG, "Constructing Skiplist");
             CreateIndexArgs<SkipListIndex>* args = new CreateIndexArgs<SkipListIndex>();
+            args->node = pmemNode;
             args->index = skiplist;
             args->valCol = valCol;
             pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<SkipListIndex>, args);
@@ -311,6 +316,7 @@ void generateNVMDSBenchSetup(NVMDSBenchParamList & list, size_t pmemNode)
         {
             trace_l(T_DEBUG, "Constructing HashMap");
             CreateIndexArgs<HashMapIndex>* args = new CreateIndexArgs<HashMapIndex>();
+            args->node = pmemNode;
             args->index = hashmap;
             args->valCol = valCol;
             pthread_create(&thread_infos[thread_num_counter].thread_id, nullptr, generate<HashMapIndex>, args);
