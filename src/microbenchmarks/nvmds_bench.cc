@@ -414,6 +414,8 @@ int main(int /*argc*/, char** /*argv*/)
     trace_l(T_INFO, "Generating primary col with keycount ", ARRAY_SIZE, " keys...");
     //Column marks valid rows
     for (unsigned int i = 0; i < node_number; i++) {
+        auto status = numa_run_on_node(i);
+
         primColNode.push_back( std::shared_ptr<const column<uncompr_f>>(generate_sorted_unique( ARRAY_SIZE, i) ));
         valColNode.push_back(  std::shared_ptr<const column<uncompr_f>>(generate_share_vector( ARRAY_SIZE, sel_distr, i) ));
 
