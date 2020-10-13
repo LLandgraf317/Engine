@@ -143,7 +143,7 @@ public:
 
     void initPmemPool(std::string filename, std::string layoutname, uint64_t poolSize = POOL_SIZE)
     {
-        numa_set_strict(1);
+        //numa_set_strict(1);
 
         m_FileName = filename;
         m_LayoutName = layoutname;
@@ -158,8 +158,8 @@ public:
             pmem::obj::pool<root> * pop;
             pop = getPoolRoot(i);
 
-            std::cerr << "Binary of pop for node " << i << std::endl;
-            printPool(*pop);
+            //std::cerr << "Binary of pop for node " << i << std::endl;
+            //printPool(*pop);
             root_mgr.set(pop, i);
         }
     }
