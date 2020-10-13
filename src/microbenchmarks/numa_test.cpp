@@ -119,6 +119,7 @@ int main( void ) {
         foo0->bar = sum;
         pop0.memcpy_persist(foo1.get(), foo0.get(), sizeof(Foo));
     });
+    numa_run_on_node(1);
     transaction::run(pop1, [&]() {
         foo1->bar = sum;
         pop1.memcpy_persist(foo0.get(), foo1.get(), sizeof(Foo));
