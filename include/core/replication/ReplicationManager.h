@@ -178,7 +178,7 @@ public:
         auto ret = get_mempolicy(&ret_numa, NULL, 0, loc, MPOL_F_NODE | MPOL_F_ADDR);
         //numa_move_pages( 0 /*calling process this*/, 0 /* we dont move pages */, reinterpret_cast<void**>(loc), nullptr, &status, 0);
         trace_l(T_DEBUG, "location on ", loc, " is located on node ", ret_numa, ", requested is ", pmemNode);
-        return pmemNode == static_cast<size_t>(status);
+        return pmemNode == static_cast<size_t>(ret_numa);
     }
 
     ReplicationStatus * getStatus(std::string relation, std::string table, std::string attribute)
