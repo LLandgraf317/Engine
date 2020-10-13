@@ -63,6 +63,9 @@ pmem::obj::pool<root> createPool(std::string dir)
 
 int main( void ) {
 
+    numa_available();
+    numa_set_strict(1);
+
     pmem::obj::pool<root> pop0;
     pmem::obj::pool<root> pop1;
 
