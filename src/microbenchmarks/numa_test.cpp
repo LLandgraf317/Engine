@@ -18,6 +18,7 @@ using namespace pmem::obj;
 
 struct Foo {
     p<uint64_t> bar;
+    persistent_ptr<uint64_t[]> foo;
 };
 
 struct root {
@@ -47,6 +48,7 @@ pmem::obj::pool<root> createPool(std::string dir)
         pop = pmem::obj::pool<root>::create(path, "numatest", PMEMOBJ_MIN_POOL, S_IRWXU);
         transaction::run(pop, [&]() {
             pop.root()->foo = make_persistent<Foo>();
+            pop.root()->foo->foo = make_persistent<uint64_t[]>(4096);
         });
     }
     else {
@@ -71,19 +73,20 @@ int main( void ) {
 
     persistent_ptr<Foo> foo0;
     transaction::run(pop0, [&]() {
-        pop0.root()->foo->bar = 0;
+        pop0.root()->foo->bar.get_rw() = 0;
 
         foo0 = make_persistent<Foo>();
-        foo0->bar = 0;
+        foo0->bar.get_rw() = 0;
     });
 
     persistent_ptr<Foo> foo1;
     transaction::run(pop1, [&]() {
-        pop1.root()->foo->bar = 1;
+        pop1.root()->foo->bar.get_rw() = 1;
 
         foo1 = make_persistent<Foo>();
-        foo1->bar = 1;
+        foo1->bar.get_rw() = 1;
     });
+
 
     uint64_t sum = foo1->bar + foo0->bar;
 
