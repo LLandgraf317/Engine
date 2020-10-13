@@ -75,6 +75,7 @@ int main( void ) {
     pop0 = createPool(path0);
     pop1 = createPool(path1);
 
+    numa_run_on_node(0);
     persistent_ptr<Foo> foo0;
     transaction::run(pop0, [&]() {
         pop0.root()->foo->bar.get_rw() = 0;
@@ -88,6 +89,7 @@ int main( void ) {
         ptr[i] = i;
     assert(isLocOnNode(pop0.root()->foo->foo.get(), 0));
 
+    numa_run_on_node(1);
     persistent_ptr<Foo> foo1;
     transaction::run(pop1, [&]() {
         pop1.root()->foo->bar.get_rw() = 1;
@@ -111,6 +113,7 @@ int main( void ) {
     pop1.persist(foo1);
     pop1.flush(foo1);
     pop1.drain();
+    numa_run_on_node(0);
 
     transaction::run(pop0, [&]() {
         foo0->bar = sum;
