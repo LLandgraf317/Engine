@@ -102,6 +102,7 @@ int main( void ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
         return -1;
     }
+    pobj_alloc_class_desc alloc_class;
 
     /*auto allowed_mems = numa_get_mems_allowed();
     auto allowed_cpus = numa_all_cpus_ptr;
@@ -124,11 +125,11 @@ int main( void ) {
     std::vector<persistent_ptr<CLTreeIndex>> trees;
 
     for (uint64_t node = 0; node < node_count; node++) {
-        auto col = generate_sorted_unique_pers((64ul << 20) / sizeof(uint64_t), node);
+        auto col = generate_sorted_unique_pers((8ul << 20) / sizeof(uint64_t), node);
         cols.push_back(col);
-        auto volCol = generate_sorted_unique( (128ul << 20) / sizeof(uint64_t), node);
+        auto volCol = generate_sorted_unique( (32ul << 20) / sizeof(uint64_t), node);
         //assert(repl_manager.isLocOnNode(volCol->get_data(), node));
-        auto largeCol = generate_sorted_unique_pers((128ul << 20) / sizeof(uint64_t), node);
+        auto largeCol = generate_sorted_unique_pers((32ul << 20) / sizeof(uint64_t), node);
         //assert(repl_manager.isLocOnNode(largeCol->get_data(), node));
 
         volCols.push_back(volCol);
