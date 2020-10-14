@@ -51,12 +51,6 @@ public:
 
     ReplTuple(void* ptr, DataStructure ds, uint64_t node) {
         switch (ds) {
-            case PCOLUMN:
-            case PTREE:
-            case PSKIPLIST:
-            case PHASHMAP:
-                m_PPtr = ptr;
-                break;
             default:
                 m_VPtr = ptr;
                 break;
