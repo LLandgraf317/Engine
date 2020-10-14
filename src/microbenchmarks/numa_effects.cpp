@@ -113,7 +113,7 @@ int main( void ) {
 
     auto repl_manager = ReplicationManager::getInstance();
 
-    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 8ul << 30);
+    initializer.initPmemPool(std::string("NVMDSNuma"), std::string("NVMDS"), 32ul << 30);
     const auto node_count = initializer.getNumaNodeCount();
 
     RootManager& root_mgr = RootManager::getInstance();
