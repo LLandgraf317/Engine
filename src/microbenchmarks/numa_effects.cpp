@@ -147,11 +147,10 @@ int main( void ) {
 
     for (uint64_t node = 0; node < node_count; node++) {
         void* addresses[3] = { cols[node]->get_data(), volCols[node]->get_data(), largeCols[node]->get_data() };
-        int status[3] = {0, 0, 0};
 
-        numa_move_pages( 0 /*calling process this*/, 3 /* we dont move pages */, addresses, nullptr, status, 0);
-        for (int i = 0; i < 3; i++)
-            trace_l(T_DEBUG, "location on ", addresses[i], " is located on node ", status[i], ", requested is ", node);
+        for (int i = 0; i < 3; i++) {
+            repl_manager.isLocOnNode(addresses[i], node);
+        }
     }
 
     numa_run_on_node(0);
