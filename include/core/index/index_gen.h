@@ -69,7 +69,7 @@ public:
     static void batchInsert(t_pptr index, const column<uncompr_f> * keyCol, const column<uncompr_f> * valCol)
     {
         RootManager& root_mgr = RootManager::getInstance();
-        size_t pmemNode = index->getPmemNode();
+        size_t pmemNode = index->getNumaNode();
         auto pop = root_mgr.getPop(pmemNode);
 
         auto count_values = keyCol->get_count_values();

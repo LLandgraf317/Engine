@@ -26,7 +26,7 @@
     static void push##classname( persistent_ptr<classname> index ) \
     {                                                       \
         RootManager& root_mgr = RootManager::getInstance(); \
-        auto pop = root_mgr.getPop(index->getPmemNode());   \
+        auto pop = root_mgr.getPop(index->getNumaNode());   \
                                                             \
         pop.root()->popmember->push_back(index);           \
     }                                                       \

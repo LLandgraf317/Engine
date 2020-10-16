@@ -4,6 +4,7 @@
 #include <core/access/NVMStorageManager.h>
 #include <core/storage/PersistentColumn.h>
 #include <core/storage/column_gen.h>
+#include <core/storage/column.h>
 
 #include <core/index/index_gen.h>
 #include <core/index/IndexDef.h>
@@ -109,20 +110,35 @@ public:
         return false;
     }
 
+    using VColumn = morphstore::column<uncompr_f>;
+
 #define PGET(index_structure, structure_enum) \
-    persistent_ptr<index_structure> get##index_structure() \
+    persistent_ptr<index_structure> get##index_structure(size_t numa_node) \
     { \
         for (auto i : replication) \
-            if (i.m_Kind == structure_enum) { \
+            if (i.m_Kind == structure_enum && i.m_NumaNode == numa_node) { \
                 return static_cast<persistent_ptr<index_structure>>(i.m_PPtr); \
             } \
         return nullptr; \
     } 
 
+#define VGET(index_structure, structure_enum) \
+    index_structure* get##index_structure(size_t numa_node) \
+    { \
+        for (auto i : replication) \
+            if (i.m_Kind == structure_enum && i.m_NumaNode == numa_node) { \
+                return reinterpret_cast<index_structure*>(i.m_VPtr); \
+            } \
+        return nullptr; \
+    } 
+
+    VGET(VColumn, VCOLUMN)
+
     PGET(MultiValTreeIndex, PTREE);
     PGET(HashMapIndex, PHASHMAP);
     PGET(SkipListIndex, PSKIPLIST);
     PGET(PersistentColumn, PCOLUMN);
+
 
     bool containsIndex()
     {
@@ -143,10 +159,10 @@ public:
 };
 
 
-template<class index_structure>
+template<class index_structure_ptr>
 struct ReplCreateIndexArgs {
     uint64_t node;
-    pptr<index_structure> index;
+    index_structure_ptr index;
     pptr<PersistentColumn> valCol;
 };
 
@@ -156,13 +172,13 @@ struct repl_thread_info {
 };
 
 // Threading infrastructure of replication manager
-template< class index_structure>
+template< class index_structure_ptr>
 void * generateIndex( void * argPtr )
 {
-    ReplCreateIndexArgs<index_structure> * indexArgs = (ReplCreateIndexArgs<index_structure>*) argPtr;
+    ReplCreateIndexArgs<index_structure_ptr> * indexArgs = (ReplCreateIndexArgs<index_structure_ptr>*) argPtr;
 
     numa_run_on_node(indexArgs->node);
-    IndexGen::generateFast<pptr<index_structure>, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
+    IndexGen::generateFast<index_structure_ptr, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
 
     RootManager& root_mgr = RootManager::getInstance();
     root_mgr.drainAll();
@@ -202,7 +218,7 @@ public:
     void insert(persistent_ptr<index_structure> index) \
     { \
         auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
-        status->add< persistent_ptr<index_structure> >(index, structure_enum, index->getPmemNode()); \
+        status->add< persistent_ptr<index_structure> >(index, structure_enum, index->getNumaNode()); \
     } \
     \
     template<typename ...Args> \
@@ -215,17 +231,47 @@ public:
             index = make_persistent<index_structure>(args... ); \
         }); \
       \
-        ReplCreateIndexArgs<index_structure>* threadArgs = new ReplCreateIndexArgs<index_structure>(); \
+        ReplCreateIndexArgs<persistent_ptr<index_structure>>* threadArgs = new ReplCreateIndexArgs<persistent_ptr<index_structure>>(); \
         threadArgs->node = numa_node; \
         threadArgs->index = index; \
         threadArgs->valCol = valCol; \
       \
         repl_thread_info * info = new repl_thread_info(); \
-        pthread_create(&info->thread_id, nullptr, generateIndex<index_structure>, threadArgs); \
+        pthread_create(&info->thread_id, nullptr, generateIndex<persistent_ptr<index_structure>>, threadArgs); \
         thread_infos.push_back(info); \
       \
         return index; \
     } 
+
+#define VINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
+    void insert(index_structure * index) \
+    { \
+        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
+        status->add< index_structure* >(index, structure_enum, index->getNumaNode()); \
+    } \
+    \
+    template<typename ...Args> \
+    index_structure* construct##index_structure##Async(size_t numa_node, persistent_ptr<PersistentColumn> valCol, Args... args) \
+    { \
+        index_structure* index; \
+      \
+        auto pop = RootManager::getInstance().getPop(numa_node); \
+        index = new (general_memory_manager::get_instance().allocateNuma(sizeof(index_structure), numa_node)) index_structure(args... ); \
+      \
+        ReplCreateIndexArgs<index_structure*>* threadArgs = new ReplCreateIndexArgs<index_structure*>(); \
+        threadArgs->node = numa_node; \
+        threadArgs->index = index; \
+        threadArgs->valCol = valCol; \
+      \
+        repl_thread_info * info = new repl_thread_info(); \
+        pthread_create(&info->thread_id, nullptr, generateIndex<index_structure*>, threadArgs); \
+        thread_infos.push_back(info); \
+      \
+        return index; \
+    } 
+
+    using VColumn = column<uncompr_f>;
+    VINSERT_AND_CONSTRUCT(VColumn, DataStructure::VCOLUMN)
 
     PINSERT_AND_CONSTRUCT(MultiValTreeIndex, DataStructure::PTREE)
     PINSERT_AND_CONSTRUCT(SkipListIndex, DataStructure::PSKIPLIST)
@@ -241,13 +287,16 @@ public:
         auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
 
         for (size_t node = 0; node < node_number; node++) {
-            if (col->getPmemNode() != node) {
-                auto newCol = copy_column_to_node(col, node);
+            if (col->getNumaNode() != node) {
+                auto newCol = copy_persistent_column_to_node(col, node);
                 status->add(newCol, DataStructure::PCOLUMN, node);
             }
             else {
                 status->add(col, DataStructure::PCOLUMN, node);
             }
+            auto vcol = copy_volatile_column_to_node(col, node);
+            status->add(vcol, DataStructure::VCOLUMN, node);
+
             auto tree = constructMultiValTreeIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
             auto hash = constructHashMapIndexAsync(node, col, /*distict key count*/ tree->getKeyCount(), node, col->getRelation(), col->getTable(), col->getAttribute());
             auto skip = constructSkipListIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
@@ -305,19 +354,19 @@ public:
         for (uint64_t node = 0; node < m_NumaNodeCount; node++) {
             for (auto i : NVMStorageManager::getPersistentColumns(node)) {
                 auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
-                status->add(i, DataStructure::PCOLUMN, i->getPmemNode());
+                status->add(i, DataStructure::PCOLUMN, i->getNumaNode());
             }
             for (auto i : NVMStorageManager::getHashMapIndexs(node)) {
                 auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
-                status->add(i, DataStructure::PHASHMAP, i->getPmemNode());
+                status->add(i, DataStructure::PHASHMAP, i->getNumaNode());
             }
             for (auto i : NVMStorageManager::getSkipListIndexs(node)) {
                 auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
-                status->add(i, DataStructure::PSKIPLIST, i->getPmemNode());
+                status->add(i, DataStructure::PSKIPLIST, i->getNumaNode());
             }
             for (auto i : NVMStorageManager::getMultiValTreeIndexs(node)) {
                 auto status = getStatusOrNew(i->getRelation(), i->getTable(), i->getAttribute());
-                status->add(i, DataStructure::PTREE, i->getPmemNode());
+                status->add(i, DataStructure::PTREE, i->getNumaNode());
             }
         }
     }

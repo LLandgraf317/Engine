@@ -78,7 +78,7 @@ public:
         return m_CountTuples;
     }
 
-    size_t getPmemNode()
+    size_t getNumaNode()
     {
         return m_PmemNode;
     }

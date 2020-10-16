@@ -108,7 +108,7 @@ public:
         return std::string(m_Attribute.get());
     }
 
-    size_t getPmemNode()
+    size_t getNumaNode()
     {
         return m_PmemNode;
     }

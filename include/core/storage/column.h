@@ -112,6 +112,9 @@ class column {
       
    private:
       column_meta_data m_MetaData;
+      std::string m_Relation;
+      std::string m_Table;
+      std::string m_Attribute;
 #ifdef MSV_NO_SELFMANAGED_MEMORY
       void * m_DataUnaligned;
 #endif
@@ -151,6 +154,41 @@ class column {
       }
 
    public:
+    std::string getTable()
+    {
+        return m_Table;
+    }
+
+    void setTable(std::string table)
+    {
+        m_Table = table;
+    }
+
+    std::string getRelation()
+    {
+        return m_Relation;
+    }
+
+    void setRelation(std::string relation)
+    {
+        m_Relation = relation;
+    }
+
+    std::string getAttribute()
+    {
+        return m_Attribute;
+    }
+
+    void setAttribute(std::string attribute)
+    {
+        m_Attribute = attribute;
+    }
+
+    size_t getNumaNode()
+    {
+        return m_NumaNode;
+    }
+
       inline voidptr_t get_data( void ) const {
          return m_Data;
       }
