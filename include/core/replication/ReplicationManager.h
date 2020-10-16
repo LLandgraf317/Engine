@@ -52,12 +52,6 @@ public:
 
     ReplTuple(void* ptr, DataStructure ds, uint64_t node) {
         switch (ds) {
-            case PCOLUMN:
-            case PTREE:
-            case PSKIPLIST:
-            case PHASHMAP:
-                m_PPtr = ptr;
-                break;
             default:
                 m_VPtr = ptr;
                 break;
@@ -194,6 +188,7 @@ class ReplicationManager {
     std::vector<ReplicationStatus> state;
 
     std::list<repl_thread_info*> thread_infos;
+    pobj_alloc_class_desc alloc_class;
 
 public:
     static ReplicationManager& getInstance()
@@ -297,7 +292,7 @@ public:
             auto vcol = copy_volatile_column_to_node(col, node);
             status->add(vcol, DataStructure::VCOLUMN, node);
 
-            auto tree = constructMultiValTreeIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
+            auto tree = constructMultiValTreeIndexAsync(node, col, node, alloc_class, col->getRelation(), col->getTable(), col->getAttribute());
             auto hash = constructHashMapIndexAsync(node, col, /*distict key count*/ tree->getKeyCount(), node, col->getRelation(), col->getTable(), col->getAttribute());
             auto skip = constructSkipListIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
 
