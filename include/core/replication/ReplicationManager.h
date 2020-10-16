@@ -9,6 +9,7 @@
 #include <core/index/index_gen.h>
 #include <core/index/IndexDef.h>
 #include <core/tracing/trace.h>
+#include <core/operators/scalar/group_uncompr.h>
 
 #include <libpmempool.h>
 #include <libpmemobj++/make_persistent.hpp>
@@ -90,9 +91,19 @@ public:
     {
     }
 
+    std::string getRelation() { return m_Relation; }
+
+    std::string getTable() { return m_Table; }
+
+    std::string getAttribute() { return m_Attribute; }
+
     bool compare(std::string relation, std::string table, std::string attribute)
     {
-        return relation.compare(m_Relation) == 0 && table.compare(m_Table) == 0 && attribute.compare(m_Attribute);
+        trace_l(T_DEBUG, "Comparing ", relation, ", ", table, ", ", attribute);
+        trace_l(T_DEBUG, "and ", m_Relation, ", ", m_Table, ", ", m_Attribute);
+        trace_l(T_DEBUG, "Results: ", relation.compare(m_Relation), ", ", table.compare(m_Table), ", ", attribute.compare(m_Attribute));
+
+        return relation.compare(m_Relation) == 0 && table.compare(m_Table) == 0 && attribute.compare(m_Attribute) == 0;
     }
 
     bool contains(DataStructure kind)
@@ -274,12 +285,24 @@ public:
     PINSERT_AND_CONSTRUCT(PersistentColumn, DataStructure::PCOLUMN)
 
 
+    using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     void constructAll( persistent_ptr<PersistentColumn> col )
     {
         auto initializer = RootInitializer::getInstance();
         const auto node_number = initializer.getNumaNodeCount();
 
         auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
+        assert(status != nullptr);
+
+        const column<uncompr_f> * conv = col->convert();
+
+        auto tuple = group<ps, uncompr_f, uncompr_f, uncompr_f>(nullptr, conv);
+
+        size_t distinct_key_count = std::get<1>(tuple)->get_count_values();
+
+        delete conv;
+        delete std::get<0>(tuple);  
+        delete std::get<1>(tuple);  
 
         for (size_t node = 0; node < node_number; node++) {
             if (col->getNumaNode() != node) {
@@ -293,7 +316,7 @@ public:
             status->add(vcol, DataStructure::VCOLUMN, node);
 
             auto tree = constructMultiValTreeIndexAsync(node, col, node, alloc_class, col->getRelation(), col->getTable(), col->getAttribute());
-            auto hash = constructHashMapIndexAsync(node, col, /*distict key count*/ tree->getKeyCount(), node, col->getRelation(), col->getTable(), col->getAttribute());
+            auto hash = constructHashMapIndexAsync(node, col, distinct_key_count, node, col->getRelation(), col->getTable(), col->getAttribute());
             auto skip = constructSkipListIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
 
             insert(tree);

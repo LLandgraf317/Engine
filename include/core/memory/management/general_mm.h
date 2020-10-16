@@ -44,6 +44,7 @@
 #include <numa.h>
 #include <numaif.h>
 
+#include <core/tracing/trace.h>
 #include <core/memory/management/utils/memory_bin_handler.h>
 
 /*using pmem::obj::pool;
