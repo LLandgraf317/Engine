@@ -48,7 +48,7 @@ int main( void ) {
     col->setTable("repltest");
     col->setAttribute("attribute");
 
-    const column<uncompr_f> * initCol = col->convert();
+    //const column<uncompr_f> * initCol = col->convert();
 
     repl_inst.constructAll(col);
     repl_inst.joinAllThreads();
@@ -57,6 +57,7 @@ int main( void ) {
     assert(status != nullptr);
 
     for (size_t node = 0; node < node_number; node++) {
+        std::cout << "Running on Node " << node << std::endl;
         auto pcol  = status->getPersistentColumn(node);
         auto ptree = status->getMultiValTreeIndex(node);
         auto phash = status->getHashMapIndex(node);
@@ -71,13 +72,35 @@ int main( void ) {
             (pskip, 0);
 
        
-        auto first = equality_check(initCol, colRes); 
-        auto second = equality_check(initCol, treeRes);
-        auto third = equality_check(initCol, skipRes);
-        auto fourth = equality_check(initCol, hashRes);
+        uint64_t * data = colRes->get_data(); 
+        std::sort(data, data + colRes->get_count_values());
+
+        uint64_t * hashdata = hashRes->get_data(); 
+        std::sort(hashdata, hashdata + colRes->get_count_values());
+        
+        uint64_t * skipdata = skipRes->get_data(); 
+        std::sort(skipdata, skipdata + colRes->get_count_values());
+
+        uint64_t * treedata = treeRes->get_data(); 
+        std::sort(treedata, treedata + colRes->get_count_values());
+
+        for (uint64_t i = 0; i < colRes->get_count_values(); i++) {
+            if (data[i] != hashdata[i] || data[i] != treedata[i] || data[i] != skipdata[i])
+                std::cout << "NOT_EQUAL";
+            std::cout << data[i] << ", " << hashdata[i] << ", " << treedata[i] << ", " << skipdata[i] << std::endl;
+        }
+
+        std::cout << "Count values " << colRes->get_count_values() << ", " << treeRes->get_count_values() << ", " << hashRes->get_count_values() << ", " << skipRes->get_count_values() << std::endl;
+       
+        auto first = equality_check(colRes, treeRes); 
+        auto third = equality_check(colRes, skipRes);
+        auto fourth = equality_check(colRes, hashRes);
+
+        std::cout << first << std::endl;
+        std::cout << third << std::endl;
+        std::cout << fourth << std::endl;
 
         assert(first.good());
-        assert(second.good());
         assert(third.good());
         assert(fourth.good());
 
