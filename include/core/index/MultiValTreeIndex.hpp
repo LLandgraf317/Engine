@@ -8,8 +8,11 @@
 #include <libpmemobj++/make_persistent.hpp>
 #include <libpmemobj++/make_persistent_atomic.hpp>
 #include <libpmemobj++/p.hpp>
+#include <libpmemobj++/pool.hpp>
 
 namespace morphstore {
+
+using namespace pmem::obj;
 
 template<uint64_t t_bucket_size = OSP_SIZE>
 class PTreeIndex {

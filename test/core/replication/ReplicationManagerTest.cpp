@@ -106,5 +106,7 @@ int main( void ) {
 
     }
 
+    initializer.cleanUp();
+
     return 0;
 }

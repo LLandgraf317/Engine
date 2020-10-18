@@ -134,7 +134,7 @@ public:
     void cleanUp()
     {
         for (uint64_t node = 0; node < getNumaNodeCount(); node++)
-            remove( (m_PmemPath + std::to_string(node) + "/morphstore/" + m_FileName).c_str() );
+            remove( (getDirectory(node) + m_FileName).c_str() );
 
     }
 

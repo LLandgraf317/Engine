@@ -117,4 +117,12 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     target_link_libraries(
         numa_test PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
+    add_executable( nvmds_selectivity nvmds_selectivity.cc)
+    target_compile_options( nvmds_selectivity PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        nvmds_selectivity PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+   
+
 endif( BUILD_ALL OR BUILD_MICROBMS )
