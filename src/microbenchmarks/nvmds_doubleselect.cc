@@ -26,6 +26,12 @@ using namespace vectorlib;
 
 using ps = scalar<v64<uint64_t>>;
 
+char const * RELATION = "sel2";
+char const * TABLE = "distr";
+char const * X = "x";
+char const * Y = "y";
+char const * Z = "z";
+
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
 class Main {
@@ -61,19 +67,19 @@ public:
         }
 
         auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
-        xCol->setRelation("sel");
-        xCol->setTable("distr");
-        xCol->setAttribute("x");
+        xCol->setRelation(RELATION);
+        xCol->setTable(TABLE);
+        xCol->setAttribute(X);
 
         auto yCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0);
-        yCol->setRelation("sel");
-        yCol->setTable("distr");
-        yCol->setAttribute("y");
+        yCol->setRelation(RELATION);
+        yCol->setTable(TABLE);
+        yCol->setAttribute(Y);
 
         auto zCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_z, 0);
-        zCol->setRelation("sel");
-        zCol->setTable("distr");
-        zCol->setAttribute("z");
+        zCol->setRelation(RELATION);
+        zCol->setTable(TABLE);
+        zCol->setAttribute(Z);
 
         repl_mgr.constructAll(xCol);
         repl_mgr.constructAll(yCol);
@@ -184,9 +190,9 @@ public:
         auto initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
-        auto zStatus = repl_mgr.getStatus("sel", "distr", "z");
-        auto yStatus = repl_mgr.getStatus("sel", "distr", "y");
-        auto xStatus = repl_mgr.getStatus("sel", "distr", "x");
+        auto zStatus = repl_mgr.getStatus(RELATION, TABLE, Z);
+        auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y);
+        auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
         std::cout << "Column Size,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
 
         numa_run_on_node(0);
