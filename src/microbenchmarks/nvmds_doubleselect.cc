@@ -36,34 +36,39 @@ constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
 class Main {
 public:
-    static Main & getInstance() {
+    /*static Main & getInstance() {
         static Main instance;
         return instance;
-    }
+    }*/
 
     const unsigned MAX_SEL_X = 999;
     const unsigned MAX_SEL_Y = 10;
     const unsigned MAX_SEL_Z = 10;
 
+    Main() : repl_mgr(ReplicationManager::getInstance())
+    {
+    }
+
+    ReplicationManager & repl_mgr;
+
     void initData() {
-        auto repl_mgr = ReplicationManager::getInstance();
 
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
-            trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_X - i + 2));
+            //trace_l(T_DEBUG, "Inserting in X Distr: key ", i, ", share is ", pow(0.5f, MAX_SEL_X - i + 2));
             sel_distr_x.push_back(sel_and_val(0.001f, i));
         }
 
         std::vector<sel_and_val> sel_distr_y;
         for (unsigned i = 1; i < MAX_SEL_Y + 1; i++) {
-            trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_Y - i + 2));
+            //trace_l(T_DEBUG, "Inserting in Y Distr: key ", i, ", share is ", pow(0.5f, MAX_SEL_Y - i + 2));
             sel_distr_y.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
         }
 
         std::vector<sel_and_val> sel_distr_z;
         for (unsigned i = 1; i < MAX_SEL_Z + 1; i++) {
-            trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_Z - i + 2));
-            sel_distr_y.push_back(sel_and_val(pow(0.5f, MAX_SEL_Z - i + 2 ) , i));
+            trace_l(T_DEBUG, "Inserting in Z Distr: key ", i, ", share is ", pow(0.5f, MAX_SEL_Z - i + 2));
+            sel_distr_z.push_back(sel_and_val(pow(0.5f, MAX_SEL_Z - i + 2 ) , i));
         }
 
         auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
@@ -114,7 +119,12 @@ public:
 
     void printColumnSize()
     {
-        std::cout << COLUMN_SIZE;
+        std::cout << ARRAY_SIZE;
+    }
+
+    void printNode(size_t node)
+    {
+        std::cout << node;
     }
 
     void printSelectivity(persistent_ptr<MultiValTreeIndex> tree, const uint64_t val)
@@ -186,14 +196,14 @@ public:
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto repl_mgr = ReplicationManager::getInstance();
+        //auto repl_mgr = ReplicationManager::getInstance();
         auto initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
+        std::cout << "Column Size in tuples,Selectivity,Node,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         auto zStatus = repl_mgr.getStatus(RELATION, TABLE, Z);
         auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y);
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
-        std::cout << "Column Size,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
 
         numa_run_on_node(0);
 
@@ -209,21 +219,25 @@ public:
 
             const uint64_t val2 = 2;
 
-            for (size_t val = 1; val < MAX_SEL_Y; val++) {
-                printColumnSize();
-                comma();
-                printSelectivity(yTree, val);
-                comma();
-                runCol  (xCol, yVCol, zTree, val, val2);
-                comma();
-                runCol  (xCol, yPCol, zTree, val, val2);
-                comma();
-                runIndex(xCol, yTree, zTree, val, val2); 
-                comma();
-                runIndex(xCol, yHash, zTree, val, val2);
-                comma();
-                runIndex(xCol, ySkip, zTree, val, val2);
-                nextCsvRow();
+            for (uint64_t iterations = 0; iterations < 20; iterations++) {
+                for (size_t val = 1; val < MAX_SEL_Y; val++) {
+                    printColumnSize();
+                    comma();
+                    printSelectivity(yTree, val);
+                    comma();
+                    printNode(node);
+                    comma();
+                    runCol  (xCol, yVCol, zTree, val, val2);
+                    comma();
+                    runCol  (xCol, yPCol, zTree, val, val2);
+                    comma();
+                    runIndex(xCol, yTree, zTree, val, val2); 
+                    comma();
+                    runIndex(xCol, yHash, zTree, val, val2);
+                    comma();
+                    runIndex(xCol, ySkip, zTree, val, val2);
+                    nextCsvRow();
+                }
             }
 
             delete xCol;
@@ -236,6 +250,7 @@ public:
 int main( void ) {
     // Setup phase: figure out node configuration
     auto initializer = RootInitializer::getInstance();
+    ReplicationManager::getInstance();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
@@ -243,7 +258,7 @@ int main( void ) {
     }
     initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
 
-    auto prog = Main::getInstance();
+    Main prog;
     prog.initData();
     prog.main();
 

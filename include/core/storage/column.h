@@ -150,7 +150,7 @@ class column {
       {
           //trace_l(T_DEBUG, "Allocated on numa_node ", numa_node);
           if (m_DataUnaligned == nullptr)
-              trace_l(T_DEBUG, "Warning: data is null");
+              trace_l(T_DEBUG, "Tried to allocate column with size ", p_SizeAllocatedByte, ", Warning: data is null");
       }
 
    public:

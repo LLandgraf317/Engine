@@ -96,6 +96,7 @@ column<uncompr_f> * copy_volatile_column_to_node(pmem::obj::persistent_ptr<Persi
     uint64_t * const res = resCol->get_data();
     //transaction::run(pop, [&]() {
     pop.memcpy_persist(res, col->get_data(), target_size);
+    resCol->set_meta_data(col->get_count_values(), target_size);
 
     return resCol;
 }
@@ -120,6 +121,7 @@ pmem::obj::persistent_ptr<PersistentColumn> copy_persistent_column_to_node(pmem:
     uint64_t * const res = resCol->get_data();
     //transaction::run(pop, [&]() {
     pop.memcpy_persist(res, col->get_data(), target_size);
+    resCol->set_meta_data(col->get_count_values(), target_size);
 
     return resCol;
 }
@@ -315,6 +317,7 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_share_vector_pers(
         if (cumulative_count > total_tuple_count)
             throw new std::runtime_error("Floating point error");
 
+        trace_l(T_DEBUG, "Inserting ", i.attr_value, " for ", count, "tuples");
         for (size_t j = 0; j < count; j++) {
             *value_pos = i.attr_value;
             value_pos++;

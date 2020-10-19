@@ -140,6 +140,7 @@ struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structu
         auto bucket_lists_list = inDataIndex->find(key);
 
         if (bucket_lists_list == nullptr) {
+            trace_l(T_DEBUG, "Warning: did not find any results for key ", key);
             auto col = new column<uncompr_f>(0);
             col->set_meta_data(0, 0);
             return col;

@@ -127,12 +127,13 @@ struct my_select_wit_t {
         // @todo Due to the input column's uncompressed rest part, we might
         // actually need more space, if the input column is the product of some
         // other query operator.
+        trace_l(T_DEBUG, "outPosCountEstimate ", outPosCountEstimate, ", inDataCountLog ", inDataCountLog);
         auto outPosCol = new column<t_out_pos_f>(
                 bool(outPosCountEstimate)
                 // use given estimate
                 ? get_size_max_byte_any_len<t_out_pos_f>(outPosCountEstimate)
                 // use pessimistic estimate
-                : get_size_max_byte_any_len<t_out_pos_f>(inDataCountLog)
+                : get_size_max_byte_any_len<t_out_pos_f>(inDataCountLog), 0
         );
         uint8_t * outPos = outPosCol->get_data();
         const uint8_t * const initOutPos = outPos;
