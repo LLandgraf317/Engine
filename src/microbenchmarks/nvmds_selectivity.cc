@@ -34,16 +34,16 @@ constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
 class Main {
 public:
-    static Main & getInstance() {
-        static Main instance;
-        return instance;
+    Main() : repl_mgr(ReplicationManager::getInstance())
+    {
     }
+
+    ReplicationManager & repl_mgr;
 
     const unsigned MAX_SEL_X = 999;
     const unsigned MAX_SEL_Y = 10;
 
     void initData() {
-        auto repl_mgr = ReplicationManager::getInstance();
 
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
@@ -156,7 +156,6 @@ public:
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto repl_mgr = ReplicationManager::getInstance();
         auto initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
@@ -207,7 +206,7 @@ int main( void ) {
     }
     initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
 
-    auto prog = Main::getInstance();
+    Main prog;
     prog.initData();
     prog.main();
 
