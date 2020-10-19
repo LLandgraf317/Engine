@@ -15,6 +15,7 @@
 
 #include <core/utils/measure.h>
 
+#include <numa.h>
 #include <vector>
 
 using namespace morphstore;
@@ -156,6 +157,7 @@ public:
         auto yStatus = repl_mgr.getStatus("sel", "distr", "y");
         auto xStatus = repl_mgr.getStatus("sel", "distr", "x");
         std::cout << "Column Size,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
+        numa_run_on_node(0);
 
         for (size_t node = 0; node < node_number; node++) {
             auto xCol = xStatus->getPersistentColumn(node)->convert();

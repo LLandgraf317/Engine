@@ -99,9 +99,9 @@ public:
 
     bool compare(std::string relation, std::string table, std::string attribute)
     {
-        trace_l(T_DEBUG, "Comparing ", relation, ", ", table, ", ", attribute);
+        /*trace_l(T_DEBUG, "Comparing ", relation, ", ", table, ", ", attribute);
         trace_l(T_DEBUG, "and ", m_Relation, ", ", m_Table, ", ", m_Attribute);
-        trace_l(T_DEBUG, "Results: ", relation.compare(m_Relation), ", ", table.compare(m_Table), ", ", attribute.compare(m_Attribute));
+        trace_l(T_DEBUG, "Results: ", relation.compare(m_Relation), ", ", table.compare(m_Table), ", ", attribute.compare(m_Attribute));*/
 
         return relation.compare(m_Relation) == 0 && table.compare(m_Table) == 0 && attribute.compare(m_Attribute) == 0;
     }
