@@ -172,21 +172,23 @@ public:
             auto yPCol = yStatus->getPersistentColumn(node)->convert();
             auto yVCol = yStatus->getVColumn(node);
 
-            for (size_t val = 1; val < MAX_SEL_Y; val++) {
-                printColumnSize();
-                comma();
-                printSelectivity(yTree, val);
-                comma();
-                runCol  (xCol, yVCol, val);
-                comma();
-                runCol  (xCol, yPCol, val);
-                comma();
-                runIndex(xCol, yTree, val); 
-                comma();
-                runIndex(xCol, yHash, val);
-                comma();
-                runIndex(xCol, ySkip, val);
-                nextCsvRow();
+            for (uint64_t iterations = 0; iterations < 20; iterations++) {
+                for (size_t val = 1; val < MAX_SEL_Y; val++) {
+                    printColumnSize();
+                    comma();
+                    printSelectivity(yTree, val);
+                    comma();
+                    runCol  (xCol, yVCol, val);
+                    comma();
+                    runCol  (xCol, yPCol, val);
+                    comma();
+                    runIndex(xCol, yTree, val); 
+                    comma();
+                    runIndex(xCol, yHash, val);
+                    comma();
+                    runIndex(xCol, ySkip, val);
+                    nextCsvRow();
+                }
             }
 
             delete xCol;
