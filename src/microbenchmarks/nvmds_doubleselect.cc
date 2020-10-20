@@ -144,8 +144,9 @@ public:
 
     // Select sum(x) from r where y = c and z = b
     template< typename index_structure_ptr >
-    void runIndex(const column<uncompr_f> * xCol, index_structure_ptr yIndex, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2)
+    void runIndex(const column<uncompr_f> * xCol, index_structure_ptr yIndex, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2, size_t runnode1, size_t runnode2)
     {
+        numa_run_on_node(runnode1);
         start();
         auto select1 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
@@ -155,8 +156,8 @@ public:
                 ::apply( zTree, selection2);
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
+        numa_run_on_node(runnode2);
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
-
         auto res = agg_sum<ps, uncompr_f>(projection);
         end();
         outCsv();
@@ -169,8 +170,9 @@ public:
     }
 
     template< typename col_ptr >
-    void runCol(const column<uncompr_f> * xCol, col_ptr zCol, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2)
+    void runCol(const column<uncompr_f> * xCol, col_ptr zCol, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2, size_t runnode1, size_t runnode2)
     {
+        numa_run_on_node(runnode1);
         start();
         auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
                 ::apply( zCol, selection1);
@@ -181,6 +183,7 @@ public:
                 ::apply( zTree, selection2);
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
+        numa_run_on_node(runnode2);
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
         auto res = agg_sum<ps, uncompr_f>(projection);
 
@@ -227,15 +230,15 @@ public:
                     comma();
                     printNode(node);
                     comma();
-                    runCol  (xCol, yVCol, zTree, val, val2);
+                    runCol  (xCol, yVCol, zTree, val, val2, 0, 0);
                     comma();
-                    runCol  (xCol, yPCol, zTree, val, val2);
+                    runCol  (xCol, yPCol, zTree, val, val2, 0, 0);
                     comma();
-                    runIndex(xCol, yTree, zTree, val, val2); 
+                    runIndex(xCol, yTree, zTree, val, val2, 0, 0); 
                     comma();
-                    runIndex(xCol, yHash, zTree, val, val2);
+                    runIndex(xCol, yHash, zTree, val, val2, 0, 0);
                     comma();
-                    runIndex(xCol, ySkip, zTree, val, val2);
+                    runIndex(xCol, ySkip, zTree, val, val2, 0, 0);
                     nextCsvRow();
                 }
             }
@@ -243,6 +246,43 @@ public:
             delete xCol;
             delete yPCol;
         }
+
+        // Mixed node workload
+        auto xCol = xStatus->getPersistentColumn(0)->convert();
+        auto zTree = zStatus->getMultiValTreeIndex(1);
+
+        auto yTree = yStatus->getMultiValTreeIndex(1);
+        auto yHash = yStatus->getHashMapIndex(1);
+        auto ySkip = yStatus->getSkipListIndex(1);
+        auto yPCol = yStatus->getPersistentColumn(1)->convert();
+        auto yVCol = yStatus->getVColumn(1);
+
+        const uint64_t val2 = 2;
+
+        for (uint64_t iterations = 0; iterations < 20; iterations++) {
+            for (size_t val = 1; val < MAX_SEL_Y; val++) {
+                printColumnSize();
+                comma();
+                printSelectivity(yTree, val);
+                comma();
+                printNode(3);
+                comma();
+                runCol  (xCol, yVCol, zTree, val, val2, 1, 0);
+                comma();
+                runCol  (xCol, yPCol, zTree, val, val2, 1, 0);
+                comma();
+                runIndex(xCol, yTree, zTree, val, val2, 1, 0); 
+                comma();
+                runIndex(xCol, yHash, zTree, val, val2, 1, 0);
+                comma();
+                runIndex(xCol, ySkip, zTree, val, val2, 1, 0);
+                nextCsvRow();
+            }
+        }
+
+        delete xCol;
+        delete yPCol;
+        
     }
 
 };
