@@ -302,6 +302,8 @@ public:
             for (size_t val = 1; val < MAX_SEL_Y; val++) {
                 printColumnSize();
                 comma();
+                printUnit();
+                comma();
                 printSelectivity(yTree, val);
                 comma();
                 printNode(3);
