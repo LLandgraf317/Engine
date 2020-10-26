@@ -109,7 +109,12 @@ public:
     {
         std::chrono::duration<double> dur = endtime - starttime;
 
-        std::cout << 1.0f/dur.count();
+        std::cout << dur.count();
+    }
+
+    void printUnit()
+    {
+        std::cout << "seconds";
     }
 
     void comma()
@@ -170,7 +175,35 @@ public:
     }
 
     template< typename col_ptr >
-    void runCol(const column<uncompr_f> * xCol, col_ptr zCol, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2, size_t runnode1, size_t runnode2)
+    void runCol(const column<uncompr_f> * xCol, col_ptr yCol, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2, size_t runnode1, size_t runnode2)
+    {
+        numa_run_on_node(runnode1);
+        start();
+        auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
+                ::apply( zCol, selection1);
+        /*auto select2 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
+                ::apply( col, selection2);*/
+        auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
+            persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
+                ::apply( zTree, selection2);
+        auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
+
+        numa_run_on_node(runnode2);
+        auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
+        auto res = agg_sum<ps, uncompr_f>(projection);
+
+        end();
+        outCsv();
+
+        delete select1;
+        delete select2;
+        delete intersect;
+        delete projection;
+        delete res;
+    }
+
+    template< typename col_ptr >
+    void runColCol(const column<uncompr_f> * xCol, col_ptr yCol, col_ptr yCol, const uint64_t selection1, const uint64_t selection2, size_t runnode1, size_t runnode2)
     {
         numa_run_on_node(runnode1);
         start();
@@ -203,7 +236,7 @@ public:
         auto initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
-        std::cout << "Column Size in tuples,Selectivity,Node,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
+        std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         auto zStatus = repl_mgr.getStatus(RELATION, TABLE, Z);
         auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y);
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
@@ -213,6 +246,7 @@ public:
         for (size_t node = 0; node < node_number; node++) {
             auto xCol = xStatus->getPersistentColumn(node)->convert();
             auto zTree = zStatus->getMultiValTreeIndex(node);
+            auto zPCol = zStatus->getPersistentColumn(node)->convert();
 
             auto yTree = yStatus->getMultiValTreeIndex(node);
             auto yHash = yStatus->getHashMapIndex(node);
@@ -225,6 +259,8 @@ public:
             for (uint64_t iterations = 0; iterations < 20; iterations++) {
                 for (size_t val = 1; val < MAX_SEL_Y; val++) {
                     printColumnSize();
+                    comma();
+                    printUnit();
                     comma();
                     printSelectivity(yTree, val);
                     comma();
@@ -239,12 +275,15 @@ public:
                     runIndex(xCol, yHash, zTree, val, val2, 0, 0);
                     comma();
                     runIndex(xCol, ySkip, zTree, val, val2, 0, 0);
+                    comma();
+                    runCol  (xCol, yPCol, zPCol, val, val2, 0, 0);
                     nextCsvRow();
                 }
             }
 
             delete xCol;
             delete yPCol;
+            delete zPCol;
         }
 
         // Mixed node workload

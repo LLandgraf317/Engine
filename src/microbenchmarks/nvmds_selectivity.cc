@@ -90,7 +90,12 @@ public:
     {
         std::chrono::duration<double> dur = endtime - starttime;
 
-        std::cout << 1.0f/dur.count();
+        std::cout << dur.count();
+    }
+
+    void printUnit()
+    {
+        std::cout << "seconds";
     }
 
     void comma()
@@ -170,7 +175,7 @@ public:
 
         auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y);
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
-        std::cout << "Column Size in Tuples,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
+        std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
 
         for (size_t node = 0; node < node_number; node++) {
@@ -184,6 +189,8 @@ public:
             for (uint64_t iterations = 0; iterations < 20; iterations++) {
                 for (size_t val = 1; val < MAX_SEL_Y; val++) {
                     printColumnSize();
+                    comma();
+                    printUnit();
                     comma();
                     printSelectivity(yTree, val);
                     comma();
