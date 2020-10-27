@@ -175,26 +175,24 @@ public:
             auto xVCol = xStatus->getVColumn(node);
 
             for (uint64_t iterations = 0; iterations < 20; iterations++) {
-                for (size_t val = 1; val < MAX_SEL_Y; val++) {
-                    printColumnSize();
-                    comma();
-                    printUnit();
-                    comma();
-                    printSelectivity();
-                    comma();
-                    printNode(node);
-                    comma();
-                    runCol  (xVCol, 0);
-                    comma();
-                    runCol  (xPCol, 0);
-                    comma();
-                    runIndex(xTree, 0); 
-                    comma();
-                    runIndex(xHash, 0);
-                    comma();
-                    runIndex(xSkip, 0);
-                    nextCsvRow();
-                }
+                printColumnSize();
+                comma();
+                printUnit();
+                comma();
+                printSelectivity();
+                comma();
+                printNode(node);
+                comma();
+                runCol  (xVCol, 0);
+                comma();
+                runCol  (xPCol, 0);
+                comma();
+                runIndex(xTree, 0); 
+                comma();
+                runIndex(xHash, 0);
+                comma();
+                runIndex(xSkip, 0);
+                nextCsvRow();
             }
 
             delete xPCol;
