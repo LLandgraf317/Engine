@@ -12,6 +12,7 @@ using namespace dbis::pbptrees;
 // Parametrization of PBPTree
 using CustomKey = uint64_t;
 using CustomTuple = std::tuple<uint64_t>;
+using CustomValue = uint64_t;
 
 using MultiVal = std::list< uint64_t >;
 
@@ -39,3 +40,4 @@ using TreeType = PBPTree<CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS>;
 
 template<unsigned bucket_size>
 using MultiValTree = PBPTree<CustomKey, pptr<NodeBucketList<uint64_t, bucket_size>>, BRANCHKEYS, LEAFKEYS>;
+using SingleValTree = PBPTree<CustomKey, CustomValue>, BRANCHKEYS, LEAFKEYS>;
