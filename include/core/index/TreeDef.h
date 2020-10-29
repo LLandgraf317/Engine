@@ -40,4 +40,4 @@ using TreeType = PBPTree<CustomKey, CustomTuple, BRANCHKEYS, LEAFKEYS>;
 
 template<unsigned bucket_size>
 using MultiValTree = PBPTree<CustomKey, pptr<NodeBucketList<uint64_t, bucket_size>>, BRANCHKEYS, LEAFKEYS>;
-using SingleValTree = PBPTree<CustomKey, CustomValue>, BRANCHKEYS, LEAFKEYS>;
+using SingleValTree = PBPTree<CustomKey, CustomValue, BRANCHKEYS, LEAFKEYS>;
