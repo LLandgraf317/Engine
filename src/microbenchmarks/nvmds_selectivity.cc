@@ -186,7 +186,7 @@ public:
             auto yPCol = yStatus->getPersistentColumn(node)->convert();
             auto yVCol = yStatus->getVColumn(node);
 
-            for (uint64_t iterations = 0; iterations < 20; iterations++) {
+            for (uint64_t iterations = 0; iterations < 40; iterations++) {
                 for (size_t val = 1; val < MAX_SEL_Y; val++) {
                     printColumnSize();
                     comma();
@@ -222,7 +222,7 @@ public:
         auto yPCol = yStatus->getPersistentColumn(1)->convert();
         auto yVCol = yStatus->getVColumn(1);
 
-        for (uint64_t iterations = 0; iterations < 20; iterations++) {
+        for (uint64_t iterations = 0; iterations < 40; iterations++) {
             for (size_t val = 1; val < MAX_SEL_Y; val++) {
                 printColumnSize();
                 comma();
