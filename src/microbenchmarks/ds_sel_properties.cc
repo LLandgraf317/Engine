@@ -31,7 +31,8 @@ char const * X = "x";
 char const * Y = "y";
 char const * Z = "z";
 
-constexpr unsigned MAX_SEL_X = 999;
+constexpr unsigned MAX_SEL_X = 20000;
+constexpr unsigned MAX_ITER = 20;
 
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
@@ -51,7 +52,7 @@ public:
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
             //trace_l(T_DEBUG, "Inserting in X Distr: key ", i, ", share is ", pow(0.5f, MAX_SEL_X - i + 2));
-            sel_distr_x.push_back(sel_and_val(0.001f, i));
+            sel_distr_x.push_back(sel_and_val( 1.0f / MAX_SEL_X, i));
         }
 
         auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
@@ -121,11 +122,11 @@ public:
         column<uncompr_f> * selectRes[MAX_SEL_X];
         numa_run_on_node(runnode);
         start();
-        for (uint64_t i = 0; i < MAX_SEL_X; i++) {
+        for (uint64_t i = 0; i < MAX_ITER; i++) {
             selectRes[i] = 
                 const_cast<column<uncompr_f> *>( index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
                 index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
-                    ::apply( xIndex, i) );
+                    ::apply( xIndex, i*100) );
 
         }
         end();
@@ -142,10 +143,10 @@ public:
         column<uncompr_f> * selectRes[MAX_SEL_X];
         numa_run_on_node(runnode);
         start();
-        for (uint64_t i = 0; i < MAX_SEL_X; i++) {
+        for (uint64_t i = 0; i < MAX_ITER; i++ ) {
             selectRes[i] = 
                 const_cast<column<uncompr_f> *>( my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                    ::apply( xCol, i) );
+                    ::apply( xCol, i*100) );
 
         }
         end();
