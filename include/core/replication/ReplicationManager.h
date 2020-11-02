@@ -195,6 +195,7 @@ public:
     template<typename t_index_structure_ptr>
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
     {
+        trace_l(T_INFO, "Adding data structure of kind ", kind, " on node ", pmemNode, " concerning r: ", ptr->getRelation(), ", t: ", ptr->getTable(), ", a: ", ptr->getAttribute())>;
         replication.emplace_back(ptr, kind, pmemNode);
     }
 
@@ -433,11 +434,14 @@ public:
                         && status->getMultiValTreeIndex(i)
                         && status->getSkipListIndex(i)
                         && status->getHashMapIndex(i))) {
+                    trace_l(T_INFO, "status did not contain all demanded persistent datastructures, returning false");
                     return false;
                 }
 
-                if (status->getPersistentColumn(i)->get_count_values() != count_values)
+                if (status->getPersistentColumn(i)->get_count_values() != count_values) {
+                    trace_l(T_INFO, "count_values found in column is ", status->getPersistentColumn(i)->get_count_values(), ", expected " count_values);
                     return false;
+                }
             }
             else {
                 return false;
