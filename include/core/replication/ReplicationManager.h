@@ -350,6 +350,9 @@ public:
 
         auto pop = RootManager::getInstance().getPop(numa_node);
         index = new (general_memory_manager::get_instance().allocateNuma(sizeof(column<uncompr_f>), numa_node)) column<uncompr_f>(p_ByteSize, constrNumaNode);
+        index->setRelation(valCol->getRelation());
+        index->setTable(valCol->getTable());
+        index->setAttribute(valCol->getAttribute());
 
         ReplCreateIndexArgs<column<uncompr_f>*>* threadArgs = new ReplCreateIndexArgs<column<uncompr_f>*>();
         threadArgs->node = numa_node;
