@@ -195,7 +195,7 @@ public:
     template<typename t_index_structure_ptr>
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
     {
-        trace_l(T_INFO, "Adding data structure of kind ", kind, " on node ", pmemNode, " concerning r: ", ptr->getRelation(), ", t: ", ptr->getTable(), ", a: ", ptr->getAttribute())>;
+        trace_l(T_INFO, "Adding data structure of kind ", kind, " on node ", pmemNode, " concerning r: ", ptr->getRelation(), ", t: ", ptr->getTable(), ", a: ", ptr->getAttribute());
         replication.emplace_back(ptr, kind, pmemNode);
     }
 
@@ -439,7 +439,7 @@ public:
                 }
 
                 if (status->getPersistentColumn(i)->get_count_values() != count_values) {
-                    trace_l(T_INFO, "count_values found in column is ", status->getPersistentColumn(i)->get_count_values(), ", expected " count_values);
+                    trace_l(T_INFO, "count_values found in column is ", status->getPersistentColumn(i)->get_count_values(), ", expected ", count_values);
                     return false;
                 }
             }
