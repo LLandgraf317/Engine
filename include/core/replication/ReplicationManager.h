@@ -339,6 +339,7 @@ public:
     //VINSERT_AND_CONSTRUCT(VColumn, DataStructure::VCOLUMN)
     void insert(column<uncompr_f> * index)
     {
+        trace_l(T_INFO, "Got volatile column with r: ", index->getRelation(), ", t: ", index->getTable(), ", a: ", index->getAttribute());
         auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute());
         status->add< column<uncompr_f>* >(index, DataStructure::VCOLUMN, index->getNumaNode());
     }

@@ -74,6 +74,7 @@ public:
         else {
             auto status = repl_mgr.getStatus(RELATION, TABLE, X);
             auto pCol = status->getPersistentColumn(0);
+            trace_l(T_INFO, "Got persistent column with r: ", pCol->getRelation(), ", t: ", pCol->getTable(), ", a: ", pCol->getAttribute());
 
             for (size_t i = 0; i < node_number; i++) {
                 auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
