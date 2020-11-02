@@ -44,6 +44,10 @@ public:
     const unsigned MAX_SEL_Y = 10;
 
     void initData() {
+        auto initializer = RootInitializer::getInstance();
+        auto node_number = initializer.getNumaNodeCount();
+
+        repl_mgr.init(node_number);
 
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
@@ -51,25 +55,52 @@ public:
             sel_distr_x.push_back(sel_and_val(0.001f, i));
         }
 
-        //auto primary = generate_sorted_unique_pers( ARRAY_SIZE, 0);
-
-        auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
-        xCol->setRelation(RELATION);
-        xCol->setTable(TABLE);
-        xCol->setAttribute(X);
-
         std::vector<sel_and_val> sel_distr_y;
         for (unsigned i = 1; i < MAX_SEL_Y + 1; i++) {
             trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_Y - i + 2));
             sel_distr_y.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
         }
-        auto yCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0);
-        yCol->setRelation(RELATION);
-        yCol->setTable(TABLE);
-        yCol->setAttribute(Y);
 
-        repl_mgr.constructAll(xCol);
-        repl_mgr.constructAll(yCol);
+        if (!repl_mgr.containsAll( ARRAY_SIZE, RELATION, TABLE, X)) {
+            repl_mgr.deleteAll(RELATION, TABLE, X);
+
+            auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
+            xCol->setRelation(RELATION);
+            xCol->setTable(TABLE);
+            xCol->setAttribute(X);
+
+            repl_mgr.constructAll(xCol);
+        }
+        else {
+            auto status = repl_mgr.getStatus(RELATION, TABLE, X);
+            auto pCol = status->getPersistentColumn(0);
+
+            for (size_t i = 0; i < node_number; i++) {
+                auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
+                repl_mgr.insert(vCol);
+            }
+        }
+
+        if (!repl_mgr.containsAll(ARRAY_SIZE, RELATION, TABLE, Y)) {
+            repl_mgr.deleteAll(RELATION, TABLE, Y);
+
+            auto yCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0);
+            yCol->setRelation(RELATION);
+            yCol->setTable(TABLE);
+            yCol->setAttribute(Y);
+
+            repl_mgr.constructAll(yCol);
+        }
+        else {
+            auto status = repl_mgr.getStatus(RELATION, TABLE, Y);
+            auto pCol = status->getPersistentColumn(0);
+
+            for (size_t i = 0; i < node_number; i++) {
+                auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
+                repl_mgr.insert(vCol);
+            }
+        }
+
         repl_mgr.joinAllThreads();
     }
 

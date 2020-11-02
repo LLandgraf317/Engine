@@ -23,6 +23,18 @@
         return nullptr;                                     \
     }                                                       \
                                                             \
+    static void remove##classname( persistent_ptr<classname> index ) \
+    {                                                       \
+        RootManager& root_mgr = RootManager::getInstance(); \
+        auto pop = root_mgr.getPop(index->getNumaNode());               \
+        for (auto i = pop.root()->popmember->begin(); i != pop.root()->popmember->end(); i++) { \
+            if (*i == index) { \
+                pop.root()->popmember->erase(i);                \
+                return;\
+            } \
+        } \
+    }                                                       \
+                                                            \
     static void push##classname( persistent_ptr<classname> index ) \
     {                                                       \
         RootManager& root_mgr = RootManager::getInstance(); \

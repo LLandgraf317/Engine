@@ -101,6 +101,25 @@ column<uncompr_f> * copy_volatile_column_to_node(pmem::obj::persistent_ptr<Persi
     return resCol;
 }
 
+void copy_pers_column_to_vol(column<uncompr_f>* target, pmem::obj::persistent_ptr<PersistentColumn> col, size_t numa_node)
+{
+    auto root_mgr = RootManager::getInstance();
+    auto pop = root_mgr.getPop(numa_node);
+
+    numa_run_on_node(numa_node);
+
+    const size_t target_size = col->get_count_values() * sizeof(uint64_t);
+
+    target->setRelation(col->getRelation());
+    target->setTable(col->getTable());
+    target->setAttribute(col->getAttribute());
+
+    uint64_t * const res = target->get_data();
+
+    pop.memcpy_persist(res, col->get_data(), target_size);
+    target->set_meta_data(col->get_count_values(), target_size);
+}
+
 pmem::obj::persistent_ptr<PersistentColumn> copy_persistent_column_to_node(pmem::obj::persistent_ptr<PersistentColumn> col, size_t numa_node)
 {
     auto root_mgr = RootManager::getInstance();

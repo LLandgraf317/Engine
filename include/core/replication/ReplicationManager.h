@@ -76,6 +76,44 @@ public:
                 return false;
         };
     }
+
+    void destruct()
+    {
+        switch (m_Kind) {
+            case PTREE: {
+                auto ptr = static_cast<persistent_ptr<MultiValTreeIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<MultiValTreeIndex>(ptr);
+                break;
+            }
+            case PSKIPLIST: {
+                auto ptr = static_cast<persistent_ptr<SkipListIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<SkipListIndex>(ptr);
+                break;
+            }
+            case PHASHMAP: {
+                auto ptr = static_cast<persistent_ptr<HashMapIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<HashMapIndex>(ptr);
+                break;
+            }
+            case PCOLUMN: {
+                auto ptr = static_cast<persistent_ptr<PersistentColumn>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<PersistentColumn>(ptr);
+            }
+            case VSKIPLIST:
+            case VTREE:
+            case VCOLUMN:
+            case VHASHMAP: {
+                //TODO: check for all allocations of columns and check whether malloc or numa alloc is used
+                break;
+            }
+            default:
+                break;
+        };
+    }
 };
 
 class ReplicationStatus {
@@ -125,7 +163,7 @@ public:
                 return static_cast<persistent_ptr<index_structure>>(i.m_PPtr); \
             } \
         return nullptr; \
-    } 
+    } \
 
 #define VGET(index_structure, structure_enum) \
     index_structure* get##index_structure(size_t numa_node) \
@@ -144,7 +182,6 @@ public:
     PGET(SkipListIndex, PSKIPLIST);
     PGET(PersistentColumn, PCOLUMN);
 
-
     bool containsIndex()
     {
         for (auto i : replication) {
@@ -159,6 +196,12 @@ public:
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
     {
         replication.emplace_back(ptr, kind, pmemNode);
+    }
+
+    void destructAll()
+    {
+        for (auto i : replication)
+            i.destruct();
     }
 
 };
@@ -190,6 +233,17 @@ void * generateIndex( void * argPtr )
 
     free(argPtr);
 
+    return nullptr;
+}
+
+void * generateVColumn( void * argPtr )
+{
+    ReplCreateIndexArgs<column<uncompr_f>*> * indexArgs = (ReplCreateIndexArgs<column<uncompr_f>*>*) argPtr;
+
+    numa_run_on_node(indexArgs->node);
+    copy_pers_column_to_vol(indexArgs->index, indexArgs->valCol, indexArgs->node);
+
+    free(argPtr);
     return nullptr;
 }
 
@@ -281,7 +335,31 @@ public:
     } 
 
     using VColumn = column<uncompr_f>;
-    VINSERT_AND_CONSTRUCT(VColumn, DataStructure::VCOLUMN)
+    //VINSERT_AND_CONSTRUCT(VColumn, DataStructure::VCOLUMN)
+    void insert(column<uncompr_f> * index)
+    {
+        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute());
+        status->add< column<uncompr_f>* >(index, DataStructure::VCOLUMN, index->getNumaNode());
+    }
+
+    column<uncompr_f> * constructVColumnAsync(size_t numa_node, persistent_ptr<PersistentColumn> valCol, size_t p_ByteSize, size_t constrNumaNode) \
+    {
+        column<uncompr_f> * index;
+
+        auto pop = RootManager::getInstance().getPop(numa_node);
+        index = new (general_memory_manager::get_instance().allocateNuma(sizeof(column<uncompr_f>), numa_node)) column<uncompr_f>(p_ByteSize, constrNumaNode);
+
+        ReplCreateIndexArgs<column<uncompr_f>*>* threadArgs = new ReplCreateIndexArgs<column<uncompr_f>*>();
+        threadArgs->node = numa_node;
+        threadArgs->index = index;
+        threadArgs->valCol = valCol;
+
+        repl_thread_info * info = new repl_thread_info();
+        pthread_create(&info->thread_id, nullptr, generateVColumn, threadArgs);
+        thread_infos.push_back(info);
+
+        return index;
+    } 
 
     PINSERT_AND_CONSTRUCT(MultiValTreeIndex, DataStructure::PTREE)
     PINSERT_AND_CONSTRUCT(SkipListIndex, DataStructure::PSKIPLIST)
@@ -312,9 +390,11 @@ public:
             if (col->getNumaNode() != node) {
                 auto newCol = copy_persistent_column_to_node(col, node);
                 status->add(newCol, DataStructure::PCOLUMN, node);
+                NVMStorageManager::pushPersistentColumn(newCol);
             }
             else {
                 status->add(col, DataStructure::PCOLUMN, node);
+                NVMStorageManager::pushPersistentColumn(col);
             }
             auto vcol = copy_volatile_column_to_node(col, node);
             status->add(vcol, DataStructure::VCOLUMN, node);
@@ -326,7 +406,45 @@ public:
             insert(tree);
             insert(hash);
             insert(skip);
+
+            NVMStorageManager::pushMultiValTreeIndex(tree);
+            NVMStorageManager::pushSkipListIndex(skip);
+            NVMStorageManager::pushHashMapIndex(hash);
         }
+    }
+
+    void deleteAll(std::string relation, std::string table, std::string attribute)
+    {
+        auto status = getStatus(relation, table, attribute);
+
+        if (status != nullptr) {
+            status->destructAll();
+            removeStatus(status);
+        }
+    }
+
+    bool containsAll(size_t count_values, std::string relation, std::string table, std::string attribute)
+    {
+        for (size_t i = 0; i < m_NumaNodeCount; i++) {
+            auto status = getStatus(relation, table, attribute);
+
+            if (status != nullptr) {
+                if ( !(status->getPersistentColumn(i)
+                        && status->getMultiValTreeIndex(i)
+                        && status->getSkipListIndex(i)
+                        && status->getHashMapIndex(i))) {
+                    return false;
+                }
+
+                if (status->getPersistentColumn(i)->get_count_values() != count_values)
+                    return false;
+            }
+            else {
+                return false;
+            }
+        } 
+
+        return true;
     }
 
     bool isLocOnNode(void* loc, size_t pmemNode)
@@ -362,7 +480,17 @@ public:
         return status;
     }
 
-    size_t getSelectivity(std::string relation, std::string table, std::string attribute)
+    void removeStatus(ReplicationStatus* status)
+    {
+        for (auto iter = state.begin(); iter != state.end(); iter++) {
+            if (iter->compare(status->getRelation(), status->getTable(), status->getAttribute())) {
+                state.erase(iter);
+                return;
+            }
+        }
+    }
+
+    /*size_t getSelectivity(std::string relation, std::string table, std::string attribute)
     {
         auto status = getStatus(relation, table, attribute);
 
@@ -371,7 +499,7 @@ public:
         }
 
         return 0;
-    }
+    }*/
 
     void init(uint64_t numaNodeCount) {
         m_NumaNodeCount = numaNodeCount;
