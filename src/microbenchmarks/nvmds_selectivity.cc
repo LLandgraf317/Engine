@@ -187,7 +187,7 @@ public:
             auto yVCol = yStatus->getVColumn(node);
 
             for (uint64_t iterations = 0; iterations < 40; iterations++) {
-                for (size_t val = 1; val < MAX_SEL_Y; val++) {
+                for (size_t val = 1; val < MAX_SEL_Y + 1; val++) {
                     printColumnSize();
                     comma();
                     printUnit();
@@ -223,7 +223,7 @@ public:
         auto yVCol = yStatus->getVColumn(1);
 
         for (uint64_t iterations = 0; iterations < 40; iterations++) {
-            for (size_t val = 1; val < MAX_SEL_Y; val++) {
+            for (size_t val = 1; val < MAX_SEL_Y + 1; val++) {
                 printColumnSize();
                 comma();
                 printUnit();
