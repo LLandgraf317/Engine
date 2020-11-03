@@ -137,6 +137,13 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     )
     target_link_libraries(
         ds_sel_properties PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+
+    add_executable( ds_join_bench ds_join_bench.cc)
+    target_compile_options( ds_join_bench PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        ds_join_bench PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
    
 
 endif( BUILD_ALL OR BUILD_MICROBMS )

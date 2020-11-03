@@ -282,7 +282,7 @@ public:
 #define PINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
     void insert(persistent_ptr<index_structure> index) \
     { \
-        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
+        auto status = getStatusOrNew(index->getRelation(), index->getTable(), index->getAttribute()); \
         status->add< persistent_ptr<index_structure> >(index, structure_enum, index->getNumaNode()); \
     } \
     \
@@ -311,7 +311,7 @@ public:
 #define VINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
     void insert(index_structure * index) \
     { \
-        auto status = getStatus(index->getRelation(), index->getTable(), index->getAttribute()); \
+        auto status = getStatusOrNew(index->getRelation(), index->getTable(), index->getAttribute()); \
         status->add< index_structure* >(index, structure_enum, index->getNumaNode()); \
     } \
     \
