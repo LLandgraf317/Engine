@@ -30,9 +30,9 @@ struct NodeBucket {
     pptr<NodeBucket<T, t_bucket_size>> prev;
     T bucket_list[(t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T)];
 
+public:
     static const size_t MAX_ENTRIES = (t_bucket_size - sizeof(fill_count) - 2*sizeof(pptr<NodeBucket<T, t_bucket_size>>)) / sizeof(T);
 
-public:
     NodeBucket()
     {
         this->fill_count = 0;

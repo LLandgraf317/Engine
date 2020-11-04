@@ -49,10 +49,11 @@ public:
 
     void initData() {
 
+        size_t distinct_values = ARRAY_SIZE / NodeBucket<uint64_t, OSP_SIZE>::MAX_ENTRIES;
         std::vector<sel_and_val> sel_distr_x;
-        for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
+        for (unsigned i = 1; i < distinct_values + 1; i++) {
             //trace_l(T_DEBUG, "Inserting in X Distr: key ", i, ", share is ", pow(0.5f, MAX_SEL_X - i + 2));
-            sel_distr_x.push_back(sel_and_val( 1.0f / MAX_SEL_X, i));
+            sel_distr_x.push_back(sel_and_val( 1.0f / distinct_values, i));
         }
 
         auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
