@@ -106,8 +106,6 @@ public:
         std::vector<sel_and_val> sel_distr_y4;
         sel_distr_y4.push_back(sel_and_val(0.875f, 1));
 
-        repl_mgr.setWait(true);
-
         trace_l(T_DEBUG, "Constructing x DSes");
         constructBySel(sel_distr_x, ARRAY_SIZE, RELATION, TABLE, X);
         trace_l(T_DEBUG, "Constructing y0 DSes");
