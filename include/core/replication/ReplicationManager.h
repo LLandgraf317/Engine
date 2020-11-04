@@ -255,6 +255,7 @@ class ReplicationManager {
 
     std::list<repl_thread_info*> thread_infos;
     pobj_alloc_class_desc alloc_class;
+    bool m_Wait = false;
 
 public:
     static ReplicationManager& getInstance()
@@ -264,6 +265,11 @@ public:
         return instance;
     }
 
+    void setWait(bool val)
+    {
+        m_Wait = val;
+    }
+
     ~ReplicationManager()
     {
         trace_l(T_DEBUG, "Destroying ReplicationManager");
@@ -271,11 +277,12 @@ public:
 
     void joinAllThreads()
     {
-        while (thread_infos.begin() != thread_infos.end()) {
-            auto iter = thread_infos.begin();
-            pthread_join( (*iter)->thread_id, nullptr);
-            thread_infos.pop_front();
-        }
+        if (!m_Wait)
+            while (thread_infos.begin() != thread_infos.end()) {
+                auto iter = thread_infos.begin();
+                pthread_join( (*iter)->thread_id, nullptr);
+                thread_infos.pop_front();
+            }
     }
 
 
@@ -304,6 +311,9 @@ public:
         repl_thread_info * info = new repl_thread_info(); \
         pthread_create(&info->thread_id, nullptr, generateIndex<persistent_ptr<index_structure>>, threadArgs); \
         thread_infos.push_back(info); \
+       \
+        if (m_Wait) \
+            pthread_join( info->thread_id, nullptr); \
       \
         return index; \
     } 
@@ -331,6 +341,8 @@ public:
         repl_thread_info * info = new repl_thread_info(); \
         pthread_create(&info->thread_id, nullptr, generateIndex<index_structure*>, threadArgs); \
         thread_infos.push_back(info); \
+        if (m_Wait) \
+            pthread_join( info->thread_id, nullptr); \
       \
         return index; \
     } 
@@ -362,6 +374,8 @@ public:
         repl_thread_info * info = new repl_thread_info();
         pthread_create(&info->thread_id, nullptr, generateVColumn, threadArgs);
         thread_infos.push_back(info);
+        if (m_Wait)
+            pthread_join( info->thread_id, nullptr);
 
         return index;
     } 

@@ -27,7 +27,11 @@ using ps = scalar<v64<uint64_t>>;
 char const * RELATION = "sel";
 char const * TABLE = "distr";
 char const * X = "x";
-char const * Y = "y";
+char const * Y0 = "y0";
+char const * Y1 = "y1";
+char const * Y2 = "y2";
+char const * Y3 = "y3";
+char const * Y4 = "y4";
 char const * Z = "z";
 
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
@@ -40,6 +44,35 @@ public:
 
     ReplicationManager & repl_mgr;
 
+    using Distr = std::vector<sel_and_val>;
+    std::vector<std::tuple<ReplicationStatus*, Distr>> y_status_and_distr;
+
+    void constructBySel(std::vector<sel_and_val> distr, size_t elem_count, std::string relation, std::string table, std::string attribute)
+    {
+        auto initializer = RootInitializer::getInstance();
+        auto node_number = initializer.getNumaNodeCount();
+
+        if (!repl_mgr.containsAll(elem_count, relation, table, attribute)) {
+            repl_mgr.deleteAll(relation, table, attribute);
+
+            auto col = generate_share_vector_pers( elem_count, distr, 0);
+            col->setRelation(relation);
+            col->setTable(table);
+            col->setAttribute(attribute);
+
+            repl_mgr.constructAll(col);
+        }
+        else {
+            auto status = repl_mgr.getStatus(relation, table, attribute);
+            auto pCol = status->getPersistentColumn(0);
+
+            for (size_t i = 0; i < node_number; i++) {
+                auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
+                repl_mgr.insert(vCol);
+            }
+        }
+    }
+
     const unsigned MAX_SEL_X = 999;
     const unsigned MAX_SEL_Y = 10;
 
@@ -51,58 +84,50 @@ public:
 
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
-            trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_X - i + 2));
             sel_distr_x.push_back(sel_and_val(0.001f, i));
         }
 
-        std::vector<sel_and_val> sel_distr_y;
+        std::vector<sel_and_val> sel_distr_y0;
         for (unsigned i = 1; i < MAX_SEL_Y + 2; i++) {
-            trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_Y - i + 2));
-            sel_distr_y.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
+            sel_distr_y0.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
         }
 
-        if (!repl_mgr.containsAll( ARRAY_SIZE, RELATION, TABLE, X)) {
-            repl_mgr.deleteAll(RELATION, TABLE, X);
+        std::vector<sel_and_val> sel_distr_y1;
+        sel_distr_y1.push_back(sel_and_val(0.08f, 1));
+        sel_distr_y1.push_back(sel_and_val(0.1875f, 2));
+        sel_distr_y1.push_back(sel_and_val(0.375f, 3));
 
-            auto xCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_x, 0 );
-            xCol->setRelation(RELATION);
-            xCol->setTable(TABLE);
-            xCol->setAttribute(X);
+        std::vector<sel_and_val> sel_distr_y2;
+        sel_distr_y2.push_back(sel_and_val(0.625f, 1));
 
-            repl_mgr.constructAll(xCol);
-        }
-        else {
-            auto status = repl_mgr.getStatus(RELATION, TABLE, X);
-            auto pCol = status->getPersistentColumn(0);
-            trace_l(T_INFO, "Got persistent column with r: ", pCol->getRelation(), ", t: ", pCol->getTable(), ", a: ", pCol->getAttribute());
+        std::vector<sel_and_val> sel_distr_y3;
+        sel_distr_y3.push_back(sel_and_val(0.75f, 1));
 
-            for (size_t i = 0; i < node_number; i++) {
-                auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
-                repl_mgr.insert(vCol);
-            }
-        }
+        std::vector<sel_and_val> sel_distr_y4;
+        sel_distr_y4.push_back(sel_and_val(0.875f, 1));
 
-        if (!repl_mgr.containsAll(ARRAY_SIZE, RELATION, TABLE, Y)) {
-            repl_mgr.deleteAll(RELATION, TABLE, Y);
+        repl_mgr.setWait(true);
 
-            auto yCol = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0);
-            yCol->setRelation(RELATION);
-            yCol->setTable(TABLE);
-            yCol->setAttribute(Y);
-
-            repl_mgr.constructAll(yCol);
-        }
-        else {
-            auto status = repl_mgr.getStatus(RELATION, TABLE, Y);
-            auto pCol = status->getPersistentColumn(0);
-
-            for (size_t i = 0; i < node_number; i++) {
-                auto vCol = repl_mgr.constructVColumnAsync(i, pCol, pCol->get_count_values() * sizeof(uint64_t), i);
-                repl_mgr.insert(vCol);
-            }
-        }
+        trace_l(T_DEBUG, "Constructing x DSes");
+        constructBySel(sel_distr_x, ARRAY_SIZE, RELATION, TABLE, X);
+        trace_l(T_DEBUG, "Constructing y0 DSes");
+        constructBySel(sel_distr_y0, ARRAY_SIZE, RELATION, TABLE, Y0);
+        trace_l(T_DEBUG, "Constructing y1 DSes");
+        constructBySel(sel_distr_y1, ARRAY_SIZE, RELATION, TABLE, Y1);
+        trace_l(T_DEBUG, "Constructing y2 DSes");
+        constructBySel(sel_distr_y2, ARRAY_SIZE, RELATION, TABLE, Y2);
+        trace_l(T_DEBUG, "Constructing y3 DSes");
+        constructBySel(sel_distr_y3, ARRAY_SIZE, RELATION, TABLE, Y3);
+        trace_l(T_DEBUG, "Constructing y4 DSes");
+        constructBySel(sel_distr_y4, ARRAY_SIZE, RELATION, TABLE, Y4);
 
         repl_mgr.joinAllThreads();
+
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y0), sel_distr_y0);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y1), sel_distr_y1);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y2), sel_distr_y2);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y3), sel_distr_y3);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y4), sel_distr_y4);
     }
 
     std::chrono::time_point<std::chrono::system_clock> starttime;
@@ -205,48 +230,61 @@ public:
         auto initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
-        auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y);
+        /*auto y0Status = repl_mgr.getStatus(RELATION, TABLE, Y0);
+        auto y1Status = repl_mgr.getStatus(RELATION, TABLE, Y1);
+        auto y2Status = repl_mgr.getStatus(RELATION, TABLE, Y2);
+        auto y3Status = repl_mgr.getStatus(RELATION, TABLE, Y3);
+        auto y4Status = repl_mgr.getStatus(RELATION, TABLE, Y4);*/
+
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
         std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
 
-        for (size_t node = 0; node < node_number; node++) {
-            auto xCol = xStatus->getPersistentColumn(node)->convert();
-            auto yTree = yStatus->getMultiValTreeIndex(node);
-            auto yHash = yStatus->getHashMapIndex(node);
-            auto ySkip = yStatus->getSkipListIndex(node);
-            auto yPCol = yStatus->getPersistentColumn(node)->convert();
-            auto yVCol = yStatus->getVColumn(node);
+        for (auto i : y_status_and_distr) {
+            auto yStatus = std::get<0>(i);
+            std::vector<sel_and_val> distr = std::get<1>(i);
 
-            for (uint64_t iterations = 0; iterations < 40; iterations++) {
-                for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
-                    printColumnSize();
-                    comma();
-                    printUnit();
-                    comma();
-                    printSelectivity(yTree, val);
-                    comma();
-                    printNode(node);
-                    comma();
-                    runCol  (xCol, yVCol, val, 0, 0);
-                    comma();
-                    runCol  (xCol, yPCol, val, 0, 0);
-                    comma();
-                    runIndex(xCol, yTree, val, 0, 0); 
-                    comma();
-                    runIndex(xCol, yHash, val, 0, 0);
-                    comma();
-                    runIndex(xCol, ySkip, val, 0, 0);
-                    nextCsvRow();
+            for (size_t node = 0; node < node_number; node++) {
+                auto xCol = xStatus->getPersistentColumn(node)->convert();
+                auto yTree = yStatus->getMultiValTreeIndex(node);
+                auto yHash = yStatus->getHashMapIndex(node);
+                auto ySkip = yStatus->getSkipListIndex(node);
+                auto yPCol = yStatus->getPersistentColumn(node)->convert();
+                auto yVCol = yStatus->getVColumn(node);
+
+                for (uint64_t iterations = 0; iterations < 40; iterations++) {
+                    for (auto j : distr) {
+                        uint64_t val = j.attr_value;
+                        //trace_l(T_INFO, "Selectivity is supposed to be, ", j.selectivity);
+                        //for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
+                        printColumnSize();
+                        comma();
+                        printUnit();
+                        comma();
+                        printSelectivity(yTree, val);
+                        comma();
+                        printNode(node);
+                        comma();
+                        runCol  (xCol, yVCol, val, 0, 0);
+                        comma();
+                        runCol  (xCol, yPCol, val, 0, 0);
+                        comma();
+                        runIndex(xCol, yTree, val, 0, 0); 
+                        comma();
+                        runIndex(xCol, yHash, val, 0, 0);
+                        comma();
+                        runIndex(xCol, ySkip, val, 0, 0);
+                        nextCsvRow();
+                    }
                 }
-            }
 
-            delete xCol;
-            delete yPCol;
+                delete xCol;
+                delete yPCol;
+            }
         }
 
         // Mixed node workload
-        auto xCol = xStatus->getPersistentColumn(0)->convert();
+        /*auto xCol = xStatus->getPersistentColumn(0)->convert();
 
         auto yTree = yStatus->getMultiValTreeIndex(1);
         auto yHash = yStatus->getHashMapIndex(1);
@@ -278,7 +316,7 @@ public:
         }
 
         delete xCol;
-        delete yPCol;
+        delete yPCol;*/
     }
 
 };

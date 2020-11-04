@@ -127,7 +127,6 @@ struct my_select_wit_t {
         // @todo Due to the input column's uncompressed rest part, we might
         // actually need more space, if the input column is the product of some
         // other query operator.
-        trace_l(T_DEBUG, "outPosCountEstimate ", outPosCountEstimate, ", inDataCountLog ", inDataCountLog);
         auto outPosCol = new column<t_out_pos_f>(
                 bool(outPosCountEstimate)
                 // use given estimate

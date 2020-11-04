@@ -350,6 +350,8 @@ pmem::obj::persistent_ptr<PersistentColumn> generate_share_vector_pers(
             *value_pos = default_value;
             value_pos++;
         }
+
+        trace_l(T_DEBUG, "Inserted 0 for ", rem, " tuples");
     }
 
     col->set_meta_data(total_tuple_count, total_tuple_count * sizeof(uint64_t));
