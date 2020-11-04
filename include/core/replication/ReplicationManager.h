@@ -466,6 +466,29 @@ public:
         }
     }
 
+    void constructAllCol( persistent_ptr<PersistentColumn> col)
+    {
+        auto initializer = RootInitializer::getInstance();
+        const auto node_number = initializer.getNumaNodeCount();
+
+        auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
+
+        for (size_t node = 0; node < node_number; node++) {
+            if (col->getNumaNode() != node) {
+                auto newCol = copy_persistent_column_to_node(col, node);
+                status->add(newCol, DataStructure::PCOLUMN, node);
+                NVMStorageManager::pushPersistentColumn(newCol);
+            }
+            else {
+                status->add(col, DataStructure::PCOLUMN, node);
+                NVMStorageManager::pushPersistentColumn(col);
+            }
+            auto vcol = copy_volatile_column_to_node(col, node);
+            status->add(vcol, DataStructure::VCOLUMN, node);
+        }
+    }
+
+
     void constructAllCL( persistent_ptr<PersistentColumn> col )
     {
         auto initializer = RootInitializer::getInstance();
