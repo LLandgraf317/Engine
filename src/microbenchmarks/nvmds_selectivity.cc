@@ -88,17 +88,18 @@ public:
         }
 
         std::vector<sel_and_val> sel_distr_y0;
-        for (unsigned i = 1; i < MAX_SEL_Y + 2; i++) {
+        for (unsigned i = 1; i < MAX_SEL_Y + 1; i++) {
             sel_distr_y0.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
         }
 
         std::vector<sel_and_val> sel_distr_y1;
-        sel_distr_y1.push_back(sel_and_val(0.08f, 1));
-        sel_distr_y1.push_back(sel_and_val(0.1875f, 2));
+        sel_distr_y1.push_back(sel_and_val(0.125f, 2));
         sel_distr_y1.push_back(sel_and_val(0.375f, 3));
+        sel_distr_y1.push_back(sel_and_val(0.5f, 4));
 
         std::vector<sel_and_val> sel_distr_y2;
-        sel_distr_y2.push_back(sel_and_val(0.625f, 1));
+        sel_distr_y2.push_back(sel_and_val(0.1875f, 1));
+        sel_distr_y2.push_back(sel_and_val(0.625f, 2));
 
         std::vector<sel_and_val> sel_distr_y3;
         sel_distr_y3.push_back(sel_and_val(0.75f, 1));
