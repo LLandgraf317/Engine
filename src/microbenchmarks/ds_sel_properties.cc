@@ -61,7 +61,7 @@ public:
         xCol->setTable(TABLE);
         xCol->setAttribute(X);
 
-        repl_mgr.constructAll(xCol);
+        repl_mgr.constructAllCL(xCol);
         repl_mgr.joinAllThreads();
     }
 
