@@ -32,7 +32,15 @@ enum DataStructure {
     VSKIPLIST,
 
     PHASHMAP,
-    VHASHMAP
+    VHASHMAP,
+
+    CLPTREE,
+    CLVTREE,
+    CLPSKIPLIST,
+    CLVSKIPLIST,
+    CLPHASHMAP,
+    CLVHASHMAP
+
 };
 
 
@@ -86,7 +94,19 @@ public:
                 delete_persistent<MultiValTreeIndex>(ptr);
                 break;
             }
+            case CLPTREE: {
+                auto ptr = static_cast<persistent_ptr<MultiValTreeIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<MultiValTreeIndex>(ptr);
+                break;
+            }
             case PSKIPLIST: {
+                auto ptr = static_cast<persistent_ptr<SkipListIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<SkipListIndex>(ptr);
+                break;
+            }
+            case CLPSKIPLIST: {
                 auto ptr = static_cast<persistent_ptr<SkipListIndex>>(m_PPtr);
                 ptr->prepareDest();
                 delete_persistent<SkipListIndex>(ptr);
@@ -96,6 +116,12 @@ public:
                 auto ptr = static_cast<persistent_ptr<HashMapIndex>>(m_PPtr);
                 ptr->prepareDest();
                 delete_persistent<HashMapIndex>(ptr);
+                break;
+            }
+            case CLPHASHMAP: {
+                auto ptr = static_cast<persistent_ptr<CLHashMapIndex>>(m_PPtr);
+                ptr->prepareDest();
+                delete_persistent<CLHashMapIndex>(ptr);
                 break;
             }
             case PCOLUMN: {
@@ -182,6 +208,10 @@ public:
     PGET(SkipListIndex, PSKIPLIST);
     PGET(PersistentColumn, PCOLUMN);
 
+    PGET(CLTreeIndex, CLPTREE);
+    PGET(CLHashMapIndex, CLPHASHMAP);
+    PGET(CLSkipListIndex, CLPSKIPLIST);
+
     bool containsIndex()
     {
         for (auto i : replication) {
@@ -221,13 +251,13 @@ struct repl_thread_info {
 };
 
 // Threading infrastructure of replication manager
-template< class index_structure_ptr>
+template< class index_structure_ptr, size_t bucket_size>
 void * generateIndex( void * argPtr )
 {
     ReplCreateIndexArgs<index_structure_ptr> * indexArgs = (ReplCreateIndexArgs<index_structure_ptr>*) argPtr;
 
     numa_run_on_node(indexArgs->node);
-    IndexGen::generateFast<index_structure_ptr, OSP_SIZE>(indexArgs->index, indexArgs->valCol);
+    IndexGen::generateFast<index_structure_ptr, bucket_size>(indexArgs->index, indexArgs->valCol);
 
     RootManager& root_mgr = RootManager::getInstance();
     root_mgr.drainAll();
@@ -286,7 +316,7 @@ public:
     }
 
 
-#define PINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
+#define PINSERT_AND_CONSTRUCT(index_structure, structure_enum, bucket_size) \
     void insert(persistent_ptr<index_structure> index) \
     { \
         auto status = getStatusOrNew(index->getRelation(), index->getTable(), index->getAttribute()); \
@@ -309,7 +339,7 @@ public:
         threadArgs->valCol = valCol; \
       \
         repl_thread_info * info = new repl_thread_info(); \
-        pthread_create(&info->thread_id, nullptr, generateIndex<persistent_ptr<index_structure>>, threadArgs); \
+        pthread_create(&info->thread_id, nullptr, generateIndex<persistent_ptr<index_structure>, bucket_size>, threadArgs); \
         thread_infos.push_back(info); \
        \
         if (m_Wait) \
@@ -318,7 +348,7 @@ public:
         return index; \
     } 
 
-#define VINSERT_AND_CONSTRUCT(index_structure, structure_enum) \
+#define VINSERT_AND_CONSTRUCT(index_structure, structure_enum, bucket_size) \
     void insert(index_structure * index) \
     { \
         auto status = getStatusOrNew(index->getRelation(), index->getTable(), index->getAttribute()); \
@@ -339,7 +369,7 @@ public:
         threadArgs->valCol = valCol; \
       \
         repl_thread_info * info = new repl_thread_info(); \
-        pthread_create(&info->thread_id, nullptr, generateIndex<index_structure*>, threadArgs); \
+        pthread_create(&info->thread_id, nullptr, generateIndex<index_structure*, bucket_size>, threadArgs); \
         thread_infos.push_back(info); \
         if (m_Wait) \
             pthread_join( info->thread_id, nullptr); \
@@ -380,10 +410,14 @@ public:
         return index;
     } 
 
-    PINSERT_AND_CONSTRUCT(MultiValTreeIndex, DataStructure::PTREE)
-    PINSERT_AND_CONSTRUCT(SkipListIndex, DataStructure::PSKIPLIST)
-    PINSERT_AND_CONSTRUCT(HashMapIndex, DataStructure::PHASHMAP)
-    PINSERT_AND_CONSTRUCT(PersistentColumn, DataStructure::PCOLUMN)
+    PINSERT_AND_CONSTRUCT(MultiValTreeIndex, DataStructure::PTREE, OSP_SIZE)
+    PINSERT_AND_CONSTRUCT(SkipListIndex, DataStructure::PSKIPLIST, OSP_SIZE)
+    PINSERT_AND_CONSTRUCT(HashMapIndex, DataStructure::PHASHMAP, OSP_SIZE)
+    PINSERT_AND_CONSTRUCT(PersistentColumn, DataStructure::PCOLUMN, OSP_SIZE)
+
+    PINSERT_AND_CONSTRUCT(CLTreeIndex, DataStructure::CLPTREE, CL_SIZE)
+    PINSERT_AND_CONSTRUCT(CLHashMapIndex, DataStructure::CLPHASHMAP, CL_SIZE)
+    PINSERT_AND_CONSTRUCT(CLSkipListIndex, DataStructure::CLPSKIPLIST, CL_SIZE)
 
 
     using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
@@ -429,6 +463,39 @@ public:
             NVMStorageManager::pushMultiValTreeIndex(tree);
             NVMStorageManager::pushSkipListIndex(skip);
             NVMStorageManager::pushHashMapIndex(hash);
+        }
+    }
+
+    void constructAllCL( persistent_ptr<PersistentColumn> col )
+    {
+        auto initializer = RootInitializer::getInstance();
+        const auto node_number = initializer.getNumaNodeCount();
+
+        auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
+        assert(status != nullptr);
+
+        const column<uncompr_f> * conv = col->convert();
+
+        auto tuple = group<ps, uncompr_f, uncompr_f, uncompr_f>(nullptr, conv);
+
+        size_t distinct_key_count = std::get<1>(tuple)->get_count_values();
+
+        delete conv;
+        delete std::get<0>(tuple);  
+        delete std::get<1>(tuple);  
+
+        for (size_t node = 0; node < node_number; node++) {
+            auto tree = constructCLTreeIndexAsync(node, col, node, alloc_class, col->getRelation(), col->getTable(), col->getAttribute());
+            auto hash = constructCLHashMapIndexAsync(node, col, distinct_key_count, node, col->getRelation(), col->getTable(), col->getAttribute());
+            auto skip = constructCLSkipListIndexAsync(node, col, node, col->getRelation(), col->getTable(), col->getAttribute());
+
+            insert(tree);
+            insert(hash);
+            insert(skip);
+
+            NVMStorageManager::pushCLTreeIndex(tree);
+            NVMStorageManager::pushCLSkipListIndex(skip);
+            NVMStorageManager::pushCLHashMapIndex(hash);
         }
     }
 
