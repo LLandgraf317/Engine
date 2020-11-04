@@ -56,7 +56,7 @@ public:
         }
 
         std::vector<sel_and_val> sel_distr_y;
-        for (unsigned i = 1; i < MAX_SEL_Y + 1; i++) {
+        for (unsigned i = 1; i < MAX_SEL_Y + 2; i++) {
             trace_l(T_DEBUG, "pow is ", pow(0.5f, MAX_SEL_Y - i + 2));
             sel_distr_y.push_back(sel_and_val(pow(0.5f, MAX_SEL_Y - i + 2 ) , i));
         }
@@ -219,7 +219,7 @@ public:
             auto yVCol = yStatus->getVColumn(node);
 
             for (uint64_t iterations = 0; iterations < 40; iterations++) {
-                for (size_t val = 1; val < MAX_SEL_Y + 1; val++) {
+                for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
                     printColumnSize();
                     comma();
                     printUnit();
@@ -255,7 +255,7 @@ public:
         auto yVCol = yStatus->getVColumn(1);
 
         for (uint64_t iterations = 0; iterations < 40; iterations++) {
-            for (size_t val = 1; val < MAX_SEL_Y + 1; val++) {
+            for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
                 printColumnSize();
                 comma();
                 printUnit();
