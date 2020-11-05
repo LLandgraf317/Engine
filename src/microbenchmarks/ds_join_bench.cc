@@ -34,8 +34,8 @@ char const * X = "x";
 char const * Y = "y";
 char const * Z = "z";
 
-constexpr size_t ATTR_DIST = 1000;
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
+constexpr size_t ATTR_DIST = ARRAY_SIZE / 4096 / 128;
 
 class Main {
 public:
@@ -81,7 +81,7 @@ public:
         repl_mgr.deleteAll(RELATION, TABLE2, Y);
 
         // S.y
-        auto s_y = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0 );
+        auto s_y = generate_sorted_unique_pers( ATTR_DIST, 0 );
         s_y->setRelation(RELATION);
         s_y->setTable(TABLE2);
         s_y->setAttribute(Y);
@@ -89,7 +89,7 @@ public:
         repl_mgr.constructAll(s_y);
 
         // S.z
-        auto s_z = generate_share_vector_pers( ARRAY_SIZE, sel_distr_y, 0);
+        auto s_z = generate_sorted_unique_pers( ARRAY_SIZE, 0);
         s_z->setRelation(RELATION);
         s_z->setTable(TABLE2);
         s_z->setAttribute(Z);
