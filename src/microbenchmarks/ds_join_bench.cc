@@ -70,7 +70,7 @@ public:
         std::vector<sel_and_val> sel_distr_y[iters];
         for (unsigned j = 0; j < iters; j++) {
             Distr temp;
-            for (unsigned i = 1; i < ATTR_DIST / j + 1; i++) {
+            for (unsigned i = 1; i < ATTR_DIST / (j + 1); i++) {
                 temp.push_back(sel_and_val(1.0f / ATTR_DIST * j, i));
             }
             sel_distr_y[j] = temp;
