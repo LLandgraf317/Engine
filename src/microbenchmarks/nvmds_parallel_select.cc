@@ -50,7 +50,7 @@ public:
 
     void constructBySel(std::vector<sel_and_val> distr, size_t elem_count, std::string relation, std::string table, std::string attribute)
     {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         if (!repl_mgr.containsAll(elem_count, relation, table, attribute)) {
@@ -78,7 +78,7 @@ public:
     const unsigned MAX_SEL_Y = 10;
 
     void initData() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         repl_mgr.init(node_number);
@@ -188,17 +188,25 @@ public:
     template< typename index_structure_ptr >
     struct ArgIndexList
     {
-        uint64_t sel;
+        ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t)
+            : sel(selection), xCol(col), index(i), threadNum(t) {}
+                 
+        const uint64_t sel;
         const column<uncompr_f> * xCol;
         index_structure_ptr index;
+        const uint64_t threadNum;
     };
 
     template< typename col_ptr >
     struct ArgColList
     {
-        uint64_t sel;
+        ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t)
+            : sel(selection), xCol(x), col(i), threadNum(t) {}
+
+        const uint64_t sel;
         const column<uncompr_f> * xCol;
         col_ptr col;
+        const uint64_t threadNum;
     };
 
     template< typename index_structure_ptr >
@@ -254,11 +262,11 @@ public:
 
         start();
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgIndexList< index_structure_ptr > args = new ArgIndexList< index_structure_ptr >( selection, xCol, index );
-            pthread_create(&thread_id[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(&args));
+            ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, thread_count );
+            pthread_create(&thread_ids[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(&args));
         }
         for (uint64_t i = 0; i < THREAD_NUM; i++) {
-            pthread_join(thread_id[i], nullptr);
+            pthread_join(thread_ids[i], nullptr);
         }
         end();
 
@@ -274,11 +282,11 @@ public:
 
         start();
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col );
-            pthread_create(&thread_id[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(&args));
+            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, thread_count );
+            pthread_create(&thread_ids[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(&args));
         }
         for (uint64_t i = 0; i < THREAD_NUM; i++) {
-            pthread_join(thread_id[i], nullptr);
+            pthread_join(thread_ids[i], nullptr);
         }
         end();
         outCsv();
@@ -286,22 +294,24 @@ public:
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         /*auto y0Status = repl_mgr.getStatus(RELATION, TABLE, Y0);
-        auto y1Status = repl_mgr.getStatus(RELATION, TABLE, Y1);
+        auto y1Status = repl_mgr.getStatus(RELATION, TABLE, Y1);*/
         auto y2Status = repl_mgr.getStatus(RELATION, TABLE, Y2);
-        auto y3Status = repl_mgr.getStatus(RELATION, TABLE, Y3);
+        /*auto y3Status = repl_mgr.getStatus(RELATION, TABLE, Y3);
         auto y4Status = repl_mgr.getStatus(RELATION, TABLE, Y4);*/
 
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
         std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
+        const uint64_t maxThreadCount = 16;
+        const uint64_t val = 1;
 
-        for (auto i : y_status_and_distr) {
-            auto yStatus = std::get<0>(i);
-            std::vector<sel_and_val> distr = std::get<1>(i);
+        for (uint64_t threadNum = 1; threadNum < maxThreadCount; threadNum++) {
+            auto yStatus = y2Status;
+            //std::vector<sel_and_val> distr = std::get<1>(i);
 
             for (size_t node = 0; node < node_number; node++) {
                 auto xCol = xStatus->getPersistentColumn(node)->convert();
@@ -312,29 +322,26 @@ public:
                 auto yVCol = yStatus->getVColumn(node);
 
                 for (uint64_t iterations = 0; iterations < 40; iterations++) {
-                    for (auto j : distr) {
-                        uint64_t val = j.attr_value;
-                        //trace_l(T_INFO, "Selectivity is supposed to be, ", j.selectivity);
-                        //for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
-                        printColumnSize();
-                        comma();
-                        printUnit();
-                        comma();
-                        printSelectivity(yTree, val);
-                        comma();
-                        printNode(node);
-                        comma();
-                        runCol  (xCol, yVCol, val);
-                        comma();
-                        runCol  (xCol, yPCol, val);
-                        comma();
-                        runIndex(xCol, yTree, val); 
-                        comma();
-                        runIndex(xCol, yHash, val);
-                        comma();
-                        runIndex(xCol, ySkip, val);
-                        nextCsvRow();
-                    }
+                    //trace_l(T_INFO, "Selectivity is supposed to be, ", j.selectivity);
+                    //for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
+                    printColumnSize();
+                    comma();
+                    printUnit();
+                    comma();
+                    printSelectivity(yTree, val);
+                    comma();
+                    printNode(node);
+                    comma();
+                    runCol  (xCol, yVCol, val, threadNum);
+                    comma();
+                    runCol  (xCol, yPCol, val, threadNum);
+                    comma();
+                    runIndex(xCol, yTree, val, threadNum); 
+                    comma();
+                    runIndex(xCol, yHash, val, threadNum);
+                    comma();
+                    runIndex(xCol, ySkip, val, threadNum);
+                    nextCsvRow();
                 }
 
                 delete xCol;
@@ -382,7 +389,7 @@ public:
 
 int main( void ) {
     // Setup phase: figure out node configuration
-    auto initializer = RootInitializer::getInstance();
+    auto & initializer = RootInitializer::getInstance();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
