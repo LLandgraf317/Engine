@@ -188,26 +188,43 @@ public:
     template< typename index_structure_ptr >
     struct ArgIndexList
     {
-        ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t)
-            : sel(selection), xCol(col), index(i), threadNum(t) {}
+        ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
+            : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), queue(readyQueue) {}
                  
         const uint64_t sel;
         const column<uncompr_f> * xCol;
         index_structure_ptr index;
         const uint64_t threadNum;
+        const uint64_t maxThreads;
+        std::vector<bool>& queue;
+
     };
 
     template< typename col_ptr >
     struct ArgColList
     {
-        ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t)
-            : sel(selection), xCol(x), col(i), threadNum(t) {}
+        ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
+            : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), queue(readyQueue) {}
 
         const uint64_t sel;
         const column<uncompr_f> * xCol;
         col_ptr col;
         const uint64_t threadNum;
+        const uint64_t maxThreads;
+        std::vector<bool>& queue;
     };
+
+    static void waitAllReady(std::vector<bool>& queue)
+    {
+        while (true) {
+            for (uint64_t i = 0; i < queue.size(); i++) {
+                if (queue[i] == false)
+                    break;
+                if (i == queue.size() - 1)
+                    return;
+            }
+        }
+    }
 
     template< typename index_structure_ptr >
     static void* runIndexPT(void * argPtr)
@@ -217,6 +234,9 @@ public:
         const uint64_t selection = args->sel;
         auto xCol = args->xCol;
         auto index = args->index;
+
+        args->queue[args->threadNum] = true;
+        waitAllReady(args->queue);
 
         auto select = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
@@ -241,6 +261,9 @@ public:
         auto xCol = args->xCol;
         auto col = args->col;
 
+        args->queue[args->threadNum] = true;
+        waitAllReady(args->queue);
+
         auto select = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
                 ::apply( col, selection);
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, select);
@@ -257,14 +280,20 @@ public:
     template< typename index_structure_ptr >
     void runIndex(const column<uncompr_f> * xCol, index_structure_ptr index, const uint64_t selection, uint64_t thread_count)
     {
-        std::vector<pthread_t> thread_ids(thread_count);
         numa_run_on_node(0);
 
-        start();
+        std::vector<pthread_t> thread_ids(thread_count);
+        std::vector<bool> readyQueue(thread_count);
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, thread_count );
+            readyQueue[i] = false;
+        }
+
+        for (uint64_t i = 0; i < thread_count; i++) {
+            ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, i, thread_count, readyQueue );
             pthread_create(&thread_ids[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(&args));
         }
+        waitAllReady(readyQueue);
+        start();
         for (uint64_t i = 0; i < THREAD_NUM; i++) {
             pthread_join(thread_ids[i], nullptr);
         }
@@ -276,15 +305,20 @@ public:
     template< typename col_ptr >
     void runCol(const column<uncompr_f> * xCol, col_ptr col, const uint64_t selection, uint64_t thread_count)
     {
-
-        std::vector<pthread_t> thread_ids(thread_count);
         numa_run_on_node(0);
 
-        start();
+        std::vector<pthread_t> thread_ids(thread_count);
+        std::vector<bool> readyQueue(thread_count);
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, thread_count );
+            readyQueue[i] = false;
+        }
+
+        for (uint64_t i = 0; i < thread_count; i++) {
+            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, i, thread_count, readyQueue );
             pthread_create(&thread_ids[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(&args));
         }
+        waitAllReady(readyQueue);
+        start();
         for (uint64_t i = 0; i < THREAD_NUM; i++) {
             pthread_join(thread_ids[i], nullptr);
         }
