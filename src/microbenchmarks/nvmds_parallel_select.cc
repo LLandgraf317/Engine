@@ -247,15 +247,14 @@ public:
 
     // Select sum(x) from r where y = c
     template< typename index_structure_ptr >
-    void runIndex(const column<uncompr_f> * xCol, index_structure_ptr index, const uint64_t selection)
+    void runIndex(const column<uncompr_f> * xCol, index_structure_ptr index, const uint64_t selection, uint64_t thread_count)
     {
-        ArgIndexList< index_structure_ptr > args = { selection, xCol, index };
-
-        pthread_t thread_id[THREAD_NUM];
+        std::vector<pthread_t> thread_ids(thread_count);
         numa_run_on_node(0);
 
         start();
-        for (uint64_t i = 0; i < THREAD_NUM; i++) {
+        for (uint64_t i = 0; i < thread_count; i++) {
+            ArgIndexList< index_structure_ptr > args = new ArgIndexList< index_structure_ptr >( selection, xCol, index );
             pthread_create(&thread_id[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(&args));
         }
         for (uint64_t i = 0; i < THREAD_NUM; i++) {
@@ -267,15 +266,15 @@ public:
     }
 
     template< typename col_ptr >
-    void runCol(const column<uncompr_f> * xCol, col_ptr col, const uint64_t selection)
+    void runCol(const column<uncompr_f> * xCol, col_ptr col, const uint64_t selection, uint64_t thread_count)
     {
-        ArgColList< col_ptr > args = { selection, xCol, col };
 
-        pthread_t thread_id[THREAD_NUM];
+        std::vector<pthread_t> thread_ids(thread_count);
         numa_run_on_node(0);
 
         start();
-        for (uint64_t i = 0; i < THREAD_NUM; i++) {
+        for (uint64_t i = 0; i < thread_count; i++) {
+            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col );
             pthread_create(&thread_id[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(&args));
         }
         for (uint64_t i = 0; i < THREAD_NUM; i++) {

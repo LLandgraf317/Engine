@@ -44,14 +44,14 @@ public:
     }
 
     using Distr = std::vector<sel_and_val>;
-    std::vector<std::tuple<ReplicationStatus*, Distr>> y_status_and_distr;
+    std::vector<std::tuple<std::string, std::string, std::string, Distr>> y_status_and_distr;
 
     ReplicationManager & repl_mgr;
 
     // Select r.x, s.z from r, s where r.y = s.y
 
     void initData() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         repl_mgr.init(node_number);
@@ -64,26 +64,6 @@ public:
         r_x->setTable(TABLE1);
         r_x->setAttribute(X);
         repl_mgr.insert(r_x);
-
-
-        const uint64_t iters = 10;
-        std::vector<sel_and_val> sel_distr_y[iters];
-        for (unsigned j = 0; j < iters; j++) {
-            Distr temp;
-            for (unsigned i = 1; i < ATTR_DIST / (j + 1); i++) {
-                temp.push_back(sel_and_val(1.0f / ATTR_DIST * j, i));
-            }
-            sel_distr_y[j] = temp;
-            repl_mgr.deleteAll(RELATION, TABLE1, std::string(Y) + std::to_string(j));
-
-            auto r_y = generate_share_vector_pers( ARRAY_SIZE, temp, 0 );
-            r_y->setRelation(RELATION);
-            r_y->setTable(TABLE1);
-            r_y->setAttribute( std::string(Y) + std::to_string(j));
-
-            repl_mgr.constructAll(r_y);
-            y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE1, std::string(Y) + std::to_string(j)), temp);
-        }
 
         repl_mgr.deleteAll(RELATION, TABLE2, Y);
 
@@ -102,7 +82,38 @@ public:
         s_z->setAttribute(Z);
         repl_mgr.insert(s_z);
 
-        repl_mgr.joinAllThreads();
+        const uint64_t iters = 10;
+        std::vector<sel_and_val> sel_distr_y[iters];
+        for (unsigned j = 0; j < iters; j++) {
+            Distr temp;
+            for (unsigned i = 1; i < ATTR_DIST / (j + 1); i++) {
+                temp.push_back(sel_and_val(1.0f / ATTR_DIST * (j+1), i));
+            }
+
+            std::string attrName = std::string(Y) + std::to_string(j);
+            //repl_mgr.deleteAll(RELATION, TABLE1, attrName);
+
+            auto r_y = generate_share_vector_pers( ARRAY_SIZE, temp, 0 );
+            r_y->setRelation(RELATION);
+            r_y->setTable(TABLE1);
+            r_y->setAttribute( attrName );
+
+            repl_mgr.constructAll(r_y);
+            repl_mgr.joinAllThreads();
+
+            auto y_status = repl_mgr.getStatus(RELATION, TABLE1, attrName );
+
+            assert(y_status != nullptr);
+            assert(y_status->getMultiValTreeIndex(0) != nullptr);
+            assert(y_status->getPersistentColumn(0) != nullptr);
+            trace_l(T_DEBUG, "Inserting status ", y_status);
+            trace_l(T_DEBUG, "Persistent Tree on ", y_status->getMultiValTreeIndex(0));
+
+            trace_l(T_DEBUG, "Adding status for ", y_status->getRelation(), ", ", y_status->getTable(), ", ", y_status->getAttribute());
+            y_status = repl_mgr.getStatus(RELATION, TABLE1, attrName );
+            y_status_and_distr.emplace_back(RELATION, TABLE1, attrName, temp);
+        }
+
     }
 
     std::chrono::time_point<std::chrono::system_clock> starttime;
@@ -189,7 +200,7 @@ public:
         auto s_z_copy = s_z->convert();
 
         start();
-        auto resTuple = ds_join<index_structure_ptr1, index_structure_ptr2, BucketPtr, BucketPtr>(r_y, s_y);
+        auto resTuple = ds_join<index_structure_ptr1, index_structure_ptr2, BucketPtr, BucketPtr>(r_y, s_y, r_y->getCountValues());
         auto r_x_res = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(r_x_copy, std::get<0>(resTuple));
         auto s_z_res = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(s_z_copy, std::get<1>(resTuple));
         end();
@@ -215,7 +226,7 @@ public:
         auto s_z_copy = s_z->convert();
 
         start();
-        auto resTuple = nested_loop_join<ps, uncompr_f, uncompr_f, uncompr_f, uncompr_f>(r_y, s_y);
+        auto resTuple = nested_loop_join<ps, uncompr_f, uncompr_f, uncompr_f, uncompr_f>(r_y, s_y, r_y->get_count_values());
         auto r_x_res = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(r_x_copy, std::get<0>(resTuple));
         auto s_z_res = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(s_z_copy, std::get<1>(resTuple));
         end();
@@ -231,9 +242,23 @@ public:
         delete std::get<1>(resTuple);
     }
 
+    void trace_distr(std::vector<std::tuple<ReplicationStatus*, Distr>>& distris)
+    {
+        for (uint64_t i = 0; i < distris.size(); i++) {
+            auto status = std::get<0>(distris[i]);
+            auto distr = std::get<1>(distris[i]);
+
+            trace_l(T_DEBUG, "Retrieved status and distr");
+            trace_l(T_DEBUG, "status ", status->getRelation(), ", t: ", status->getTable(), ", a: ", status->getAttribute());
+            for (uint64_t j = 0; j < distr.size(); j++) {
+                trace_l(T_DEBUG, "sel: ", distr[j].selectivity, ", val: ", distr[j].attr_value);
+            }
+        }
+    }
+
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         auto r_x = repl_mgr.getStatus(RELATION, TABLE1, X)->getPersistentColumn(0);
@@ -244,20 +269,25 @@ public:
         std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
 
-        for (auto i : y_status_and_distr) {
-            auto r_yStatus = std::get<0>(i);
-            std::vector<sel_and_val> distr = std::get<1>(i);
+        repl_mgr.traceAll();
+        //trace_distr(y_status_and_distr);
+
+        for (uint64_t i = 0; i < y_status_and_distr.size(); i++) {
+            auto s_and_distr = y_status_and_distr[i];
+            auto r_yStatus = repl_mgr.getStatus(std::get<0>(s_and_distr), std::get<1>(s_and_distr), std::get<2>(s_and_distr));
+            trace_l(T_DEBUG, "Status: ", r_yStatus, ", rel: ", r_yStatus->getRelation(), ", table: ", r_yStatus->getTable(), ", attribute: ", r_yStatus->getAttribute());
+            std::vector<sel_and_val> distr = std::get<3>(s_and_distr);
 
             for (size_t node = 0; node < node_number; node++) {
                 auto r_yTree = r_yStatus->getMultiValTreeIndex(node);
                 auto r_yHash = r_yStatus->getHashMapIndex(node);
-                auto r_ySkip = r_yStatus->getSkipListIndex(node);
+                //auto r_ySkip = r_yStatus->getSkipListIndex(node);
                 auto r_yPCol = r_yStatus->getPersistentColumn(node)->convert();
                 auto r_yVCol = r_yStatus->getVColumn(node);
 
                 auto s_yTree = s_yStatus->getMultiValTreeIndex(node);
                 auto s_yHash = s_yStatus->getHashMapIndex(node);
-                auto s_ySkip = s_yStatus->getSkipListIndex(node);
+                //auto s_ySkip = s_yStatus->getSkipListIndex(node);
                 auto s_yPCol = s_yStatus->getPersistentColumn(node)->convert();
                 auto s_yVCol = s_yStatus->getVColumn(node);
 
@@ -278,7 +308,7 @@ public:
                     comma();
                     runIndex(r_x, r_yHash, s_yHash, s_z);
                     comma();
-                    runIndex(r_x, r_ySkip, s_ySkip, s_z);
+                    //runIndex(r_x, r_ySkip, s_ySkip, s_z);
                     nextCsvRow();
                 }
 
@@ -293,7 +323,7 @@ public:
 
 int main( void ) {
     // Setup phase: figure out node configuration
-    auto initializer = RootInitializer::getInstance();
+    auto & initializer = RootInitializer::getInstance();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
@@ -301,10 +331,11 @@ int main( void ) {
     }
     initializer.initPmemPool(std::string("NVMDSBench"), std::string("NVMDS"));
 
-    Main prog;
+    Main prog = Main();
     prog.initData();
     prog.main();
 
+    initializer.getNumaNodeCount();
 
     return 0;
 }

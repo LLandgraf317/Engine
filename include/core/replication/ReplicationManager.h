@@ -149,10 +149,18 @@ class ReplicationStatus {
 
     std::vector<ReplTuple> replication;
 
+    //ReplicationStatus(ReplicationStatus const&) = delete;
+    //void operator=(ReplicationStatus const&) = delete;
+
 public:
     ReplicationStatus(std::string relation, std::string table, std::string attribute)
         : m_Relation(relation), m_Table(table), m_Attribute(attribute)
     {
+    }
+
+    ~ReplicationStatus()
+    {
+        trace_l(T_DEBUG, "Destroying replication status ", m_Relation, ", ", m_Table, ", ", m_Attribute);
     }
 
     std::string getRelation() { return m_Relation; }
@@ -163,9 +171,9 @@ public:
 
     bool compare(std::string relation, std::string table, std::string attribute)
     {
-        trace_l(T_DEBUG, "Comparing ", relation, ", ", table, ", ", attribute);
+        /*trace_l(T_DEBUG, "Comparing ", relation, ", ", table, ", ", attribute);
         trace_l(T_DEBUG, "and ", m_Relation, ", ", m_Table, ", ", m_Attribute);
-        trace_l(T_DEBUG, "Results: ", relation.compare(m_Relation), ", ", table.compare(m_Table), ", ", attribute.compare(m_Attribute));
+        trace_l(T_DEBUG, "Results: ", relation.compare(m_Relation), ", ", table.compare(m_Table), ", ", attribute.compare(m_Attribute));*/
 
         return relation.compare(m_Relation) == 0 && table.compare(m_Table) == 0 && attribute.compare(m_Attribute) == 0;
     }
@@ -225,7 +233,7 @@ public:
     template<typename t_index_structure_ptr>
     void add(t_index_structure_ptr ptr, DataStructure kind, size_t pmemNode)
     {
-        trace_l(T_INFO, "Adding data structure of kind ", kind, " on node ", pmemNode, " concerning r: ", ptr->getRelation(), ", t: ", ptr->getTable(), ", a: ", ptr->getAttribute());
+        //trace_l(T_INFO, "Adding data structure of kind ", kind, " on node ", pmemNode, " concerning r: ", ptr->getRelation(), ", t: ", ptr->getTable(), ", a: ", ptr->getAttribute());
         replication.emplace_back(ptr, kind, pmemNode);
     }
 
@@ -279,7 +287,7 @@ void * generateVColumn( void * argPtr )
 }
 
 class ReplicationManager {
-
+private:
     uint64_t m_NumaNodeCount;
     std::vector<ReplicationStatus> state;
 
@@ -287,7 +295,12 @@ class ReplicationManager {
     pobj_alloc_class_desc alloc_class;
     bool m_Wait = false;
 
+    ReplicationManager() {}
+
 public:
+    ReplicationManager(ReplicationManager const&)               = delete;
+    void operator=(ReplicationManager const&)  = delete;
+
     static ReplicationManager& getInstance()
     {
         static ReplicationManager instance;
@@ -313,6 +326,14 @@ public:
                 pthread_join( (*iter)->thread_id, nullptr);
                 thread_infos.pop_front();
             }
+    }
+
+    void traceAll()
+    {
+        trace_l(T_DEBUG, "States of replication:");
+        for (auto & i : state) {
+            trace_l(T_DEBUG, i.getRelation(), ", ",  i.getTable(), ", ", i.getAttribute());
+        }
     }
 
 
@@ -423,7 +444,7 @@ public:
     using ps = vectorlib::scalar<vectorlib::v64<uint64_t>>;
     void constructAll( persistent_ptr<PersistentColumn> col )
     {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         const auto node_number = initializer.getNumaNodeCount();
 
         auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
@@ -464,11 +485,13 @@ public:
             NVMStorageManager::pushSkipListIndex(skip);
             NVMStorageManager::pushHashMapIndex(hash);
         }
+
+        trace_l(T_DEBUG, "End construct all for ", col->getRelation(), ", ", col->getTable(), ", ", col->getAttribute());
     }
 
     void constructAllCol( persistent_ptr<PersistentColumn> col)
     {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         const auto node_number = initializer.getNumaNodeCount();
 
         auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
@@ -491,7 +514,7 @@ public:
 
     void constructAllCL( persistent_ptr<PersistentColumn> col )
     {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         const auto node_number = initializer.getNumaNodeCount();
 
         auto status = getStatusOrNew(col->getRelation(), col->getTable(), col->getAttribute());
@@ -527,6 +550,7 @@ public:
         auto status = getStatus(relation, table, attribute);
 
         if (status != nullptr) {
+            trace_l(T_DEBUG, "Status not null, ", relation, ", ", table, ", ", attribute);
             status->destructAll();
             removeStatus(status);
         }
@@ -570,15 +594,15 @@ public:
 
     ReplicationStatus * getStatus(std::string relation, std::string table, std::string attribute)
     {
-        trace_l(T_DEBUG, "Containing ", state.size(), " columns");
+        //trace_l(T_DEBUG, "Containing ", state.size(), " columns");
         for (auto iter = state.begin(); iter != state.end(); iter++) {
             if (iter->compare(relation, table, attribute)) {
-                trace_l(T_DEBUG, "Returning ", &*iter);
+                //trace_l(T_DEBUG, "Returning ", &*iter);
                 return &*iter;
             }
         }
 
-        trace_l(T_DEBUG, "Returning nullptr");
+        //trace_l(T_DEBUG, "Returning nullptr");
         return nullptr;
     }
 

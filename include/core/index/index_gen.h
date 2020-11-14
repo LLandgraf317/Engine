@@ -75,7 +75,7 @@ public:
         auto count_values = keyCol->get_count_values();
         uint64_t* key_data = keyCol->get_data();
         uint64_t* val_data = valCol->get_data();
-        trace_l(T_DEBUG, "Batch insert on column on ", key_data, " and valCol ", val_data, " with count values ", count_values);
+        //trace_l(T_DEBUG, "Batch insert on column on ", key_data, " and valCol ", val_data, " with count values ", count_values);
 
         uint64_t index_count_values = 0;
 
@@ -87,10 +87,10 @@ public:
         std::sort(sortVec.begin(), sortVec.end(), [](std::tuple<uint64_t, uint64_t> a, std::tuple<uint64_t, uint64_t> b) {
                     return std::get<0>(a) < std::get<0>(b);
                 });
-        trace_l(T_DEBUG, "Done with sorting");
+        //trace_l(T_DEBUG, "Done with sorting");
 
         uint64_t currentKey = std::get<0>(*sortVec.begin());
-        trace_l(T_DEBUG, "First key is ", currentKey);
+        //trace_l(T_DEBUG, "First key is ", currentKey);
         persistent_ptr<NodeBucketList<uint64_t, t_bucket_size>> currentList = index->find(currentKey);
 
         if (currentList == nullptr) {
@@ -116,9 +116,9 @@ public:
         while (iter != sortVec.end()) {
 
             if (currentKey != std::get<0>(*iter)) {
-                trace_l(T_DEBUG, "Inserted for key ", currentKey, " value count ", insertCount);
+                //trace_l(T_DEBUG, "Inserted for key ", currentKey, " value count ", insertCount);
                 currentKey = std::get<0>(*iter);
-                trace_l(T_DEBUG, "Got new key ", currentKey);
+                //trace_l(T_DEBUG, "Got new key ", currentKey);
 
                 currentList->setCountValues(insertCount);
                 index_count_values += insertCount;
@@ -160,7 +160,7 @@ public:
             iter++;
         }
 
-        trace_l(T_DEBUG, "Inserted for key ", currentKey, " value count ", insertCount);
+        //trace_l(T_DEBUG, "Inserted for key ", currentKey, " value count ", insertCount);
         currentList->setCountValues(insertCount);
         index_count_values += insertCount;
         index->m_CountTuples = index_count_values;

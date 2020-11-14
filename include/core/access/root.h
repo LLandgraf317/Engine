@@ -43,7 +43,7 @@ struct root_retrieval {
 };
 
 class RootInitializer {
-
+private:
     std::string m_LayoutName;
     std::string m_FileName;
     uint64_t m_PoolSize;
@@ -54,7 +54,12 @@ class RootInitializer {
 
     std::vector<bool> m_ReadSuccessful;
 
+    RootInitializer() {}
+
 public:
+    RootInitializer(RootInitializer const&)               = delete;
+    void operator=(RootInitializer const&)  = delete;
+
     ~RootInitializer()
     {
         trace_l(T_DEBUG, "Destroying RootInitializer");
