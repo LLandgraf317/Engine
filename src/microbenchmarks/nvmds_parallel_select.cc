@@ -304,11 +304,13 @@ public:
 
         for (uint64_t i = 0; i < thread_count; i++) {
             ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, i, thread_count, readyQueue );
-            pthread_create(&thread_ids[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(args));
+            pthread_t temp;
+            pthread_create(&temp, nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(args));
+            thread_ids[i] = temp;
         }
         waitAllReady(readyQueue);
         start();
-        for (uint64_t i = 0; i < THREAD_NUM; i++) {
+        for (uint64_t i = 0; i < thread_count; i++) {
             pthread_join(thread_ids[i], nullptr);
         }
         end();
@@ -329,11 +331,14 @@ public:
 
         for (uint64_t i = 0; i < thread_count; i++) {
             ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, i, thread_count, readyQueue );
-            pthread_create(&thread_ids[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(args));
+            pthread_t temp;
+            pthread_create(&temp, nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(args));
+            thread_ids[i] = temp;
+            trace_l(T_DEBUG, "Spawned thread with id ", temp);
         }
         waitAllReady(readyQueue);
         start();
-        for (uint64_t i = 0; i < THREAD_NUM; i++) {
+        for (uint64_t i = 0; i < thread_count; i++) {
             pthread_join(thread_ids[i], nullptr);
         }
         end();
