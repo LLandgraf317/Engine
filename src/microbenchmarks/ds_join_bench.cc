@@ -99,7 +99,6 @@ public:
             r_y->setAttribute( attrName );
 
             repl_mgr.constructAll(r_y);
-            repl_mgr.joinAllThreads();
 
             auto y_status = repl_mgr.getStatus(RELATION, TABLE1, attrName );
 
@@ -114,6 +113,7 @@ public:
             y_status_and_distr.emplace_back(RELATION, TABLE1, attrName, temp);
         }
 
+        repl_mgr.joinAllThreads();
     }
 
     std::chrono::time_point<std::chrono::system_clock> starttime;
