@@ -189,7 +189,13 @@ public:
     struct ArgIndexList
     {
         ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
-            : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), queue(readyQueue) {}
+            : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), queue(readyQueue) {
+                trace_l(T_DEBUG, "Created index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
+            }
+
+        void print() {
+                trace_l(T_DEBUG, "Index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+        }
                  
         const uint64_t sel;
         const column<uncompr_f> * xCol;
@@ -204,7 +210,13 @@ public:
     struct ArgColList
     {
         ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
-            : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), queue(readyQueue) {}
+            : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), queue(readyQueue) {
+                trace_l(T_DEBUG, "Created col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
+    }
+
+        void print() {
+                trace_l(T_DEBUG, "col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+        }
 
         const uint64_t sel;
         const column<uncompr_f> * xCol;
@@ -230,6 +242,7 @@ public:
     static void* runIndexPT(void * argPtr)
     {
         ArgIndexList< index_structure_ptr > * args = reinterpret_cast<ArgIndexList<index_structure_ptr>*>(argPtr);
+        args->print();
 
         const uint64_t selection = args->sel;
         auto xCol = args->xCol;
@@ -256,6 +269,7 @@ public:
     static void * runColPT(void * argPtr)
     {
         ArgColList<col_ptr> * args = reinterpret_cast<ArgColList<col_ptr>*>(argPtr);
+        args->print();
 
         const uint64_t selection = args->sel;
         auto xCol = args->xCol;
@@ -290,7 +304,7 @@ public:
 
         for (uint64_t i = 0; i < thread_count; i++) {
             ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, i, thread_count, readyQueue );
-            pthread_create(&thread_ids[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(&args));
+            pthread_create(&thread_ids[i], nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(args));
         }
         waitAllReady(readyQueue);
         start();
@@ -315,7 +329,7 @@ public:
 
         for (uint64_t i = 0; i < thread_count; i++) {
             ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, i, thread_count, readyQueue );
-            pthread_create(&thread_ids[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(&args));
+            pthread_create(&thread_ids[i], nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(args));
         }
         waitAllReady(readyQueue);
         start();
