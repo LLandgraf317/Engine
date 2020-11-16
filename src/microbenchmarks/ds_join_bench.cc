@@ -35,7 +35,7 @@ char const * Y = "y";
 char const * Z = "z";
 
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
-constexpr size_t ATTR_DIST = ARRAY_SIZE / 4096;
+constexpr size_t ATTR_DIST = ARRAY_SIZE / 4096 / 16;
 
 class Main {
 public:
