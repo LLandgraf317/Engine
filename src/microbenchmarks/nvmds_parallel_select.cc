@@ -193,13 +193,13 @@ public:
     template< typename index_structure_ptr >
     struct ArgIndexList
     {
-        ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
-            : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), queue(readyQueue) {
-                trace_l(T_DEBUG, "Created index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
+        ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t, const uint64_t m, std::atomic<uint64_t>& down) //std::vector<bool>& readyQueue)
+            : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), downVar(down) {//queue(readyQueue) {
+                //trace_l(T_DEBUG, "Created index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
             }
 
         void print() {
-                trace_l(T_DEBUG, "Index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+                //trace_l(T_DEBUG, "Index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
         }
                  
         const uint64_t sel;
@@ -207,20 +207,21 @@ public:
         index_structure_ptr index;
         const uint64_t threadNum;
         const uint64_t maxThreads;
-        std::vector<bool>& queue;
+        //std::vector<bool>& queue;
+        std::atomic<uint64_t>& downVar;
 
     };
 
     template< typename col_ptr >
     struct ArgColList
     {
-        ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t, const uint64_t m, std::vector<bool>& readyQueue)
-            : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), queue(readyQueue) {
-                trace_l(T_DEBUG, "Created col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
+        ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t, const uint64_t m, std::atomic<uint64_t>& down)//std::vector<bool>& readyQueue)
+            : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), downVar(down) {//queue(readyQueue) {
+                //trace_l(T_DEBUG, "Created col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
     }
 
         void print() {
-                trace_l(T_DEBUG, "col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+                //trace_l(T_DEBUG, "col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
         }
 
         const uint64_t sel;
@@ -228,19 +229,21 @@ public:
         col_ptr col;
         const uint64_t threadNum;
         const uint64_t maxThreads;
-        std::vector<bool>& queue;
+        //std::vector<bool>& queue;
+        std::atomic<uint64_t>& downVar;
     };
 
-    static void waitAllReady(std::vector<bool>& queue)
+    static void waitAllReady(std::atomic<uint64_t>& down) //std::vector<bool>& queue)
     {
-        while (true) {
-            for (uint64_t i = 0; i < queue.size(); i++) {
-                if (queue[i] == false)
-                    break;
-                if (i == queue.size() - 1)
-                    return;
+        while (down != 0) {}
+        /*for (uint64_t i = 0; i < queue.size(); i++) {
+            if (queue[i] == false) {
+                trace_l(T_INFO, "Resetting queue at ", i);
+                i = 0;
             }
-        }
+            if (i == queue.size() - 1)
+                return;
+        }*/
     }
 
     template< typename index_structure_ptr >
@@ -253,8 +256,9 @@ public:
         auto xCol = args->xCol;
         auto index = args->index;
 
-        args->queue[args->threadNum] = true;
-        waitAllReady(args->queue);
+        args->downVar--;
+        //args->queue[args->threadNum] = true;
+        waitAllReady(args->downVar);
 
         auto select = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
@@ -280,8 +284,12 @@ public:
         auto xCol = args->xCol;
         auto col = args->col;
 
-        args->queue[args->threadNum] = true;
-        waitAllReady(args->queue);
+        args->downVar--;
+        //args->queue[args->threadNum] = true;
+        waitAllReady(args->downVar);
+        /*args->queue[args->threadNum] = true;
+        trace_l(T_INFO, "Set thread number ", args->threadNum, " to true");
+        waitAllReady(args->queue);*/
 
         auto select = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
                 ::apply( col, selection);
@@ -302,25 +310,29 @@ public:
         numa_run_on_node(0);
 
         std::vector<pthread_t> thread_ids(thread_count);
-        std::vector<bool> readyQueue(thread_count);
-        for (uint64_t i = 0; i < thread_count; i++) {
+        //std::vector<bool> readyQueue(thread_count);
+        std::atomic<uint64_t> downVar = thread_count;
+
+        /*for (uint64_t i = 0; i < thread_count; i++) {
             readyQueue[i] = false;
-        }
+        }*/
 
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, i, thread_count, readyQueue );
+            ArgIndexList< index_structure_ptr > * args = new ArgIndexList< index_structure_ptr >( selection, xCol, index, i, thread_count, downVar );
             pthread_t temp;
             pthread_create(&temp, nullptr, Main::runIndexPT<index_structure_ptr>, reinterpret_cast<void*>(args));
             thread_ids[i] = temp;
+            //trace_l(T_INFO, "Spawned thread with id ", temp);
         }
-        waitAllReady(readyQueue);
+        waitAllReady(downVar);
         start();
         for (uint64_t i = 0; i < thread_count; i++) {
             pthread_join(thread_ids[i], nullptr);
+            //trace_l(T_INFO, "Joined thread with id ", i);
         }
         end();
-
         outCsv();
+        //trace_l(T_INFO, "Finished run index");
     }
 
     template< typename col_ptr >
@@ -329,25 +341,28 @@ public:
         numa_run_on_node(0);
 
         std::vector<pthread_t> thread_ids(thread_count);
-        std::vector<bool> readyQueue(thread_count);
-        for (uint64_t i = 0; i < thread_count; i++) {
+        //std::vector<bool> readyQueue(thread_count);
+        std::atomic<uint64_t> downVar = thread_count;
+        /*for (uint64_t i = 0; i < thread_count; i++) {
             readyQueue[i] = false;
-        }
+        }*/
 
         for (uint64_t i = 0; i < thread_count; i++) {
-            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, i, thread_count, readyQueue );
+            ArgColList< col_ptr > * args = new ArgColList<col_ptr>( selection, xCol, col, i, thread_count, downVar );
             pthread_t temp;
             pthread_create(&temp, nullptr, Main::runColPT<col_ptr>, reinterpret_cast<void*>(args));
             thread_ids[i] = temp;
-            trace_l(T_DEBUG, "Spawned thread with id ", temp);
+            //trace_l(T_INFO, "Spawned thread with id ", temp);
         }
-        waitAllReady(readyQueue);
+        waitAllReady(downVar);
         start();
         for (uint64_t i = 0; i < thread_count; i++) {
             pthread_join(thread_ids[i], nullptr);
+            //trace_l(T_INFO, "Joined thread with id ", i);
         }
         end();
         outCsv();
+        //trace_l(T_INFO, "Finished run col");
     }
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
