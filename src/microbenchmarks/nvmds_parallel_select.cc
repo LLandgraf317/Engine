@@ -155,6 +155,11 @@ public:
         std::cout << "seconds";
     }
 
+    void printThreadCount(uint64_t threadCount)
+    {
+        std::cout << threadCount;
+    }
+
     void comma()
     {
         std::cout << ",";
@@ -357,7 +362,7 @@ public:
         auto y4Status = repl_mgr.getStatus(RELATION, TABLE, Y4);*/
 
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
-        std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
+        std::cout << "Column Size in Tuples,Measure Unit,Selectivity,thread_count,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
         const uint64_t maxThreadCount = 16;
         const uint64_t val = 1;
@@ -382,6 +387,8 @@ public:
                     printUnit();
                     comma();
                     printSelectivity(yTree, val);
+                    comma();
+                    printThreadCount(threadNum);
                     comma();
                     printNode(node);
                     comma();
