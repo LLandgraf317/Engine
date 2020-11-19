@@ -406,7 +406,7 @@ public:
                 auto yPCol = yStatus->getPersistentColumn(node)->convert();
                 auto yVCol = yStatus->getVColumn(node);
 
-                for (uint64_t iterations = 0; iterations < 40; iterations++) {
+                for (uint64_t iterations = 0; iterations < 10; iterations++) {
                     //trace_l(T_INFO, "Selectivity is supposed to be, ", j.selectivity);
                     //for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
                     printColumnSize();
