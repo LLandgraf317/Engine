@@ -384,6 +384,18 @@ public:
 
         for (uint64_t threadNum = 1; threadNum < maxThreadCount; threadNum++) {
             auto yStatus = y2Status;
+            auto cpumask = numa_allocate_cpumask();
+            numa_bitmask_clearall(cpumask);
+
+            auto numcpus = numa_num_task_cpus();
+            if ((int) threadNum <= numcpus) {
+                for (unsigned int i = 0; i < 1+threadNum; i++)
+                    numa_bitmask_setbit(cpumask, i);
+                numa_sched_setaffinity(0, cpumask); 
+            } 
+            
+            numa_free_cpumask(cpumask);
+
             //std::vector<sel_and_val> distr = std::get<1>(i);
 
             for (size_t node = 0; node < node_number; node++) {
