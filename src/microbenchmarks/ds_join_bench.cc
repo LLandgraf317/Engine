@@ -86,8 +86,9 @@ public:
         std::vector<sel_and_val> sel_distr_y[iters];
         for (unsigned j = 0; j < iters; j++) {
             Distr temp;
-            for (unsigned i = 1; i < ATTR_DIST / (j + 1); i++) {
-                temp.push_back(sel_and_val(1.0f / ATTR_DIST * (j+1), i));
+            uint64_t stepsize = ATTR_DIST / (j+1);
+            for (unsigned i = 0; i < ATTR_DIST / stepsize; i += stepsize) {
+                temp.push_back(sel_and_val(1.0f / ATTR_DIST * stepsize, 1 + i / stepsize));
             }
 
             std::string attrName = std::string(Y) + std::to_string(j);
@@ -291,7 +292,7 @@ public:
                 auto s_yPCol = s_yStatus->getPersistentColumn(node)->convert();
                 auto s_yVCol = s_yStatus->getVColumn(node);
 
-                for (uint64_t iterations = 0; iterations < 40; iterations++) {
+                for (uint64_t iterations = 0; iterations < 5; iterations++) {
                     printColumnSize();
                     comma();
                     printUnit();
