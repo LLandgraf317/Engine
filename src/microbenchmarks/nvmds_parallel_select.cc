@@ -16,6 +16,8 @@
 #include <core/utils/measure.h>
 
 #include <numa.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <vector>
 
 using namespace morphstore;
@@ -388,10 +390,11 @@ public:
             numa_bitmask_clearall(cpumask);
 
             auto numcpus = numa_num_task_cpus();
+            auto pid = getpid();
             if ((int) threadNum <= numcpus) {
                 for (unsigned int i = 0; i < 1+threadNum; i++)
                     numa_bitmask_setbit(cpumask, i);
-                numa_sched_setaffinity(0, cpumask); 
+                numa_sched_setaffinity(pid, cpumask); 
             } 
             
             numa_free_cpumask(cpumask);
