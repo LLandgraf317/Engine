@@ -152,4 +152,11 @@ if( BUILD_ALL OR BUILD_MICROBMS )
     target_link_libraries(
         nvmds_parallel_select PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
 
+    add_executable( nvmds_advisor nvmds_advisor.cc)
+    target_compile_options( nvmds_advisor PRIVATE
+                            #$<$<CONFIG:DEBUG>:-DDEBUG>
+    )
+    target_link_libraries(
+        nvmds_advisor PRIVATE ${PMDK_LIBRARIES} pthread numa "-ldl")
+
 endif( BUILD_ALL OR BUILD_MICROBMS )
