@@ -11,6 +11,8 @@
 
 #include <numa.h>
 #include <vector>
+#include <list>
+#include <map>
 
 namespace morphstore {
 
@@ -44,6 +46,18 @@ private:
     std::vector<DataPoint> data;
     Statistic() {}
 
+    double compAvgDuration(const std::list<Dur> & list)
+    {
+        uint64_t count = 0;
+        double sum = 0.0;
+        for (auto i : list) {
+            count++;
+            sum += i.count();
+        }
+
+        return sum/count;
+    }
+
 public:
     Statistic(Statistic const&)               = delete;
     void operator=(Statistic const&)  = delete;
@@ -60,8 +74,85 @@ public:
         data.emplace_back(querytype, datastruct, rem, dur, selectivity, column_size);
     }
 
+    using SelToDurations = std::map<float, std::list<Dur>>;
+    std::tuple<double, double> getSelSumInterpolation(DataStructure ds, uint64_t column_size)
+    {
+        std::map<uint64_t, SelToDurations> colSizeMap;
+
+        // Buildup of data map
+        for (auto & i : data) {
+            if (i.ds != ds || i.r != Remoteness::LOCAL)
+                continue;
+
+            if (colSizeMap.end() == colSizeMap.find(i.column_size)) {
+                colSizeMap.emplace(i.column_size, SelToDurations());
+            }
+
+            auto & selToDur = colSizeMap[i.column_size];
+            if (selToDur.end() == selToDur.find(i.selectivity)) {
+                selToDur.emplace(i.selectivity, std::list<Dur>());
+            }
+
+            auto & durList = selToDur[i.selectivity];
+            durList.push_back(i.exec_time);
+        }
+
+        // Interpolation phase
+        if (colSizeMap.end() == colSizeMap.find(column_size)) {
+            // find largest column size and scale down
+            uint64_t maxColSize = 0;
+            for (auto const& [colSize, selToDur] : colSizeMap) {
+                if (colSize > maxColSize)
+                    maxColSize = colSize;
+            }
+
+            SelToDurations & selToDur = colSizeMap[maxColSize];
+            auto tup = calculateLinearInter( selToDur );
+
+            return tup;
+        }
+        else {
+            // we found a corresponding column size for interpolation
+            auto & selToDur = colSizeMap[column_size];
+
+            return calculateLinearInter( selToDur );
+        }
+    }
+
+    std::tuple<double, double> calculateLinearInter( SelToDurations & selToDur )
+    {
+        float minSel = 1.0f; // max
+        double minDurAvg = 0.0;
+
+        float maxSel = 0.0f; // min
+        double maxDurAvg = 0.0;
+
+        for (auto const& [sel, durList] : selToDur) {
+            if (sel > maxSel) {
+                maxDurAvg = compAvgDuration(durList);
+            }
+            if (sel < minSel) {
+                minDurAvg = compAvgDuration(durList);
+            }
+
+        } 
+
+        double m = (maxDurAvg - minDurAvg) / (maxSel - minSel);
+        double c = minDurAvg - m * minSel;
+
+        return std::make_tuple(c, m);
+    }
+
 };
+
 class Optimizer {
+private:
+    Optimizer() {}
+
+public:
+    Optimizer(Optimizer const&)               = delete;
+    void operator=(Optimizer const&)  = delete;
+
     void optimizeSelectSum(/*uint64_t sel, std::string relation, std::string table, std::string attribute*/) {
 
     }
@@ -98,8 +189,13 @@ class Optimizer {
 
 };
 
-class QueryBookkeeper {
+class PlacementAdvisor {
+private:
+    PlacementAdvisor() {}
 
+public:
+    PlacementAdvisor(PlacementAdvisor const&)               = delete;
+    void operator=(PlacementAdvisor const&)  = delete;
 
 
 
