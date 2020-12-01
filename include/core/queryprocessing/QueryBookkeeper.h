@@ -71,6 +71,8 @@ class Optimizer {
         SingleSelectSumQuery query;
         uint64_t node = 0;
 
+        auto & stat = Statistic::getInstance();
+
         auto & repl_mgr = ReplicationManager::getInstance();
         auto xStatus = repl_mgr.getStatus(relation, table, "X");
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
@@ -81,10 +83,17 @@ class Optimizer {
         auto yHash = yStatus->getHashMapIndex(node);
         auto ySkip = yStatus->getSkipListIndex(node);
 
-        query.runCol  (xCol, yPCol, sel);
-        query.runIndex(xCol, yTree, sel); 
-        query.runIndex(xCol, yHash, sel);
-        query.runIndex(xCol, ySkip, sel);
+        uint64_t column_size = yPCol->get_count_values() * sizeof(uint64_t);
+
+        auto coldur = query.runCol  (xCol, yPCol, sel);
+        auto treedur = query.runIndex(xCol, yTree, sel); 
+        auto hashdur = query.runIndex(xCol, yHash, sel);
+        auto skipdur = query.runIndex(xCol, ySkip, sel);
+
+        stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::LOCAL, coldur, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);
     }
 
 };
