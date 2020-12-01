@@ -75,13 +75,13 @@ public:
     }
 
     using SelToDurations = std::map<float, std::list<Dur>>;
-    std::tuple<double, double> getSelSumInterpolation(DataStructure ds, uint64_t column_size)
+    std::tuple<double, double> getSelSumInterpolation(DataStructure ds, Remoteness r, uint64_t column_size)
     {
         std::map<uint64_t, SelToDurations> colSizeMap;
 
         // Buildup of data map
         for (auto & i : data) {
-            if (i.ds != ds || i.r != Remoteness::LOCAL)
+            if (i.ds != ds || i.r != r)
                 continue;
 
             if (colSizeMap.end() == colSizeMap.find(i.column_size)) {
@@ -153,7 +153,44 @@ public:
     Optimizer(Optimizer const&)               = delete;
     void operator=(Optimizer const&)  = delete;
 
-    void optimizeSelectSum(/*uint64_t sel, std::string relation, std::string table, std::string attribute*/) {
+    static Optimizer & getInstance()
+    {
+        static Optimizer opt;
+        return opt;
+    }
+
+    void optimizeSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute) {
+
+        SingleSelectSumQuery query;
+        uint64_t node = 0;
+
+        auto & repl_mgr = ReplicationManager::getInstance();
+        auto xStatus = repl_mgr.getStatus(relation, table, "X");
+        auto yStatus = repl_mgr.getStatus(relation, table, attribute);
+
+        auto xCol = xStatus->getPersistentColumn(node)->convert();
+        auto yPCol = yStatus->getPersistentColumn(node)->convert();
+        auto yTree = yStatus->getMultiValTreeIndex(node);
+        //auto yHash = yStatus->getHashMapIndex(node);
+        //auto ySkip = yStatus->getSkipListIndex(node);
+
+        uint64_t columnSize = yPCol->get_count_values() * sizeof(uint64_t);
+        auto & s = Statistic::getInstance();
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+
+        auto coldur = query.runCol  (xCol, yPCol, sel);
+        auto treedur = query.runIndex(xCol, yTree, sel); 
+        //auto hashdur = query.runIndex(xCol, yHash, sel);
+        //auto skipdur = query.runIndex(xCol, ySkip, sel);
+       
+        (void) colParamsLocal;
+        (void) treeParamsLocal;
+        (void) colParamsRemote;
+        (void) treeParamsRemote; 
 
     }
 
@@ -189,6 +226,13 @@ public:
 
 };
 
+enum Placement {
+    COLCOL,
+    DATASCOL,
+    COLDATAS,
+    DATASDATAS
+};
+
 class PlacementAdvisor {
 private:
     PlacementAdvisor() {}
@@ -196,6 +240,61 @@ private:
 public:
     PlacementAdvisor(PlacementAdvisor const&)               = delete;
     void operator=(PlacementAdvisor const&)  = delete;
+
+    static PlacementAdvisor& getInstance()
+    {
+        static PlacementAdvisor ad;
+        return ad;
+    }
+
+    using SizeShareSelectivityProb = std::tuple<uint64_t, double, double, double>;
+    using Workload = std::vector<SizeShareSelectivityProb>;
+
+    void calculatePlacementForWorkload(uint64_t columnSize, Workload & wl)
+    {
+        Statistic & s = Statistic::getInstance();
+
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+        //std::tuple<double, double> hashParams;
+        //std::tuple<double, double> skipParams;
+
+        double sumSecondsCC = 0.0;
+        double sumSecondsDC = 0.0;
+        double sumSecondsCD = 0.0;
+        double sumSecondsDD = 0.0;
+
+        for (auto i : wl) {
+            //uint64_t colSize = std::get<0>(i);
+            double share = std::get<1>(i);
+            double sel = std::get<2>(i);
+            double prob = std::get<3>(i);
+            
+            double secondsCLocal = sel * std::get<1>(colParamsLocal) + std::get<0>(colParamsLocal);
+            double secondsDLocal = sel * std::get<1>(treeParamsLocal) + std::get<0>(treeParamsLocal);
+
+            double secondsCRemote = sel * std::get<1>(colParamsRemote) + std::get<0>(colParamsRemote);
+            double secondsDRemote = sel * std::get<1>(treeParamsRemote) + std::get<0>(treeParamsRemote);
+
+            sumSecondsCC += share * ( prob * secondsCLocal + (1-prob) * secondsCRemote );
+            sumSecondsDC += share * ( prob * secondsDLocal + (secondsCRemote > secondsDLocal ? secondsDLocal : secondsCRemote));
+            sumSecondsCD += share * ( prob * secondsDLocal + (secondsCLocal > secondsDRemote ? secondsDRemote : secondsCLocal));
+            sumSecondsDD += share * secondsDLocal;
+        }
+
+        std::cout << "Got placement: " << std::endl; 
+        if (sumSecondsCC < sumSecondsDD && sumSecondsCC < sumSecondsDC)
+            std::cout << "Column Column" << std::endl;
+
+        if (sumSecondsDC < sumSecondsDD && sumSecondsDC < sumSecondsCC)
+            std::cout << "Tree Column" << std::endl;
+
+        if (sumSecondsDD < sumSecondsDC && sumSecondsDD < sumSecondsCC)
+            std::cout << "Tree Tree" << std::endl;
+    }
 
 
 
