@@ -247,8 +247,8 @@ public:
         return ad;
     }
 
-    using SizeShareSelectivityProb = std::tuple<uint64_t, double, double, double>;
-    using Workload = std::vector<SizeShareSelectivityProb>;
+    using SizeShareSelectivityQoSQoS = std::tuple<uint64_t, double, double, double, double>;
+    using Workload = std::vector<SizeShareSelectivityQoSQoS>;
 
     void calculatePlacementForWorkload(uint64_t columnSize, Workload & wl)
     {
@@ -271,7 +271,8 @@ public:
             //uint64_t colSize = std::get<0>(i);
             double share = std::get<1>(i);
             double sel = std::get<2>(i);
-            double prob = std::get<3>(i);
+            double qos0 = std::get<3>(i);
+            double qos1 = std::get<4>(i);
             
             double secondsCLocal = sel * std::get<1>(colParamsLocal) + std::get<0>(colParamsLocal);
             double secondsDLocal = sel * std::get<1>(treeParamsLocal) + std::get<0>(treeParamsLocal);
@@ -279,9 +280,30 @@ public:
             double secondsCRemote = sel * std::get<1>(colParamsRemote) + std::get<0>(colParamsRemote);
             double secondsDRemote = sel * std::get<1>(treeParamsRemote) + std::get<0>(treeParamsRemote);
 
-            sumSecondsCC += share * ( prob * secondsCLocal + (1-prob) * secondsCRemote );
-            sumSecondsDC += share * ( prob * secondsDLocal + (secondsCRemote > secondsDLocal ? secondsDLocal : secondsCRemote));
-            sumSecondsCD += share * ( prob * secondsDLocal + (secondsCLocal > secondsDRemote ? secondsDRemote : secondsCLocal));
+            //sumSecondsCC += share * ( prob0 * secondsCLocal + (1-prob) * secondsCRemote );
+            sumSecondsCC += share * secondsCLocal;
+
+            if ( secondsCLocal > secondsDLocal ) {
+                double partialDC0 = qos0 * secondsDLocal;
+                double partialDC1 = ( secondsDRemote > secondsCLocal ? ( 1 - qos0 ) * secondsCLocal : ( 1 - qos0 ) * secondsDRemote );
+
+                double partialCD0 = qos1 * secondsDLocal;
+                double partialCD1 = ( secondsDRemote > secondsCLocal ? ( 1 - qos1 ) * secondsCLocal : ( 1 - qos1 ) * secondsDRemote );
+
+                sumSecondsDC += share * ( partialDC0 + partialDC1 );
+                sumSecondsCD += share * ( partialCD0 + partialCD1 );
+            }
+            else {
+                double partialDC0 = qos1 * secondsCLocal;
+                double partialDC1 = ( secondsCRemote > secondsDLocal ? ( 1 - qos1 ) * secondsDLocal : ( 1 - qos1 ) * secondsCRemote );
+
+                double partialCD0 = qos0 * secondsCLocal;
+                double partialCD1 = ( secondsDLocal > secondsCRemote ? ( 1 - qos0 ) * secondsCRemote : ( 1 - qos0 ) * secondsDLocal );
+
+                sumSecondsDC += share * ( partialDC0 + partialDC1 );
+                sumSecondsCD += share * ( partialCD0 + partialCD1 );
+            }
+
             sumSecondsDD += share * secondsDLocal;
         }
 
