@@ -26,14 +26,6 @@ public:
     static void waitAllReady(std::atomic<uint64_t>& down) //std::vector<bool>& queue)
     {
         while (down != 0) {}
-        /*for (uint64_t i = 0; i < queue.size(); i++) {
-            if (queue[i] == false) {
-                trace_l(T_INFO, "Resetting queue at ", i);
-                i = 0;
-            }
-            if (i == queue.size() - 1)
-                return;
-        }*/
     }
 
     inline void start()
@@ -60,11 +52,10 @@ struct ArgIndexList
 {
     ArgIndexList(uint64_t selection, const column<uncompr_f> * col, index_structure_ptr i, uint64_t t, const uint64_t m, std::atomic<uint64_t>& down) //std::vector<bool>& readyQueue)
         : sel(selection), xCol(col), index(i), threadNum(t), maxThreads(m), downVar(down) {//queue(readyQueue) {
-            //trace_l(T_DEBUG, "Created index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
         }
 
     void print() {
-            //trace_l(T_DEBUG, "Index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+        trace_l(T_DEBUG, "Index arg list with selection ", sel, ", col ", xCol, ", index ", index, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
     }
              
     const uint64_t sel;
@@ -72,7 +63,6 @@ struct ArgIndexList
     index_structure_ptr index;
     const uint64_t threadNum;
     const uint64_t maxThreads;
-    //std::vector<bool>& queue;
     std::atomic<uint64_t>& downVar;
 
 };
@@ -82,11 +72,10 @@ struct ArgColList
 {
     ArgColList(uint64_t selection, const column<uncompr_f> * x, col_ptr i, uint64_t t, const uint64_t m, std::atomic<uint64_t>& down)//std::vector<bool>& readyQueue)
         : sel(selection), xCol(x), col(i), threadNum(t), maxThreads(m), downVar(down) {//queue(readyQueue) {
-            //trace_l(T_DEBUG, "Created col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &readyQueue);
-}
+        }
 
     void print() {
-            //trace_l(T_DEBUG, "col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
+        trace_l(T_DEBUG, "col arg list with selection ", sel, ", col ", xCol, ", index ", col, ", thread number ", threadNum , ", max threads ", maxThreads, ", queue ", &queue);
     }
 
     const uint64_t sel;
