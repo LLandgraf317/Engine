@@ -381,7 +381,7 @@ public:
         auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
         std::cout << "Column Size in Tuples,Measure Unit,Selectivity,thread_count,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
         numa_run_on_node(0);
-        const uint64_t maxThreadCount = 16;
+        const uint64_t maxThreadCount = 32;
         const uint64_t val = 1;
 
         for (uint64_t threadNum = 1; threadNum < maxThreadCount; threadNum++) {
