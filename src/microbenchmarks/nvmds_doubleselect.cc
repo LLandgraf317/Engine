@@ -108,14 +108,13 @@ public:
         }
 
         constructBySel(sel_distr_x, ARRAY_SIZE, RELATION, TABLE, X);
-
         constructBySel(sel_distr_y, ARRAY_SIZE, RELATION, TABLE, Y);
-
         constructBySel(sel_distr_z, ARRAY_SIZE, RELATION, TABLE, Z);
 
         repl_mgr.joinAllThreads();
 
         y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y), sel_distr_y);
+        z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z), sel_distr_z);
 
         /*std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
