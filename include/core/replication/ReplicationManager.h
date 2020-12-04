@@ -295,7 +295,9 @@ private:
     pobj_alloc_class_desc alloc_class;
     bool m_Wait = false;
 
-    ReplicationManager() {}
+    ReplicationManager() {
+        trace_l(T_DEBUG, "Constructing ReplicationManager"); 
+    }
 
 public:
     ReplicationManager(ReplicationManager const&)               = delete;
@@ -304,7 +306,6 @@ public:
     static ReplicationManager& getInstance()
     {
         static ReplicationManager instance;
-
         return instance;
     }
 
@@ -562,6 +563,7 @@ public:
             auto status = getStatus(relation, table, attribute);
 
             if (status != nullptr) {
+                trace_l(T_DEBUG, "status was not null for ", relation, ", ", table, ", ", attribute);
                 if ( !(status->getPersistentColumn(i)
                         && status->getMultiValTreeIndex(i)
                         && status->getSkipListIndex(i)

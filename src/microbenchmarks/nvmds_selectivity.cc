@@ -49,7 +49,7 @@ public:
 
     void constructBySel(std::vector<sel_and_val> distr, size_t elem_count, std::string relation, std::string table, std::string attribute)
     {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         if (!repl_mgr.containsAll(elem_count, relation, table, attribute)) {
@@ -77,7 +77,7 @@ public:
     const unsigned MAX_SEL_Y = 10;
 
     void initData() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         repl_mgr.init(node_number);
@@ -226,7 +226,7 @@ public:
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto initializer = RootInitializer::getInstance();
+        auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         /*auto y0Status = repl_mgr.getStatus(RELATION, TABLE, Y0);
@@ -322,7 +322,7 @@ public:
 
 int main( void ) {
     // Setup phase: figure out node configuration
-    auto initializer = RootInitializer::getInstance();
+    auto & initializer = RootInitializer::getInstance();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");

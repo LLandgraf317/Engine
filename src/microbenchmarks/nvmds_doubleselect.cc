@@ -52,6 +52,7 @@ public:
     void constructBySel(std::vector<sel_and_val> distr, size_t elem_count, std::string relation, std::string table, std::string attribute)
     {
         auto & initializer = RootInitializer::getInstance();
+        auto & repl_mgr = ReplicationManager::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         if (!repl_mgr.containsAll(elem_count, relation, table, attribute)) {
@@ -75,13 +76,18 @@ public:
         }
     }
 
-    Main() : repl_mgr(ReplicationManager::getInstance())
+    Main() //: repl_mgr(ReplicationManager::getInstance())
     {
     }
 
-    ReplicationManager & repl_mgr;
+    //ReplicationManager & repl_mgr;
 
     void initData() {
+
+        auto & initializer = RootInitializer::getInstance();
+        auto & repl_mgr = ReplicationManager::getInstance();
+        auto node_number = initializer.getNumaNodeCount();
+        repl_mgr.init(node_number);
 
         std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
@@ -300,7 +306,7 @@ public:
 
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        //auto repl_mgr = ReplicationManager::getInstance();
+        auto & repl_mgr = ReplicationManager::getInstance();
         auto & initializer = RootInitializer::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
@@ -415,7 +421,8 @@ public:
 int main( void ) {
     // Setup phase: figure out node configuration
     auto & initializer = RootInitializer::getInstance();
-    //ReplicationManager::getInstance();
+    auto & repl_mgr = ReplicationManager::getInstance();
+    repl_mgr.traceAll();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
