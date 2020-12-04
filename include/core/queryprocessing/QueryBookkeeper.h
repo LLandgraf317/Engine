@@ -182,16 +182,49 @@ public:
         std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
         std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
 
+        (void) colParamsRemote;
+        (void) treeParamsRemote; 
+
         auto coldur = query.runCol  (xCol, yPCol, sel);
         auto treedur = query.runIndex(xCol, yTree, sel); 
         //auto hashdur = query.runIndex(xCol, yHash, sel);
         //auto skipdur = query.runIndex(xCol, ySkip, sel);
-       
-        (void) colParamsLocal;
-        (void) treeParamsLocal;
-        (void) colParamsRemote;
-        (void) treeParamsRemote; 
+        //
+        // interpolate query execution times using params from previous experiments, hardcoded
+        auto interMultiColumn = [](double t) {
+            return 0.963127 * exp(t * 0.03757);
+        }
 
+        auto interMultiTree = [](double t) {
+            return 0.96275 * exp(t * 0.03796);
+        }
+
+        auto execTree = [&](double selectivity) {
+            return std::get<0>(treeParamsLocal) * selectivity + std::get<1>(treeParamsLocal);
+        }
+
+        auto execCol = [&](double selectivity) {
+            return std::get<0>(colParamsLocal) * selectivity + std::get<1>(colParamsLocal);
+        }
+
+        uint64_t numThreads = 50;
+
+        double prevAbs = double::MAX;
+        uint64_t colThreads = 0;
+        uint64_t treeThreads = 0;
+
+        // Find out break-even point by iteration
+        for (uint64_t i = 0; i <= numThreads; i++) {
+            double numTD = (double) i;
+            double res = interMultiColumn(numTD) * execCol(sel) - interMultiTree(numTD) * execTree(sel); 
+            if (res < prevAbs) {
+                prevAbs = res;
+                colThreads = i;
+                treeThreads = numThreads - i;
+            }
+        }
+
+        // Execute dispatch
     }
 
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
