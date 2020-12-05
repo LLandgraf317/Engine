@@ -72,6 +72,7 @@ public:
 
     void log(QueryType querytype, DataStructure datastruct, Remoteness rem, Dur dur, float selectivity, uint64_t column_size)
     {
+        trace_l(T_DEBUG, "querytype: ", querytype, ", datastruct: ", datastruct, ", remoteness: ", rem, ", duration: ", dur.count(), "s, selectivity: ", selectivity, ", column size: ", column_size, "b");
         data.emplace_back(querytype, datastruct, rem, dur, selectivity, column_size);
     }
 
@@ -147,6 +148,7 @@ public:
 };
 
 class Optimizer {
+    using Dur = std::chrono::duration<double>;
 private:
     Optimizer() {}
 
@@ -178,6 +180,7 @@ public:
         //auto yHash = yStatus->getHashMapIndex(node);
         //auto ySkip = yStatus->getSkipListIndex(node);
 
+        trace_l(T_INFO, "Interpolating parameters");
         uint64_t columnSize = yPCol->get_count_values() * sizeof(uint64_t);
         auto & s = Statistic::getInstance();
         std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
@@ -218,6 +221,8 @@ public:
         uint64_t treeThreads = 0;
         double selectivity = 0.3;
 
+        trace_l(T_INFO, "Iterating break even points");
+
         // Find out break-even point by iteration
         for (uint64_t i = 0; i <= numThreads; i++) {
             double numTD = (double) i;
@@ -233,25 +238,32 @@ public:
 
         // Execute dispatch
         for (uint64_t i = 0; i < colThreads; i++) {
+
+            SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
             auto * colArgs
-                = new ArgList<const column<uncompr_f>*>(sel, xCol, yPColConv, 0);
-            SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();//new SingleSelectSumQuery();
+                = new ArgList<const column<uncompr_f>*>(sel, xCol, yPColConv, 0, q);
 
             q->dispatchAsyncColumn(colArgs);
         }
         for (uint64_t i = 0; i < treeThreads; i++) {
-            ArgList<pptr<MultiValTreeIndex>> * treeArgs
-                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree, 1);
+
             SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
+            ArgList<pptr<MultiValTreeIndex>> * treeArgs
+                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree, 1, q);
 
             q->dispatchAsyncIndex(treeArgs);
         }
 
+        qc.waitAllReady();
 
+        std::vector<Dur> durations = qc.getAllDurations();
+        for (auto i : durations)
+            std::cout << "Duration: " << i.count() << std::endl;
     }
 
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
     {
+        trace_l(T_INFO, "Warm up iteration");
         QueryCollection qc;
         SingleSelectSumQuery * query = qc.create<SingleSelectSumQuery>();
 
@@ -280,6 +292,10 @@ public:
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);
+
+        delete xCol;
+        delete yPCol;
+        delete query;
     }
 
 };
