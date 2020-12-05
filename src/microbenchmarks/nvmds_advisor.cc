@@ -42,11 +42,9 @@ constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
 class Main {
 public:
-    Main() : repl_mgr(ReplicationManager::getInstance())
+    Main()
     {
     }
-
-    ReplicationManager & repl_mgr;
 
     using Distr = std::vector<sel_and_val>;
     std::vector<std::tuple<ReplicationStatus*, Distr>> y_status_and_distr;
@@ -54,6 +52,7 @@ public:
     void constructBySel(std::vector<sel_and_val> distr, size_t elem_count, std::string relation, std::string table, std::string attribute)
     {
         auto & initializer = RootInitializer::getInstance();
+        auto & repl_mgr = ReplicationManager::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         if (!repl_mgr.containsAll(elem_count, relation, table, attribute)) {
@@ -82,6 +81,7 @@ public:
 
     void initData() {
         auto & initializer = RootInitializer::getInstance();
+        auto & repl_mgr = ReplicationManager::getInstance();
         auto node_number = initializer.getNumaNodeCount();
 
         repl_mgr.init(node_number);
@@ -133,46 +133,6 @@ public:
         y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y4), sel_distr_y4);
     }
 
-    std::chrono::time_point<std::chrono::system_clock> starttime;
-    std::chrono::time_point<std::chrono::system_clock> endtime;
-
-    inline void start()
-    {
-        starttime = std::chrono::system_clock::now();
-    }
-
-    inline void end()
-    {
-        endtime = std::chrono::system_clock::now();
-    }
-
-    void outCsv()
-    {
-        std::chrono::duration<double> dur = endtime - starttime;
-
-        std::cout << dur.count();
-    }
-
-    void printUnit()
-    {
-        std::cout << "seconds";
-    }
-
-    void comma()
-    {
-        std::cout << ",";
-    }
-
-    void printColumnSize()
-    {
-        std::cout << ARRAY_SIZE;
-    }
-
-    void printNode(size_t node)
-    {
-        std::cout << node;
-    }
-
     void printSelectivity(persistent_ptr<MultiValTreeIndex> tree, const uint64_t val)
     {
         auto buck = tree->find(val);
@@ -183,143 +143,32 @@ public:
         std::cout << sel;
     }
 
-    void nextCsvRow()
-    {
-        std::cout << std::endl;
-    }
-
-    // Select sum(x) from r where y = c
-    template< typename index_structure_ptr >
-    void runIndex(const column<uncompr_f> * xCol, index_structure_ptr index, const uint64_t selection, size_t runnode1, size_t runnode2)
-    {
-        numa_run_on_node(runnode1);
-        start();
-        auto select = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
-            index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
-                ::apply( index, selection);
-        numa_run_on_node(runnode2);
-        auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, select);
-
-        auto res = agg_sum<ps, uncompr_f>(projection);
-        end();
-        outCsv();
-
-        delete select;
-        delete projection;
-        delete res;
-    }
-
-    template< typename col_ptr >
-    void runCol(const column<uncompr_f> * xCol, col_ptr col, const uint64_t selection, size_t runnode1, size_t runnode2)
-    {
-        numa_run_on_node(runnode1);
-        start();
-        auto select = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( col, selection);
-        numa_run_on_node(runnode2);
-        auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, select);
-        auto res = agg_sum<ps, uncompr_f>(projection);
-
-        end();
-        outCsv();
-
-        delete select;
-        delete projection;
-        delete res;
-    }
-
     using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
     void main() {
-        auto & initializer = RootInitializer::getInstance();
-        auto node_number = initializer.getNumaNodeCount();
-
-        /*auto y0Status = repl_mgr.getStatus(RELATION, TABLE, Y0);
-        auto y1Status = repl_mgr.getStatus(RELATION, TABLE, Y1);
-        auto y2Status = repl_mgr.getStatus(RELATION, TABLE, Y2);
-        auto y3Status = repl_mgr.getStatus(RELATION, TABLE, Y3);
-        auto y4Status = repl_mgr.getStatus(RELATION, TABLE, Y4);*/
-
-        auto xStatus = repl_mgr.getStatus(RELATION, TABLE, X);
-        std::cout << "Column Size in Tuples,Measure Unit,Selectivity,Volatile column,Persistent column,Persistent Tree,Persistent Hashmap,Persistent skiplist" << std::endl;
-        numa_run_on_node(0);
+        auto & optimizer = Optimizer::getInstance();
 
         for (auto i : y_status_and_distr) {
-            auto yStatus = std::get<0>(i);
-            std::vector<sel_and_val> distr = std::get<1>(i);
+            auto distr = std::get<1>(i);
+            auto status = std::get<0>(i);
 
-            for (size_t node = 0; node < node_number; node++) {
-                auto xCol = xStatus->getPersistentColumn(node)->convert();
-                auto yTree = yStatus->getMultiValTreeIndex(node);
-                auto yHash = yStatus->getHashMapIndex(node);
-                auto ySkip = yStatus->getSkipListIndex(node);
-                auto yPCol = yStatus->getPersistentColumn(node)->convert();
-                auto yVCol = yStatus->getVColumn(node);
-
-                for (uint64_t iterations = 0; iterations < 40; iterations++) {
-                    for (auto j : distr) {
-                        uint64_t val = j.attr_value;
-                        //trace_l(T_INFO, "Selectivity is supposed to be, ", j.selectivity);
-                        //for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
-                        printColumnSize();
-                        comma();
-                        printUnit();
-                        comma();
-                        printSelectivity(yTree, val);
-                        comma();
-                        printNode(node);
-                        comma();
-                        runCol  (xCol, yVCol, val, 0, 0);
-                        comma();
-                        runCol  (xCol, yPCol, val, 0, 0);
-                        comma();
-                        runIndex(xCol, yTree, val, 0, 0); 
-                        comma();
-                        runIndex(xCol, yHash, val, 0, 0);
-                        comma();
-                        runIndex(xCol, ySkip, val, 0, 0);
-                        nextCsvRow();
-                    }
-                }
-
-                delete xCol;
-                delete yPCol;
+            for (auto sv : distr) {
+                uint64_t val = sv.attr_value;
+                // Warmup
+                for (uint64_t i = 0; i < 40; i++)
+                    optimizer.executeAllSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }
 
-        // Mixed node workload
-        /*auto xCol = xStatus->getPersistentColumn(0)->convert();
+        for (auto i : y_status_and_distr) {
+            auto distr = std::get<1>(i);
+            auto status = std::get<0>(i);
 
-        auto yTree = yStatus->getMultiValTreeIndex(1);
-        auto yHash = yStatus->getHashMapIndex(1);
-        auto ySkip = yStatus->getSkipListIndex(1);
-        auto yPCol = yStatus->getPersistentColumn(1)->convert();
-        auto yVCol = yStatus->getVColumn(1);
-
-        for (uint64_t iterations = 0; iterations < 40; iterations++) {
-            for (size_t val = 1; val < MAX_SEL_Y + 2; val++) {
-                printColumnSize();
-                comma();
-                printUnit();
-                comma();
-                printSelectivity(yTree, val);
-                comma();
-                printNode(3);
-                comma();
-                runCol  (xCol, yVCol, val, 1, 0);
-                comma();
-                runCol  (xCol, yPCol, val, 1, 0);
-                comma();
-                runIndex(xCol, yTree, val, 1, 0); 
-                comma();
-                runIndex(xCol, yHash, val, 1, 0);
-                comma();
-                runIndex(xCol, ySkip, val, 1, 0);
-                nextCsvRow();
+            for (auto sv : distr) {
+                uint64_t val = sv.attr_value;
+                // Warmup
+                optimizer.optimizeSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }
-
-        delete xCol;
-        delete yPCol;*/
     }
 
 };

@@ -170,7 +170,7 @@ public:
         uint64_t node = 0;
 
         auto & repl_mgr = ReplicationManager::getInstance();
-        auto xStatus = repl_mgr.getStatus(relation, table, "X");
+        auto xStatus = repl_mgr.getStatus(relation, table, "x");
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
         auto xCol = xStatus->getPersistentColumn(node)->convert();
@@ -188,6 +188,12 @@ public:
 
         std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
         std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+
+        trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
+        trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " * sel + ", std::to_string(std::get<1>(colParamsLocal)));
+        trace_l(T_INFO, "Local tree: y = ", std::to_string(std::get<0>(treeParamsLocal)), " * sel + ", std::to_string(std::get<1>(treeParamsLocal)));
+        trace_l(T_INFO, "Parallelity scale equation local column: sf(t) = exp( 0.03757 * t ) * 0.963127");
+        trace_l(T_INFO, "Parallelity scale equation local tree: sf(t) = exp( 0.03796 * t ) * 0.96275");
 
         (void) colParamsRemote;
         (void) treeParamsRemote; 
@@ -214,12 +220,18 @@ public:
             return std::get<0>(colParamsLocal) * selectivity + std::get<1>(colParamsLocal);
         };
 
-        const uint64_t numThreads = 50;
+        trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
+
+        const uint64_t numThreads = 30;
 
         double prevAbs = std::numeric_limits<double>::max();
         uint64_t colThreads = 0;
         uint64_t treeThreads = 0;
-        double selectivity = 0.3;
+
+        auto buck = yTree->find(sel);
+        size_t countBuck = buck->getCountValues();
+
+        double selectivity = (double) countBuck / yPColConv->get_count_values();
 
         trace_l(T_INFO, "Iterating break even points");
 
@@ -233,6 +245,8 @@ public:
                 treeThreads = numThreads - i;
             }
         }
+
+        trace_l(T_INFO, "Iteration yielded following results: selectivity: ", selectivity, ", colThreads: ", colThreads, ", treeThreads: ", treeThreads, ", absPenaltyMin: ", prevAbs);
 
         QueryCollection qc;
 
@@ -272,7 +286,7 @@ public:
         auto & stat = Statistic::getInstance();
 
         auto & repl_mgr = ReplicationManager::getInstance();
-        auto xStatus = repl_mgr.getStatus(relation, table, "X");
+        auto xStatus = repl_mgr.getStatus(relation, table, "x");
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
         auto xCol = xStatus->getPersistentColumn(node)->convert();

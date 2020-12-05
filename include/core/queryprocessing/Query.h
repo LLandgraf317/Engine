@@ -97,14 +97,17 @@ private:
 public:
     void pushQuery(Query * query)
     {
+        downVar++;
         queries.push_back(query);
     }
 
     void waitAllReady() {
         while (downVar != 0) {}
 
-        for (auto i : queries) 
+        for (auto i : queries) {
+            trace_l(T_INFO, "Joining thread ", i->getThread());
             pthread_join(i->getThread(), nullptr);
+        }
     }
 
     template< typename query_type >
@@ -202,6 +205,8 @@ public:
         auto index = args->datastruct;
 
         (*args->downVar)--;
+        //uint64_t a = (*args->downVar);
+        //trace_l(T_DEBUG, "Spin var is now ", a);
         waitAllReady(*args->downVar);
 
         args->query->start();
@@ -217,6 +222,8 @@ public:
         delete projection;
         delete res;
 
+        //trace_l(T_DEBUG, "Done.");
+
         return nullptr;
     }
 
@@ -231,6 +238,8 @@ public:
         auto yCol = args->datastruct;
 
         (*args->downVar)--;
+        //uint64_t a = (*args->downVar);
+        //trace_l(T_DEBUG, "Spin var is now ", a);
         waitAllReady(*args->downVar);
 
         args->query->start();
@@ -243,6 +252,8 @@ public:
         delete select;
         delete projection;
         delete res;
+
+        //trace_l(T_DEBUG, "Done.");
 
         return nullptr;
     }
