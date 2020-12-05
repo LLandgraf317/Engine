@@ -104,6 +104,7 @@ public:
             // find largest column size and scale down
             uint64_t maxColSize = 0;
             for (auto const& [colSize, selToDur] : colSizeMap) {
+                (void) selToDur;
                 if (colSize > maxColSize)
                     maxColSize = colSize;
             }
