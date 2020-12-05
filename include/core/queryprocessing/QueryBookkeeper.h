@@ -13,6 +13,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <limits>
 
 namespace morphstore {
 
@@ -161,7 +162,9 @@ public:
 
     void optimizeSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute) {
 
-        SingleSelectSumQuery query;
+        QueryCollection qc0;
+        SingleSelectSumQuery * query = qc0.create<SingleSelectSumQuery>();
+
         uint64_t node = 0;
 
         auto & repl_mgr = ReplicationManager::getInstance();
@@ -169,7 +172,8 @@ public:
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
         auto xCol = xStatus->getPersistentColumn(node)->convert();
-        auto yPCol = yStatus->getPersistentColumn(node)->convert();
+        auto yPCol = yStatus->getPersistentColumn(node);
+        auto yPColConv = yStatus->getPersistentColumn(node)->convert();
         auto yTree = yStatus->getMultiValTreeIndex(node);
         //auto yHash = yStatus->getHashMapIndex(node);
         //auto ySkip = yStatus->getSkipListIndex(node);
@@ -185,38 +189,39 @@ public:
         (void) colParamsRemote;
         (void) treeParamsRemote; 
 
-        auto coldur = query.runCol  (xCol, yPCol, sel);
-        auto treedur = query.runIndex(xCol, yTree, sel); 
+        auto coldur = query->runCol  (xCol, yPColConv, sel);
+        auto treedur = query->runIndex(xCol, yTree, sel); 
         //auto hashdur = query.runIndex(xCol, yHash, sel);
         //auto skipdur = query.runIndex(xCol, ySkip, sel);
         //
         // interpolate query execution times using params from previous experiments, hardcoded
         auto interMultiColumn = [](double t) {
             return 0.963127 * exp(t * 0.03757);
-        }
+        };
 
         auto interMultiTree = [](double t) {
             return 0.96275 * exp(t * 0.03796);
-        }
+        };
 
         auto execTree = [&](double selectivity) {
             return std::get<0>(treeParamsLocal) * selectivity + std::get<1>(treeParamsLocal);
-        }
+        };
 
         auto execCol = [&](double selectivity) {
             return std::get<0>(colParamsLocal) * selectivity + std::get<1>(colParamsLocal);
-        }
+        };
 
-        uint64_t numThreads = 50;
+        const uint64_t numThreads = 50;
 
-        double prevAbs = double::MAX;
+        double prevAbs = std::numeric_limits<double>::max();
         uint64_t colThreads = 0;
         uint64_t treeThreads = 0;
+        double selectivity = 0.3;
 
         // Find out break-even point by iteration
         for (uint64_t i = 0; i <= numThreads; i++) {
             double numTD = (double) i;
-            double res = interMultiColumn(numTD) * execCol(sel) - interMultiTree(numTD) * execTree(sel); 
+            double res = interMultiColumn(numTD) * execCol(selectivity) - interMultiTree(numTD) * execTree(selectivity); 
             if (res < prevAbs) {
                 prevAbs = res;
                 colThreads = i;
@@ -224,12 +229,32 @@ public:
             }
         }
 
+        QueryCollection qc;
+
         // Execute dispatch
+        for (uint64_t i = 0; i < colThreads; i++) {
+            auto * colArgs
+                = new ArgList<const column<uncompr_f>*>(sel, xCol, yPColConv, 0);
+            SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();//new SingleSelectSumQuery();
+
+            q->dispatchAsyncColumn(colArgs);
+        }
+        for (uint64_t i = 0; i < treeThreads; i++) {
+            ArgList<pptr<MultiValTreeIndex>> * treeArgs
+                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree, 1);
+            SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
+
+            q->dispatchAsyncIndex(treeArgs);
+        }
+
+
     }
 
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
     {
-        SingleSelectSumQuery query;
+        QueryCollection qc;
+        SingleSelectSumQuery * query = qc.create<SingleSelectSumQuery>();
+
         uint64_t node = 0;
 
         auto & stat = Statistic::getInstance();
@@ -246,10 +271,10 @@ public:
 
         uint64_t column_size = yPCol->get_count_values() * sizeof(uint64_t);
 
-        auto coldur = query.runCol  (xCol, yPCol, sel);
-        auto treedur = query.runIndex(xCol, yTree, sel); 
-        auto hashdur = query.runIndex(xCol, yHash, sel);
-        auto skipdur = query.runIndex(xCol, ySkip, sel);
+        auto coldur  = query->runCol  (xCol, yPCol, sel);
+        auto treedur = query->runIndex(xCol, yTree, sel); 
+        auto hashdur = query->runIndex(xCol, yHash, sel);
+        auto skipdur = query->runIndex(xCol, ySkip, sel);
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::LOCAL, coldur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
