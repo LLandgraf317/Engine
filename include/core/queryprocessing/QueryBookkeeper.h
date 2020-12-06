@@ -191,8 +191,8 @@ public:
         std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
 
         trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
-        trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " * sel + ", std::to_string(std::get<1>(colParamsLocal)));
-        trace_l(T_INFO, "Local tree: y = ", std::to_string(std::get<0>(treeParamsLocal)), " * sel + ", std::to_string(std::get<1>(treeParamsLocal)));
+        trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " + sel * ", std::to_string(std::get<1>(colParamsLocal)));
+        trace_l(T_INFO, "Local tree: y = ", std::to_string(std::get<0>(treeParamsLocal)), " + sel * ", std::to_string(std::get<1>(treeParamsLocal)));
         trace_l(T_INFO, "Parallelity scale equation local column: sf(t) = exp( 0.03757 * t ) * 0.963127");
         trace_l(T_INFO, "Parallelity scale equation local tree: sf(t) = exp( 0.03796 * t ) * 0.96275");
 
@@ -214,11 +214,11 @@ public:
         };
 
         auto execTree = [&](double selectivity) {
-            return std::get<0>(treeParamsLocal) * selectivity + std::get<1>(treeParamsLocal);
+            return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
         };
 
         auto execCol = [&](double selectivity) {
-            return std::get<0>(colParamsLocal) * selectivity + std::get<1>(colParamsLocal);
+            return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
         };
 
         trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
