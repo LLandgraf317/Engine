@@ -99,8 +99,8 @@ private:
 
 public:
     ~QueryCollection() {
-        for (auto i : queries)
-            delete i;
+        /*for (auto i : queries)
+            delete i;*/
     }
 
     void pushQuery(Query * query)
