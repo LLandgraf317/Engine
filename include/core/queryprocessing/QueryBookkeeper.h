@@ -163,10 +163,45 @@ public:
         return opt;
     }
 
-    void optimizeSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute) {
-
+    void runNaiveSelectSumTree(uint64_t sel, std::string relation, std::string table, std::string attribute) {
         QueryCollection qc0;
-        SingleSelectSumQuery * query = qc0.create<SingleSelectSumQuery>();
+
+        auto & repl_mgr = ReplicationManager::getInstance();
+        auto xStatus = repl_mgr.getStatus(relation, table, "x");
+        auto yStatus = repl_mgr.getStatus(relation, table, attribute);
+
+        auto xCol = xStatus->getPersistentColumn(0)->convert();
+        auto yTree0 = yStatus->getMultiValTreeIndex(0);
+
+        const uint64_t numThreads = 30;
+
+        QueryCollection qc;
+
+        // Execute dispatch
+        std::list<ArgList<pptr<MultiValTreeIndex>> *> args;
+        for (uint64_t i = 0; i < numThreads; i++) {
+
+            SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
+            ArgList<pptr<MultiValTreeIndex>> * treeArgs
+                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree0, 0, q);
+
+            q->dispatchAsyncIndex(treeArgs);
+            args.push_back(treeArgs);
+        }
+
+        qc.waitAllReady();
+
+        std::vector<Dur> durations = qc.getAllDurations();
+        for (auto i : durations) {
+            std::cout << "30,NAIVETREE,TREE,";
+            std::cout << i.count() << std::endl;
+        }
+
+        for (auto i : args)
+            delete i;
+    }
+
+    void optimizeSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute) {
 
         uint64_t node = 0;
 
@@ -175,9 +210,9 @@ public:
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
         auto xCol = xStatus->getPersistentColumn(node)->convert();
-        auto yPCol = yStatus->getPersistentColumn(node);
-        auto yPColConv = yStatus->getPersistentColumn(node)->convert();
-        auto yTree = yStatus->getMultiValTreeIndex(node);
+        auto yPCol = yStatus->getPersistentColumn(1);
+        auto yPColConv = yPCol->convert();
+        auto yTree0 = yStatus->getMultiValTreeIndex(node);
         //auto yHash = yStatus->getHashMapIndex(node);
         //auto ySkip = yStatus->getSkipListIndex(node);
 
@@ -199,8 +234,6 @@ public:
         (void) colParamsRemote;
         (void) treeParamsRemote; 
 
-        auto coldur = query->runCol  (xCol, yPColConv, sel);
-        auto treedur = query->runIndex(xCol, yTree, sel); 
         //auto hashdur = query.runIndex(xCol, yHash, sel);
         //auto skipdur = query.runIndex(xCol, ySkip, sel);
         //
@@ -229,7 +262,7 @@ public:
         uint64_t colThreads = 0;
         uint64_t treeThreads = 0;
 
-        auto buck = yTree->find(sel);
+        auto buck = yTree0->find(sel);
         size_t countBuck = buck->getCountValues();
 
         double selectivity = (double) countBuck / yPColConv->get_count_values();
@@ -252,28 +285,45 @@ public:
         QueryCollection qc;
 
         // Execute dispatch
+        std::list<ArgList<const column<uncompr_f> *> *> argsC;
         for (uint64_t i = 0; i < colThreads; i++) {
 
             SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
             auto * colArgs
-                = new ArgList<const column<uncompr_f>*>(sel, xCol, yPColConv, 0, q);
+                = new ArgList<const column<uncompr_f>*>(sel, xCol, yPColConv, 1, q);
 
             q->dispatchAsyncColumn(colArgs);
+            argsC.push_back(colArgs);
         }
+
+        std::list<ArgList<pptr<MultiValTreeIndex>> *> argsT;
         for (uint64_t i = 0; i < treeThreads; i++) {
 
             SingleSelectSumQuery * q = qc.create<SingleSelectSumQuery>();
             ArgList<pptr<MultiValTreeIndex>> * treeArgs
-                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree, 1, q);
+                = new ArgList<pptr<MultiValTreeIndex>>(sel, xCol, yTree0, 0, q);
 
             q->dispatchAsyncIndex(treeArgs);
+            argsT.push_back(treeArgs);
         }
 
         qc.waitAllReady();
 
         std::vector<Dur> durations = qc.getAllDurations();
-        for (auto i : durations)
-            std::cout << "Duration: " << i.count() << std::endl;
+        uint64_t colCount = 0;
+        for (auto i : durations) {
+            std::cout << "30,OPT,";
+            if (colCount < colThreads)
+                std::cout << "COL,";
+            else
+                std::cout << "TREE,";
+            std::cout << i.count() << std::endl;
+            colCount++;
+        }
+        for (auto i : argsT)
+            delete i;
+        for (auto i : argsC)
+            delete i;
     }
 
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
@@ -283,6 +333,7 @@ public:
         SingleSelectSumQuery * query = qc.create<SingleSelectSumQuery>();
 
         uint64_t node = 0;
+        uint64_t node1 = 1;
 
         auto & stat = Statistic::getInstance();
 
@@ -291,25 +342,41 @@ public:
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
         auto xCol = xStatus->getPersistentColumn(node)->convert();
-        auto yPCol = yStatus->getPersistentColumn(node)->convert();
-        auto yTree = yStatus->getMultiValTreeIndex(node);
-        auto yHash = yStatus->getHashMapIndex(node);
-        auto ySkip = yStatus->getSkipListIndex(node);
+        auto yPCol0 = yStatus->getPersistentColumn(node)->convert();
+        auto yTree0 = yStatus->getMultiValTreeIndex(node);
+        auto yHash0 = yStatus->getHashMapIndex(node);
+        auto ySkip0 = yStatus->getSkipListIndex(node);
 
-        uint64_t column_size = yPCol->get_count_values() * sizeof(uint64_t);
+        auto yPCol1 = yStatus->getPersistentColumn(node1)->convert();
+        auto yTree1 = yStatus->getMultiValTreeIndex(node1);
+        auto yHash1 = yStatus->getHashMapIndex(node1);
+        auto ySkip1 = yStatus->getSkipListIndex(node1);
 
-        auto coldur  = query->runCol  (xCol, yPCol, sel);
-        auto treedur = query->runIndex(xCol, yTree, sel); 
-        auto hashdur = query->runIndex(xCol, yHash, sel);
-        auto skipdur = query->runIndex(xCol, ySkip, sel);
+        uint64_t column_size = yPCol0->get_count_values() * sizeof(uint64_t);
+
+        auto coldur  = query->runCol  (xCol, yPCol0, sel);
+        auto treedur = query->runIndex(xCol, yTree0, sel); 
+        auto hashdur = query->runIndex(xCol, yHash0, sel);
+        auto skipdur = query->runIndex(xCol, ySkip0, sel);
+
+        auto coldur1  = query->runCol  (xCol, yPCol1, sel);
+        auto treedur1 = query->runIndex(xCol, yTree1, sel); 
+        auto hashdur1 = query->runIndex(xCol, yHash1, sel);
+        auto skipdur1 = query->runIndex(xCol, ySkip1, sel);
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::LOCAL, coldur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);
 
+        stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::REMOTE, coldur1, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::REMOTE, treedur1, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::REMOTE, hashdur1, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::REMOTE, skipdur1, sel, column_size);
+
         delete xCol;
-        delete yPCol;
+        delete yPCol0;
+        delete yPCol1;
         delete query;
     }
 
