@@ -320,6 +320,7 @@ public:
             std::cout << i.count() << std::endl;
             colCount++;
         }
+
         for (auto i : argsT)
             delete i;
         for (auto i : argsC)
@@ -377,7 +378,6 @@ public:
         delete xCol;
         delete yPCol0;
         delete yPCol1;
-        delete query;
     }
 
 };
