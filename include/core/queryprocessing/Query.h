@@ -8,6 +8,8 @@
 
 #include <core/utils/measure.h>
 
+#include <atomic>
+
 
 namespace morphstore {
 
@@ -59,7 +61,8 @@ public:
 
     static void waitAllReady(std::atomic<uint64_t>& down) //std::vector<bool>& queue)
     {
-        while (down != 0) {}
+        while (down != 0ul) {
+        }
     }
 
     inline void start()
@@ -95,6 +98,11 @@ private:
     std::vector<Query*> queries;
 
 public:
+    ~QueryCollection() {
+        /*for (auto i : queries)
+            delete i;*/
+    }
+
     void pushQuery(Query * query)
     {
         downVar++;
@@ -200,6 +208,7 @@ public:
         ArgList< index_structure_ptr > * args = reinterpret_cast<ArgList<index_structure_ptr>*>(argPtr);
 
         numa_run_on_node(args->runNode);
+
         const uint64_t selection = args->sel;
         auto xCol = args->xCol;
         auto index = args->datastruct;

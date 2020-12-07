@@ -165,8 +165,17 @@ public:
 
             for (auto sv : distr) {
                 uint64_t val = sv.attr_value;
-                // Warmup
                 optimizer.optimizeSelectSum(val, RELATION, TABLE, status->getAttribute());
+            }
+        }
+
+        for (auto i : y_status_and_distr) {
+            auto distr = std::get<1>(i);
+            auto status = std::get<0>(i);
+
+            for (auto sv : distr) {
+                uint64_t val = sv.attr_value;
+                optimizer.runNaiveSelectSumTree(val, RELATION, TABLE, status->getAttribute());
             }
         }
     }
