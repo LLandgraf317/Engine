@@ -154,7 +154,7 @@ public:
             for (auto sv : distr) {
                 uint64_t val = sv.attr_value;
                 // Warmup
-                for (uint64_t i = 0; i < 40; i++)
+                for (uint64_t i = 0; i < 10; i++)
                     optimizer.executeAllSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }

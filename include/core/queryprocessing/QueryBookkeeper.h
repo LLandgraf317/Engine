@@ -345,35 +345,35 @@ public:
         auto xCol = xStatus->getPersistentColumn(node)->convert();
         auto yPCol0 = yStatus->getPersistentColumn(node)->convert();
         auto yTree0 = yStatus->getMultiValTreeIndex(node);
-        auto yHash0 = yStatus->getHashMapIndex(node);
-        auto ySkip0 = yStatus->getSkipListIndex(node);
+        /*auto yHash0 = yStatus->getHashMapIndex(node);
+        auto ySkip0 = yStatus->getSkipListIndex(node);*/
 
         auto yPCol1 = yStatus->getPersistentColumn(node1)->convert();
         auto yTree1 = yStatus->getMultiValTreeIndex(node1);
-        auto yHash1 = yStatus->getHashMapIndex(node1);
-        auto ySkip1 = yStatus->getSkipListIndex(node1);
+        /*auto yHash1 = yStatus->getHashMapIndex(node1);
+        auto ySkip1 = yStatus->getSkipListIndex(node1);*/
 
         uint64_t column_size = yPCol0->get_count_values() * sizeof(uint64_t);
 
         auto coldur  = query->runCol  (xCol, yPCol0, sel);
         auto treedur = query->runIndex(xCol, yTree0, sel); 
-        auto hashdur = query->runIndex(xCol, yHash0, sel);
-        auto skipdur = query->runIndex(xCol, ySkip0, sel);
+        /*auto hashdur = query->runIndex(xCol, yHash0, sel);
+        auto skipdur = query->runIndex(xCol, ySkip0, sel);*/
 
         auto coldur1  = query->runCol  (xCol, yPCol1, sel);
         auto treedur1 = query->runIndex(xCol, yTree1, sel); 
-        auto hashdur1 = query->runIndex(xCol, yHash1, sel);
-        auto skipdur1 = query->runIndex(xCol, ySkip1, sel);
+        /*auto hashdur1 = query->runIndex(xCol, yHash1, sel);
+        auto skipdur1 = query->runIndex(xCol, ySkip1, sel);*/
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::LOCAL, coldur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);
+        /*stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);*/
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::REMOTE, coldur1, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::REMOTE, treedur1, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::REMOTE, hashdur1, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::REMOTE, skipdur1, sel, column_size);
+        /*stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::REMOTE, hashdur1, sel, column_size);
+        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::REMOTE, skipdur1, sel, column_size);*/
 
         delete xCol;
         delete yPCol0;
