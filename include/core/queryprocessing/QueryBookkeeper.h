@@ -361,6 +361,7 @@ public:
         auto ySkip1 = yStatus->getSkipListIndex(node1);*/
 
         uint64_t column_size = yPCol0->get_count_values() * sizeof(uint64_t);
+        numa_run_on_node(0);
 
         auto coldur  = query->runCol  (xCol, yPCol0, sel);
         auto treedur = query->runIndex(xCol, yTree0, sel); 
