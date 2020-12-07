@@ -279,7 +279,7 @@ public:
         // Find out break-even point by iteration
         for (uint64_t i = 0; i <= numThreads; i++) {
             double numTD = (double) i;
-            double res = abs(interMultiColumn(numTD) * execCol(selectivity) - interMultiTree(numTD) * execTree(selectivity));
+            double res = abs(interMultiColumn(numThreads - numTD) * execCol(selectivity) - interMultiTree(numTD) * execTree(selectivity));
             if (res < prevAbs) {
                 prevAbs = res;
                 colThreads = i;
