@@ -336,7 +336,7 @@ public:
 
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
     {
-        trace_l(T_INFO, "Warm up iteration");
+        //trace_l(T_INFO, "Warm up iteration");
         QueryCollection qc;
         SingleSelectSumQuery * query = qc.create<SingleSelectSumQuery>();
 

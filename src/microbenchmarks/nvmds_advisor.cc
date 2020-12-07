@@ -77,7 +77,7 @@ public:
     }
 
     const unsigned MAX_SEL_X = 999;
-    const unsigned MAX_SEL_Y = 10;
+    const unsigned MAX_SEL_Y = 5;
 
     void initData() {
         auto & initializer = RootInitializer::getInstance();
@@ -154,10 +154,11 @@ public:
             for (auto sv : distr) {
                 uint64_t val = sv.attr_value;
                 // Warmup
-                for (uint64_t i = 0; i < 7; i++)
+                for (uint64_t i = 0; i < 20; i++)
                     optimizer.executeAllSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }
+        trace_l(T_INFO, "Warmup finished");
 
         for (auto i : y_status_and_distr) {
             auto distr = std::get<1>(i);

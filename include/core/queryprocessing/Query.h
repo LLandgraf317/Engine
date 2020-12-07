@@ -113,7 +113,7 @@ public:
         while (downVar != 0) {}
 
         for (auto i : queries) {
-            trace_l(T_INFO, "Joining thread ", i->getThread());
+            //trace_l(T_INFO, "Joining thread ", i->getThread());
             pthread_join(i->getThread(), nullptr);
         }
     }
