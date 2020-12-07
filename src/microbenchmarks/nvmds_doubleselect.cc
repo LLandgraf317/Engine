@@ -29,8 +29,16 @@ using ps = scalar<v64<uint64_t>>;
 char const * RELATION = "sel2";
 char const * TABLE = "distr";
 char const * X = "x";
-char const * Y = "y";
-char const * Z = "z";
+char const * Y = "y0";
+char const * Y1 = "y1";
+char const * Y2 = "y2";
+char const * Y3 = "y3";
+char const * Y4 = "y4";
+char const * Z = "z0";
+char const * Z1 = "z1";
+char const * Z2 = "z2";
+char const * Z3 = "z3";
+char const * Z4 = "z4";
 
 constexpr auto ARRAY_SIZE = COLUMN_SIZE / sizeof(uint64_t);
 
@@ -107,14 +115,47 @@ public:
             sel_distr_z.push_back(sel_and_val(pow(0.5f, MAX_SEL_Z - i + 2 ) , i));
         }
 
+        std::vector<sel_and_val> sel_distr_y1;
+        sel_distr_y1.push_back(sel_and_val(0.125f, 2));
+        sel_distr_y1.push_back(sel_and_val(0.375f, 3));
+        sel_distr_y1.push_back(sel_and_val(0.5f, 4));
+
+        std::vector<sel_and_val> sel_distr_y2;
+        sel_distr_y2.push_back(sel_and_val(0.1875f, 1));
+        sel_distr_y2.push_back(sel_and_val(0.625f, 2));
+
+        std::vector<sel_and_val> sel_distr_y3;
+        sel_distr_y3.push_back(sel_and_val(0.75f, 1));
+
+        std::vector<sel_and_val> sel_distr_y4;
+        sel_distr_y4.push_back(sel_and_val(0.875f, 1));
+
         constructBySel(sel_distr_x, ARRAY_SIZE, RELATION, TABLE, X);
         constructBySel(sel_distr_y, ARRAY_SIZE, RELATION, TABLE, Y);
+        constructBySel(sel_distr_y1, ARRAY_SIZE, RELATION, TABLE, Y1);
+        constructBySel(sel_distr_y2, ARRAY_SIZE, RELATION, TABLE, Y2);
+        constructBySel(sel_distr_y3, ARRAY_SIZE, RELATION, TABLE, Y3);
+        constructBySel(sel_distr_y4, ARRAY_SIZE, RELATION, TABLE, Y4);
+
         constructBySel(sel_distr_z, ARRAY_SIZE, RELATION, TABLE, Z);
+        constructBySel(sel_distr_y1, ARRAY_SIZE, RELATION, TABLE, Z1);
+        constructBySel(sel_distr_y2, ARRAY_SIZE, RELATION, TABLE, Z2);
+        constructBySel(sel_distr_y3, ARRAY_SIZE, RELATION, TABLE, Z3);
+        constructBySel(sel_distr_y4, ARRAY_SIZE, RELATION, TABLE, Z4);
 
         repl_mgr.joinAllThreads();
 
         y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y), sel_distr_y);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y1), sel_distr_y1);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y2), sel_distr_y2);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y3), sel_distr_y3);
+        y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y4), sel_distr_y4);
+
         z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z), sel_distr_z);
+        z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z1), sel_distr_y1);
+        z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z2), sel_distr_y2);
+        z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z3), sel_distr_y3);
+        z_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Z4), sel_distr_y4);
 
         /*std::vector<sel_and_val> sel_distr_x;
         for (unsigned i = 1; i < MAX_SEL_X + 1; i++) {
