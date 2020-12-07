@@ -170,8 +170,14 @@ public:
         auto xStatus = repl_mgr.getStatus(relation, table, "x");
         auto yStatus = repl_mgr.getStatus(relation, table, attribute);
 
+        auto yPCol = yStatus->getPersistentColumn(1);
+        auto yPColConv = yPCol->convert();
+
         auto xCol = xStatus->getPersistentColumn(0)->convert();
         auto yTree0 = yStatus->getMultiValTreeIndex(0);
+        auto buck = yTree0->find(sel);
+        size_t countBuck = buck->getCountValues();
+        double selectivity = (double) countBuck / yPColConv->get_count_values();
 
         const uint64_t numThreads = 30;
 
@@ -193,7 +199,8 @@ public:
 
         std::vector<Dur> durations = qc.getAllDurations();
         for (auto i : durations) {
-            std::cout << "30,NAIVETREE,TREE,";
+            std::cout << selectivity ;
+            std::cout << ",30,NAIVETREE,TREE,";
             std::cout << i.count() << std::endl;
         }
 
@@ -312,7 +319,7 @@ public:
         std::vector<Dur> durations = qc.getAllDurations();
         uint64_t colCount = 0;
         for (auto i : durations) {
-            std::cout << "30,OPT,";
+            std::cout << selectivity << ",30,OPT,";
             if (colCount < colThreads)
                 std::cout << "COL,";
             else
