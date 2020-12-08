@@ -339,7 +339,7 @@ void cleanAllDS(NVMDSBenchParamList & list)
 {
     trace_l(T_DEBUG, "Cleaning persistent columns");
 
-    auto initializer = RootInitializer::getInstance();
+    auto & initializer = RootInitializer::getInstance();
     auto node_number = initializer.getNumaNodeCount();
     RootManager& root_mgr = RootManager::getInstance();
 
@@ -364,7 +364,7 @@ void cleanAllDS(NVMDSBenchParamList & list)
 int main(int /*argc*/, char** /*argv*/)
 {
     // Setup phase: figure out node configuration
-    auto initializer = RootInitializer::getInstance();
+    auto & initializer = RootInitializer::getInstance();
 
     if ( !initializer.isNuma() ) {
         trace_l(T_EXIT, "Current setup does not support NUMA, exiting...");
