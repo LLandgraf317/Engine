@@ -412,9 +412,139 @@ public:
     }
 
     using SizeShareSelectivityQoSQoS = std::tuple<uint64_t, double, double, double, double>;
-    using Workload = std::vector<SizeShareSelectivityQoSQoS>;
+    using SelectivityVector = std::vector<double>;
+    using Workload = std::vector<SelectivityVector>;
+    using ShareWorkload = std::vector<SizeShareSelectivityQoSQoS>;
 
-    void calculatePlacementForWorkload(uint64_t columnSize, Workload & wl)
+    enum ReplicationDecision {
+        TreeTree,
+        TreeColumn,
+        ColumnTree,
+        ColumnColumn
+    };
+
+
+    std::vector<ReplicationDecision> calculatePlacementForWorkload(uint64_t columnSize, Workload& wl)
+    {
+        Statistic & s = Statistic::getInstance();
+
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+
+        /*auto interMultiColumn = [](double t) {
+            return 0.963127 * exp(t * 0.03757);
+        };
+
+        auto interMultiTree = [](double t) {
+            return 0.96275 * exp(t * 0.03796);
+        };
+
+        auto execTree = [&](double selectivity) {
+            return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
+        };
+
+        auto execCol = [&](double selectivity) {
+            return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
+        };*/
+
+        using TCountBCountDCount = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>;
+        std::vector<TCountBCountDCount> countVector;
+
+        for (auto i : wl) {
+            // i is vector of selectivities, implicit number of queries utilizing one attribute
+            //uint64_t num_queries = i.size();
+
+            double percTC = (std::get<0>(colParamsRemote) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) / std::get<1>(colParamsRemote));
+            double percCT = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsRemote)) / (std::get<1>(treeParamsRemote) / std::get<1>(colParamsLocal));
+            double percBoth = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) / std::get<1>(colParamsLocal));
+
+            trace_l(T_INFO, "Decisionpoint for tree local column remote: ", percTC);
+            trace_l(T_INFO, "Decisionpoint for tree remote column local: ", percCT);
+            trace_l(T_INFO, "Tendency towards either on: ", percBoth);
+
+            assert(percCT < percTC);
+
+            uint64_t countOnlyTree = 0;
+            uint64_t countBothTTend = 0;
+            uint64_t countBothCTend = 0;
+            uint64_t countOnlyColumn = 0;
+
+            for (auto sel : i) {
+
+                if (sel < percCT) {
+                    countOnlyTree++;
+                }
+
+                if (sel >= percCT && sel <= percTC) {
+                    if (sel < percBoth)
+                        countBothTTend++;
+                    else 
+                        countBothCTend++;
+                }
+
+                if (sel > percTC) {
+                    countOnlyColumn++;
+                }
+            }
+ 
+            countVector.emplace_back(countOnlyTree, countBothTTend, countBothCTend, countOnlyColumn);
+        }
+
+        std::vector<ReplicationDecision> repl;
+        uint64_t node0Acum = 0;
+        uint64_t node1Acum = 0;
+
+        for (auto i : countVector) {
+            auto countOnlyTree = std::get<0>(i);
+            auto countBothTTend = std::get<1>(i);
+            auto countBothCTend = std::get<2>(i);
+            auto countOnlyColumn = std::get<3>(i);
+
+            if (countOnlyTree > 0 && countOnlyColumn > 0) {
+                if (countOnlyTree > countOnlyColumn) {
+                    if (node0Acum <= node1Acum) {
+                        repl.emplace_back(ReplicationDecision::TreeColumn);
+                        node0Acum += countOnlyTree;
+                        node1Acum += countOnlyColumn;
+                    }
+                    else {
+                        repl.emplace_back(ReplicationDecision::ColumnTree);
+                        node0Acum += countOnlyColumn;
+                        node1Acum += countOnlyTree;
+                    }
+                }
+                else {
+                    // Column > Tree
+                    if (node0Acum <= node1Acum) {
+                        repl.emplace_back(ReplicationDecision::ColumnTree);
+                        node0Acum += countOnlyColumn;
+                        node1Acum += countOnlyTree;
+                    }
+                    else {
+                        repl.emplace_back(ReplicationDecision::TreeColumn);
+                        node0Acum += countOnlyTree;
+                        node1Acum += countOnlyColumn;
+                    }
+                }
+            }
+            else if (countOnlyTree > 0)
+                repl.emplace_back(ReplicationDecision::TreeTree);
+            else if (countOnlyColumn > 0)
+                repl.emplace_back(ReplicationDecision::ColumnColumn);
+            else if (countBothTTend > countBothCTend)
+                repl.emplace_back(ReplicationDecision::TreeTree);
+            else
+                repl.emplace_back(ReplicationDecision::ColumnColumn);
+
+        }
+
+        return repl;
+    }
+
+    void calculateSharePlacementForWorkload(uint64_t columnSize, ShareWorkload & wl)
     {
         Statistic & s = Statistic::getInstance();
 
