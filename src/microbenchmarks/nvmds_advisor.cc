@@ -147,7 +147,7 @@ public:
     void main() {
         auto & optimizer = Optimizer::getInstance();
 
-        for (auto i : y_status_and_distr) {
+        /*for (auto i : y_status_and_distr) {
             auto distr = std::get<1>(i);
             auto status = std::get<0>(i);
 
@@ -158,7 +158,7 @@ public:
                     optimizer.executeAllSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }
-        trace_l(T_INFO, "Warmup finished");
+        trace_l(T_INFO, "Warmup finished");*/
 
         for (auto i : y_status_and_distr) {
             auto distr = std::get<1>(i);

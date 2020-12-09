@@ -140,6 +140,30 @@ public:
         }
     }
 
+    std::tuple<double, double> getSelSumInterPreComp( DataStructure ds, Remoteness r, uint64_t columnSize)
+    {
+        // Data was obtained for 800 MB Cols
+        double sizeScale = 1.0 * columnSize / (800 * pow(10,6));
+
+        // Returns c (0) +  m (1) * x
+        if (ds == DataStructure::PTREE) {
+            if (r == Remoteness::LOCAL) {
+                return std::make_tuple(0.00066, sizeScale * 1.92837);
+            }
+            else { // r == REMOTE
+                return std::make_tuple(0.00024, sizeScale * 2.0005);
+            }
+        }
+        else { // ds == DataStructure::PCOLUMN
+            if (r == Remoteness::LOCAL) {
+                return std::make_tuple(sizeScale * 0.24953, sizeScale * 0.95802);
+            }
+            else { // r == REMOTE
+                return std::make_tuple(sizeScale * 0.2871, sizeScale * 0.973039);
+            }
+        }
+    }
+
     std::tuple<double, double> calculateLinearInter( SelToDurations & selToDur )
     {
         float minSel = 1.0f; // max
@@ -238,28 +262,28 @@ public:
     double execTreeLocal(uint64_t columnSize, double selectivity)
     {
         auto & s = Statistic::getInstance();
-        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
         return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
     };
 
     double execColLocal(uint64_t columnSize, double selectivity)
     {
         auto & s = Statistic::getInstance();
-        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
         return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
     };
 
     double execTreeRemote(uint64_t columnSize, double selectivity)
     {
         auto & s = Statistic::getInstance();
-        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
         return std::get<1>(treeParamsRemote) * selectivity + std::get<0>(treeParamsRemote);
     };
 
     double execColRemote(uint64_t columnSize, double selectivity)
     {
         auto & s = Statistic::getInstance();
-        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
         return std::get<1>(colParamsRemote) * selectivity + std::get<0>(colParamsRemote);
     };
 
@@ -269,11 +293,11 @@ public:
         uint64_t columnSize = col->get_count_values() * sizeof(uint64_t);
         auto & s = Statistic::getInstance();
 
-        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
-        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
 
-        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
-        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
 
         trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
         trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " + sel * ", std::to_string(std::get<1>(colParamsLocal)));
@@ -481,42 +505,9 @@ public:
 
         trace_l(T_INFO, "Interpolating parameters");
         uint64_t columnSize = yPCol->get_count_values() * sizeof(uint64_t);
-        auto & s = Statistic::getInstance();
-        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
-        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+        printParams(yPColConv);
 
-        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
-        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
-
-        trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
-        trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " + sel * ", std::to_string(std::get<1>(colParamsLocal)));
-        trace_l(T_INFO, "Local tree: y = ", std::to_string(std::get<0>(treeParamsLocal)), " + sel * ", std::to_string(std::get<1>(treeParamsLocal)));
-        trace_l(T_INFO, "Parallelity scale equation local column: sf(t) = exp( 0.03757 * t ) * 0.963127");
-        trace_l(T_INFO, "Parallelity scale equation local tree: sf(t) = exp( 0.03796 * t ) * 0.96275");
-
-        (void) colParamsRemote;
-        (void) treeParamsRemote; 
-
-        //auto hashdur = query.runIndex(xCol, yHash, sel);
-        //auto skipdur = query.runIndex(xCol, ySkip, sel);
-        //
         // interpolate query execution times using params from previous experiments, hardcoded
-        auto interMultiColumn = [](double t) {
-            return 0.963127 * exp(t * 0.03757);
-        };
-
-        auto interMultiTree = [](double t) {
-            return 0.96275 * exp(t * 0.03796);
-        };
-
-        auto execTree = [&](double selectivity) {
-            return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
-        };
-
-        auto execCol = [&](double selectivity) {
-            return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
-        };
-
         trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
 
         const uint64_t numThreads = 30;
@@ -534,12 +525,14 @@ public:
 
         // Find out break-even point by iteration
         for (uint64_t i = 0; i <= numThreads; i++) {
-            double numTD = (double) i;
-            double res = abs(interMultiColumn(numThreads - numTD) * execCol(selectivity) - interMultiTree(numTD) * execTree(selectivity));
+            double numT0 = (double) i;
+            double numT1 = (double) numThreads - i;
+
+            double res = abs(interMultiColumn(numT1) * execColLocal(columnSize, selectivity) + interMultiTree(numT0) * execTreeLocal(columnSize, selectivity));
             if (res < prevAbs) {
                 prevAbs = res;
                 colThreads = i;
-                treeThreads = numThreads - i;
+                treeThreads = numT1;
             }
         }
 
