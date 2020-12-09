@@ -112,8 +112,6 @@ public:
 
         y_status_and_distr.emplace_back(repl_mgr.getStatus(RELATION, TABLE, Y0), sel_distr_0);
 
-        PlacementAdvisor & adv = PlacementAdvisor::getInstance();
-        (void) adv;
     }
 
     void printSelectivity(persistent_ptr<MultiValTreeIndex> tree, const uint64_t val)
@@ -126,8 +124,8 @@ public:
         std::cout << sel;
     }
 
-    using TempColPtr = std::unique_ptr<const column<uncompr_f>>;
-    void main() {
+    void warmup()
+    {
         auto & optimizer = Optimizer::getInstance();
 
         for (auto i : y_status_and_distr) {
@@ -141,17 +139,37 @@ public:
                     optimizer.executeAllSelectSum(val, RELATION, TABLE, status->getAttribute());
             }
         }
+    }
 
-        for (auto i : y_status_and_distr) {
-            auto distr = std::get<1>(i);
-            auto status = std::get<0>(i);
+    void mainBest() {
+        PlacementAdvisor & adv = PlacementAdvisor::getInstance();
 
-            for (auto sv : distr) {
-                uint64_t val = sv.attr_value;
-                // TODO: here!
-                optimizer.optimizeSelectSum(val, RELATION, TABLE, status->getAttribute());
-            }
+        std::vector<double> y_selectivities;
+        std::vector<double> z_selectivities;
+
+        /*sel_distr_0.push_back(sel_and_val(0.015625f, 1));
+        sel_distr_0.push_back(sel_and_val(0.03125f, 2));
+        sel_distr_0.push_back(sel_and_val(0.0625f, 3));
+        sel_distr_0.push_back(sel_and_val(0.125f, 4));
+        sel_distr_0.push_back(sel_and_val(0.25f, 5));
+        sel_distr_0.push_back(sel_and_val(0.5f, 6));*/
+
+        uint64_t numThreads = 5;
+        for (uint64_t i = 0; i < numThreads; i++) {
+            y_selectivities.push_back(0.015625f);
+            z_selectivities.push_back(0.5f);
         }
+
+        std::vector<std::vector<double>> selectivitiesPerAttr;
+        selectivitiesPerAttr.push_back(y_selectivities);
+        selectivitiesPerAttr.push_back(z_selectivities);
+
+        ReplicationDecision * plc = adv.calculatePlacementForWorkload(ARRAY_SIZE, selectivitiesPerAttr);
+
+        auto & optimizer = Optimizer::getInstance();
+        optimizer.optimizeDoubleSelectSum(numThreads, plc,
+                1, RELATION, TABLE, Y0,
+                6, RELATION, TABLE, Z0);
 
     }
 
@@ -169,7 +187,9 @@ int main( void ) {
 
     Main prog;
     prog.initData();
-    prog.main();
+    prog.warmup();
+
+    prog.mainBest();
 
 
     return 0;

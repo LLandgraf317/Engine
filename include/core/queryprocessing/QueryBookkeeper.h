@@ -41,6 +41,24 @@ struct DataPoint {
     uint64_t column_size;
 };
 
+class ReplicationDecision {
+public:
+    std::vector<
+        std::vector< DataStructure >
+        > replication;
+    uint64_t node_count;
+    uint64_t attribute_count;
+
+    void pushDecision(std::vector< DataStructure > dss)
+    {
+        assert(dss.size() == node_count);
+        attribute_count++;
+        replication.emplace_back(dss);
+    }
+
+};
+
+
 class Statistic {
     using Dur = std::chrono::duration<double>;
 private:
@@ -206,6 +224,244 @@ public:
 
         for (auto i : args)
             delete i;
+    }
+
+    double interMultiColumn(double threadCount)
+    {
+        return 0.963127 * exp(threadCount * 0.03757);
+    }
+
+    double interMultiTree(double threadCount) {
+        return 0.96275 * exp(threadCount * 0.03796);
+    };
+
+    double execTreeLocal(uint64_t columnSize, double selectivity)
+    {
+        auto & s = Statistic::getInstance();
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+        return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
+    };
+
+    double execColLocal(uint64_t columnSize, double selectivity)
+    {
+        auto & s = Statistic::getInstance();
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
+    };
+
+    double execTreeRemote(uint64_t columnSize, double selectivity)
+    {
+        auto & s = Statistic::getInstance();
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+        return std::get<1>(treeParamsRemote) * selectivity + std::get<0>(treeParamsRemote);
+    };
+
+    double execColRemote(uint64_t columnSize, double selectivity)
+    {
+        auto & s = Statistic::getInstance();
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        return std::get<1>(colParamsRemote) * selectivity + std::get<0>(colParamsRemote);
+    };
+
+    void printParams(const column<uncompr_f>* col)
+    {
+        trace_l(T_INFO, "Interpolating parameters");
+        uint64_t columnSize = col->get_count_values() * sizeof(uint64_t);
+        auto & s = Statistic::getInstance();
+
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+
+        trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
+        trace_l(T_INFO, "Local column: y = ", std::to_string(std::get<0>(colParamsLocal)), " + sel * ", std::to_string(std::get<1>(colParamsLocal)));
+        trace_l(T_INFO, "Local tree: y = ", std::to_string(std::get<0>(treeParamsLocal)), " + sel * ", std::to_string(std::get<1>(treeParamsLocal)));
+        trace_l(T_INFO, "Remote column: y = ", std::to_string(std::get<0>(colParamsRemote)), " + sel * ", std::to_string(std::get<1>(colParamsRemote)));
+        trace_l(T_INFO, "Remote tree: y = ", std::to_string(std::get<0>(treeParamsRemote)), " + sel * ", std::to_string(std::get<1>(treeParamsRemote)));
+        trace_l(T_INFO, "Parallelity scale equation local column: sf(t) = exp( 0.03757 * t ) * 0.963127");
+        trace_l(T_INFO, "Parallelity scale equation local tree: sf(t) = exp( 0.03796 * t ) * 0.96275");
+    }
+
+    void optimizeDoubleSelectSum(uint64_t numThreads,
+                        ReplicationDecision* repl,
+                        uint64_t sel0, std::string relation0, std::string table0, std::string attribute0,
+                        uint64_t sel1, std::string relation1, std::string table1, std::string attribute1) {
+
+        auto & repl_mgr = ReplicationManager::getInstance();
+        const uint64_t countnode = 2;
+
+        auto xStatus = repl_mgr.getStatus(relation0, table0, "x");
+        auto yStatus = repl_mgr.getStatus(relation0, table0, attribute0);
+        auto zStatus = repl_mgr.getStatus(relation1, table1, attribute1);
+
+        std::vector<const column<uncompr_f>*> xCols;
+
+        std::vector<const column<uncompr_f>*> yCols;
+        std::vector<const column<uncompr_f>*> zCols;
+
+        std::vector<pptr<MultiValTreeIndex>> yTrees;
+        std::vector<pptr<MultiValTreeIndex>> zTrees;
+
+        for (uint64_t n = 0; n < countnode; n++) {
+            xCols.push_back( xStatus->getPersistentColumn(n)->convert() );
+
+            auto yPCol = yStatus->getPersistentColumn(n);
+            yCols.push_back(yPCol->convert());
+
+            auto zPCol = zStatus->getPersistentColumn(n);
+            zCols.push_back(zPCol->convert());
+
+            zTrees.push_back(yStatus->getMultiValTreeIndex(n));
+            zTrees.push_back(zStatus->getMultiValTreeIndex(n));
+        }
+
+        trace_l(T_INFO, "Interpolating parameters");
+        printParams(yCols[0]);
+
+        trace_l(T_INFO, "Interpolation parameters for Select-Sum: ");
+        double prevAbs = std::numeric_limits<double>::max();
+
+        auto buckY = yTrees[0]->find(sel0);
+        auto buckZ = zTrees[0]->find(sel1);
+
+        size_t countBuckY = buckY->getCountValues();
+        size_t countBuckZ = buckZ->getCountValues();
+
+        uint64_t columnSize = yCols[0]->get_count_values() * sizeof(uint64_t);
+
+        double ySel = (double) countBuckY / yCols[0]->get_count_values();
+        double zSel = (double) countBuckZ / zCols[0]->get_count_values();
+
+        trace_l(T_INFO, "Iterating break even points");
+
+        double node0EstFin = std::numeric_limits<double>::max();
+        double node1EstFin = std::numeric_limits<double>::max();
+
+        uint64_t threadsNode0;
+        uint64_t threadsNode1;
+
+        // Find out break-even point by iteration
+        for (uint64_t i = 0; i <= numThreads; i++) {
+            double numT0 = (double) i;
+            double numT1 = (double) numThreads - i;
+
+            auto yReplDec = repl->replication[0];
+            auto zReplDec = repl->replication[1];
+
+            double node0Est = (yReplDec[0] == DataStructure::PTREE ? execTreeLocal(columnSize, ySel) * interMultiTree(numT0) : execColLocal(columnSize, ySel) * interMultiColumn(numT0));
+            node0Est += (zReplDec[0] == DataStructure::PTREE ? execTreeLocal(columnSize, zSel) * interMultiTree(numT0) : execColLocal(columnSize, zSel) * interMultiColumn(numT0));
+            
+            double node1Est = (yReplDec[1] == DataStructure::PTREE ? execTreeLocal(columnSize, ySel) * interMultiTree(numT1) : execColLocal(columnSize, ySel) * interMultiColumn(numT1));
+            node1Est += (zReplDec[1] == DataStructure::PTREE ? execTreeLocal(columnSize, zSel) * interMultiTree(numT1) : execColLocal(columnSize, zSel) * interMultiColumn(numT1));
+
+            double res = node1Est + node0Est;
+            if (res < prevAbs) {
+                prevAbs = res;
+
+                node0EstFin = node0Est;
+                node1EstFin = node1Est;
+
+                threadsNode0 = numT0;
+                threadsNode1 = numT1;
+            }
+        }
+
+        trace_l(T_INFO, "Iteration yielded following results: ySel: ", ySel, ", zSel: ", zSel, ", node0Threads: ", threadsNode0, ", node1Threads: ", threadsNode1, ", absPenaltyMin: ", prevAbs);
+        trace_l(T_INFO, "Estimated execution time node 0: ", node0EstFin, " seconds");
+        trace_l(T_INFO, "Estimated execution time node 1: ", node1EstFin, " seconds");
+
+        std::vector<uint64_t> threadsPerNode;
+
+        threadsPerNode.push_back(threadsNode0);
+        threadsPerNode.push_back(threadsNode1);
+
+        QueryCollection qc;
+
+        auto yReplDec = repl->replication[0];
+        auto zReplDec = repl->replication[1];
+
+        std::vector<std::tuple<DataStructure, DataStructure>> execUtil;
+
+        // Execute dispatch
+        // TODO: memory leaks of args and Query objects
+        for (uint64_t n = 0; n < countnode; n++) {
+            uint64_t nodeThreads = threadsPerNode[n];
+
+            for (uint64_t i = 0; i < nodeThreads; i++) {
+                DoubleSelectSumQuery * q = qc.create<DoubleSelectSumQuery>();
+
+                if (yReplDec[n] == DataStructure::PTREE) {
+                    if (zReplDec[n] == DataStructure::PTREE) {
+
+                        DoubleArgList<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>> * args
+                            = new DoubleArgList<pptr<MultiValTreeIndex>, pptr<MultiValTreeIndex>>(xCols[n], sel0, yTrees[n], sel1, zTrees[n], n, q);
+                        execUtil.push_back(std::make_tuple(DataStructure::PTREE, DataStructure::PTREE));
+
+                        q->dispatchAsyncIndInd(args);
+                    }
+                    else {
+                        //(zReplDec[n] == DataStructure::PCOLUMN)
+                        DoubleArgList<const column<uncompr_f>*, pptr<MultiValTreeIndex>> * args
+                            = new DoubleArgList<const column<uncompr_f>*, pptr<MultiValTreeIndex>>(xCols[n], sel1, zCols[n], sel0, yTrees[n], n, q);
+                        execUtil.push_back(std::make_tuple(DataStructure::PTREE, DataStructure::PCOLUMN));
+
+                        q->dispatchAsyncColInd(args);
+
+                    }
+                }
+                else {
+                    //(yReplDec[n] == DataStructure::PCOLUMN) {
+                    if (zReplDec[n] == DataStructure::PTREE) {
+
+                        DoubleArgList<const column<uncompr_f>*, pptr<MultiValTreeIndex>> * args
+                            = new DoubleArgList<const column<uncompr_f>*, pptr<MultiValTreeIndex>>(xCols[n], sel0, yCols[n], sel1, zTrees[n], n, q);
+                        execUtil.push_back(std::make_tuple(DataStructure::PCOLUMN, DataStructure::PTREE));
+
+                        q->dispatchAsyncColInd(args);
+                    }
+                    else {
+                        //(zReplDec[n] == DataStructure::PCOLUMN)
+                       
+                        DoubleArgList<const column<uncompr_f>*, const column<uncompr_f>* > * args
+                            = new DoubleArgList<const column<uncompr_f>*, const column<uncompr_f>*>(xCols[n], sel0, yCols[n], sel1, zCols[n], n, q);
+                        execUtil.push_back(std::make_tuple(DataStructure::PCOLUMN, DataStructure::PCOLUMN));
+
+                        q->dispatchAsyncColCol(args);
+                    }
+                }
+            }
+        }
+
+        qc.waitAllReady();
+
+        std::vector<Dur> durations = qc.getAllDurations();
+        uint64_t threadCount = 0;
+        uint64_t node0Threads = threadsPerNode[0];
+
+        for (auto i : durations) {
+            std::cout << "EVAL,";
+           
+            if (threadCount < node0Threads)
+                std::cout << sel0 << ",";
+            else
+                std::cout << sel1 << ",";
+
+            if (std::get<0>(execUtil[threadCount]) == DataStructure::PTREE)
+                std::cout << "TREE,";
+            else
+                std::cout << "COLUMN,";
+
+            if (std::get<1>(execUtil[threadCount]) == DataStructure::PTREE)
+                std::cout << "TREE,";
+            else
+                std::cout << "COLUMN,";
+
+
+            std::cout << i.count() << std::endl;
+            threadCount++;
+        }
     }
 
     void optimizeSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute) {
@@ -390,13 +646,6 @@ public:
 
 };
 
-enum Placement {
-    COLCOL,
-    DATASCOL,
-    COLDATAS,
-    DATASDATAS
-};
-
 class PlacementAdvisor {
 private:
     PlacementAdvisor() {}
@@ -416,15 +665,8 @@ public:
     using Workload = std::vector<SelectivityVector>;
     using ShareWorkload = std::vector<SizeShareSelectivityQoSQoS>;
 
-    enum ReplicationDecision {
-        TreeTree,
-        TreeColumn,
-        ColumnTree,
-        ColumnColumn
-    };
 
-
-    std::vector<ReplicationDecision> calculatePlacementForWorkload(uint64_t columnSize, Workload& wl)
+    ReplicationDecision* calculatePlacementForWorkload(uint64_t columnSize, Workload& wl)
     {
         Statistic & s = Statistic::getInstance();
 
@@ -434,28 +676,11 @@ public:
         std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
         std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
 
-        /*auto interMultiColumn = [](double t) {
-            return 0.963127 * exp(t * 0.03757);
-        };
-
-        auto interMultiTree = [](double t) {
-            return 0.96275 * exp(t * 0.03796);
-        };
-
-        auto execTree = [&](double selectivity) {
-            return std::get<1>(treeParamsLocal) * selectivity + std::get<0>(treeParamsLocal);
-        };
-
-        auto execCol = [&](double selectivity) {
-            return std::get<1>(colParamsLocal) * selectivity + std::get<0>(colParamsLocal);
-        };*/
-
         using TCountBCountDCount = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>;
         std::vector<TCountBCountDCount> countVector;
 
         for (auto i : wl) {
             // i is vector of selectivities, implicit number of queries utilizing one attribute
-            //uint64_t num_queries = i.size();
 
             double percTC = (std::get<0>(colParamsRemote) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) / std::get<1>(colParamsRemote));
             double percCT = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsRemote)) / (std::get<1>(treeParamsRemote) / std::get<1>(colParamsLocal));
@@ -493,7 +718,7 @@ public:
             countVector.emplace_back(countOnlyTree, countBothTTend, countBothCTend, countOnlyColumn);
         }
 
-        std::vector<ReplicationDecision> repl;
+        ReplicationDecision * repl = new ReplicationDecision();
         uint64_t node0Acum = 0;
         uint64_t node1Acum = 0;
 
@@ -506,12 +731,16 @@ public:
             if (countOnlyTree > 0 && countOnlyColumn > 0) {
                 if (countOnlyTree > countOnlyColumn) {
                     if (node0Acum <= node1Acum) {
-                        repl.emplace_back(ReplicationDecision::TreeColumn);
+                        repl->replication[0].push_back(DataStructure::PTREE);
+                        repl->replication[1].push_back(DataStructure::PCOLUMN);
+
                         node0Acum += countOnlyTree;
                         node1Acum += countOnlyColumn;
                     }
                     else {
-                        repl.emplace_back(ReplicationDecision::ColumnTree);
+                        repl->replication[0].push_back(DataStructure::PCOLUMN);
+                        repl->replication[1].push_back(DataStructure::PTREE);
+
                         node0Acum += countOnlyColumn;
                         node1Acum += countOnlyTree;
                     }
@@ -519,25 +748,37 @@ public:
                 else {
                     // Column > Tree
                     if (node0Acum <= node1Acum) {
-                        repl.emplace_back(ReplicationDecision::ColumnTree);
+                        repl->replication[0].push_back(DataStructure::PCOLUMN);
+                        repl->replication[1].push_back(DataStructure::PTREE);
+
                         node0Acum += countOnlyColumn;
                         node1Acum += countOnlyTree;
                     }
                     else {
-                        repl.emplace_back(ReplicationDecision::TreeColumn);
+                        repl->replication[0].push_back(DataStructure::PTREE);
+                        repl->replication[1].push_back(DataStructure::PCOLUMN);
+
                         node0Acum += countOnlyTree;
                         node1Acum += countOnlyColumn;
                     }
                 }
             }
-            else if (countOnlyTree > 0)
-                repl.emplace_back(ReplicationDecision::TreeTree);
-            else if (countOnlyColumn > 0)
-                repl.emplace_back(ReplicationDecision::ColumnColumn);
-            else if (countBothTTend > countBothCTend)
-                repl.emplace_back(ReplicationDecision::TreeTree);
-            else
-                repl.emplace_back(ReplicationDecision::ColumnColumn);
+            else if (countOnlyTree > 0) {
+                repl->replication[0].push_back(DataStructure::PTREE);
+                repl->replication[1].push_back(DataStructure::PTREE);
+            }
+            else if (countOnlyColumn > 0) {
+                repl->replication[0].push_back(DataStructure::PCOLUMN);
+                repl->replication[1].push_back(DataStructure::PCOLUMN);
+            }
+            else if (countBothTTend > countBothCTend) {
+                repl->replication[0].push_back(DataStructure::PTREE);
+                repl->replication[1].push_back(DataStructure::PTREE);
+            }
+            else {
+                repl->replication[0].push_back(DataStructure::PCOLUMN);
+                repl->replication[1].push_back(DataStructure::PCOLUMN);
+            }
 
         }
 

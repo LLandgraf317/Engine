@@ -247,8 +247,6 @@ public:
         auto yCol = args->datastruct;
 
         (*args->downVar)--;
-        //uint64_t a = (*args->downVar);
-        //trace_l(T_DEBUG, "Spin var is now ", a);
         waitAllReady(*args->downVar);
 
         args->query->start();
@@ -262,7 +260,6 @@ public:
         delete projection;
         delete res;
 
-        //trace_l(T_DEBUG, "Done.");
 
         return nullptr;
     }
@@ -287,23 +284,99 @@ public:
 
 };
 
+template< typename data_structure_ptr0, typename data_structure_ptr1 >
+struct DoubleArgList {
+    using Dur = std::chrono::duration<double>;
+private:
+    std::chrono::time_point<std::chrono::system_clock> starttime;
+    std::chrono::time_point<std::chrono::system_clock> endtime;
+
+public:
+    DoubleArgList(const column<uncompr_f> * col, uint64_t selection0, data_structure_ptr0 index0, uint64_t selection1, data_structure_ptr1 index1, const uint64_t node, Query * q) //std::vector<bool>& readyQueue)
+        : xCol(col), sel0(selection0), datastruct0(index0), sel1(selection1), datastruct1(index1), runNode(node), query(q) {
+        }
+
+    const column<uncompr_f> * xCol;
+
+    const uint64_t sel0;
+    data_structure_ptr0 datastruct0;
+    const uint64_t sel1;
+    data_structure_ptr1 datastruct1;
+
+    const uint64_t runNode;
+    Query * query;
+
+    std::atomic<uint64_t> * downVar;
+};
+
 class DoubleSelectSumQuery : public Query {
 public:
-    template< typename index_structure_ptr >
-    Dur runIndex(const column<uncompr_f> * xCol, index_structure_ptr yIndex, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2)
+    DoubleSelectSumQuery(std::atomic<uint64_t>& down) : Query(down) {}
+
+    template< typename index_structure_ptr0, typename index_structure_ptr1 >
+    static void * runIndInd(void * argPtr) //const column<uncompr_f> * xCol, index_structure_ptr0 index0, index_structure_ptr1 index1, const uint64_t selection1, const uint64_t selection2)
     {
-        start();
+        DoubleArgList< index_structure_ptr0, index_structure_ptr1> * args = reinterpret_cast<DoubleArgList<index_structure_ptr0, index_structure_ptr1>*>(argPtr);
+
+        numa_run_on_node(args->runNode);
+        const uint64_t selection0 = args->sel0;
+        const uint64_t selection1 = args->sel1;
+        auto xCol = args->xCol;
+        auto index0 = args->datastruct0;
+        auto index1 = args->datastruct1;
+
+        (*args->downVar)--;
+        waitAllReady(*args->downVar);
+
+        args->query->start();
         auto select1 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
+            index_structure_ptr0, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
+                ::apply( index0, selection0);
+        auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
+            index_structure_ptr1, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
+                ::apply( index1, selection1);
+        auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
+
+        auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
+        auto res = agg_sum<ps, uncompr_f>(projection);
+        args->query->end();
+
+        delete select1;
+        delete select2;
+        delete intersect;
+        delete projection;
+        delete res;
+
+        return nullptr;
+    }
+
+    template< typename col_ptr, typename index_structure_ptr >
+    static void * runColInd(void * argPtr)
+            //const column<uncompr_f> * xCol, col_ptr col0, index_structure_ptr index1, const uint64_t selection1, const uint64_t selection2)
+    {
+        DoubleArgList< col_ptr, index_structure_ptr> * args = reinterpret_cast<DoubleArgList<col_ptr, index_structure_ptr>*>(argPtr);
+
+        numa_run_on_node(args->runNode);
+        const uint64_t selection0 = args->sel0;
+        const uint64_t selection1 = args->sel1;
+        auto xCol = args->xCol;
+        auto col0 = args->datastruct0;
+        auto index1 = args->datastruct1;
+
+        (*args->downVar)--;
+        waitAllReady(*args->downVar);
+
+        args->query->start();
+        auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
+                ::apply( col0, selection0);
+        auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
-                ::apply( yIndex, selection1);
-        auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
-            persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
-                ::apply( zTree, selection2);
+                ::apply( index1, selection1);
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
         auto res = agg_sum<ps, uncompr_f>(projection);
-        end();
+        args->query->end();
 
         delete select1;
         delete select2;
@@ -311,52 +384,35 @@ public:
         delete projection;
         delete res;
 
-        return getExecTime();
+        return nullptr;
     }
 
     template< typename col_ptr >
-    Dur runCol(const column<uncompr_f> * xCol, col_ptr yCol, persistent_ptr<MultiValTreeIndex> zTree, const uint64_t selection1, const uint64_t selection2)
+    static void * runColCol(void * argPtr)
+            //const column<uncompr_f> * xCol, col_ptr yCol, col_ptr zCol, const uint64_t selection1, const uint64_t selection2)
     {
-        start();
+        DoubleArgList< col_ptr, col_ptr> * args = reinterpret_cast<DoubleArgList<col_ptr, col_ptr>*>(argPtr);
+
+        numa_run_on_node(args->runNode);
+        const uint64_t selection0 = args->sel0;
+        const uint64_t selection1 = args->sel1;
+        auto xCol = args->xCol;
+        auto col0 = args->datastruct0;
+        auto col1 = args->datastruct1;
+
+        (*args->downVar)--;
+        waitAllReady(*args->downVar);
+
+        args->query->start();
         auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( yCol, selection1);
-        /*auto select2 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( col, selection2);*/
-        auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
-            persistent_ptr<MultiValTreeIndex>, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
-                ::apply( zTree, selection2);
-        auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
-
-        auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
-        auto res = agg_sum<ps, uncompr_f>(projection);
-
-        end();
-
-        delete select1;
-        delete select2;
-        delete intersect;
-        delete projection;
-        delete res;
-
-        return getExecTime();
-    }
-
-    template< typename col_ptr >
-    Dur runColCol(const column<uncompr_f> * xCol, col_ptr yCol, col_ptr zCol, const uint64_t selection1, const uint64_t selection2)
-    {
-        start();
-        auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( yCol, selection1);
-        /*auto select2 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( col, selection2);*/
+                ::apply( col0, selection0);
         auto select2 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
-                ::apply( zCol, selection2);
+                ::apply( col1, selection1);
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
         auto res = agg_sum<ps, uncompr_f>(projection);
-
-        end();
+        args->query->end();
 
         delete select1;
         delete select2;
@@ -364,8 +420,36 @@ public:
         delete projection;
         delete res;
 
-        return getExecTime();
+        return nullptr;
     }
+
+    template< typename data_structure_ptr0, typename data_structure_ptr1 >
+    void dispatchAsyncIndInd(DoubleArgList< data_structure_ptr0, data_structure_ptr1 > * argList )
+    {
+        argList->downVar = &downVar;
+        argList->query = this;
+
+        pthread_create(&thread_id, nullptr, DoubleSelectSumQuery::runIndInd<data_structure_ptr0, data_structure_ptr1>, reinterpret_cast<void*>(argList));
+    }
+
+    template< typename col_ptr >
+    void dispatchAsyncColCol(DoubleArgList< col_ptr, col_ptr > * argList )
+    {
+        argList->downVar = &downVar;
+        argList->query = this;
+
+        pthread_create(&thread_id, nullptr, DoubleSelectSumQuery::runColCol< col_ptr>, reinterpret_cast<void*>(argList));
+    }
+
+    template< typename col_ptr, typename index_structure_ptr >
+    void dispatchAsyncColInd(DoubleArgList< col_ptr, index_structure_ptr > * argList )
+    {
+        argList->downVar = &downVar;
+        argList->query = this;
+
+        pthread_create(&thread_id, nullptr, DoubleSelectSumQuery::runColInd< col_ptr,index_structure_ptr >, reinterpret_cast<void*>(argList));
+    }
+
 
 };
 
