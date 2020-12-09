@@ -531,8 +531,8 @@ public:
             double res = abs(interMultiColumn(numT1) * execColLocal(columnSize, selectivity) + interMultiTree(numT0) * execTreeLocal(columnSize, selectivity));
             if (res < prevAbs) {
                 prevAbs = res;
-                colThreads = i;
-                treeThreads = numT1;
+                colThreads = numT1;
+                treeThreads = numT0;
             }
         }
 
