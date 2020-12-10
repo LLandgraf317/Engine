@@ -663,11 +663,11 @@ public:
     {
         Statistic & s = Statistic::getInstance();
 
-        std::tuple<double, double> colParamsLocal = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
-        std::tuple<double, double> treeParamsLocal = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
 
-        std::tuple<double, double> colParamsRemote = s.getSelSumInterpolation(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
-        std::tuple<double, double> treeParamsRemote = s.getSelSumInterpolation(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> colParamsRemote = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        std::tuple<double, double> treeParamsRemote = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
 
         using TCountBCountDCount = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>;
         std::vector<TCountBCountDCount> countVector;
