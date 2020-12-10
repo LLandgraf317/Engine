@@ -187,7 +187,7 @@ int main( void ) {
 
     Main prog;
     prog.initData();
-    prog.warmup();
+    //prog.warmup();
 
     prog.mainBest();
 
