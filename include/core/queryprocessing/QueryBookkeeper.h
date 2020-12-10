@@ -41,6 +41,25 @@ struct DataPoint {
     uint64_t column_size;
 };
 
+class QueryDesc {
+public:
+    std::vector<std::tuple<ReplicationStatus*,double>> operatorDescs;
+    void add(ReplicationStatus * attr, double selectivity)
+    {
+        operatorDescs.emplace_back(attr, selectivity);
+    }
+};
+
+class QueryWorkload {
+public:
+    std::vector<QueryDesc> queries;
+
+    void add(QueryDesc desc)
+    {
+        queries.push_back(desc);
+    }
+};
+
 class ReplicationDecision {
 public:
     std::vector<
@@ -78,6 +97,19 @@ public:
         replication.emplace_back(dss);
     }
 
+};
+
+class AttributeReplDecision {
+public:
+    ReplicationStatus* attribute;
+    std::vector<DataStructure> dsPerNode;
+
+    void print()
+    {
+        trace_l(T_INFO, attribute->getRelation(), attribute->getTable(), attribute->getAttribute());
+        for (auto i : dsPerNode)
+            trace_l(T_INFO, i);
+    }
 };
 
 
@@ -509,7 +541,7 @@ public:
 
 
             std::cout << i.count() << std::endl;
-            threadCount++;
+                threadCount++;
         }
     }
 
@@ -664,6 +696,53 @@ public:
 
 };
 
+class Preference {
+public:
+    ReplicationStatus* m_attr1;
+    DataStructure m_ds1;
+    ReplicationStatus* m_attr2;
+    DataStructure m_ds2;
+    
+    uint64_t m_count = 0;
+
+    Preference(ReplicationStatus* first, DataStructure ds1, ReplicationStatus* second, DataStructure ds2)
+        : m_attr1(first), m_ds1(ds1), m_attr2(second), m_ds2(ds2)
+    {
+        m_count = 1;       
+    }
+
+    void print()
+    {
+        trace_l(T_INFO, "Preference for attribute1 ", m_attr1->getRelation(), ":", m_attr1->getTable(), ":", m_attr1->getAttribute(), " with Data Structure ", m_ds1);
+        trace_l(T_INFO, "Preference for attribute2 ", m_attr2->getRelation(), ":", m_attr2->getTable(), ":", m_attr2->getAttribute(), " with Data Structure ", m_ds2);
+        trace_l(T_INFO, "has weight ", m_count);
+    }
+
+    bool match(ReplicationStatus* first, DataStructure ds1, ReplicationStatus* second, DataStructure ds2)
+    {
+        return ((m_attr1 == first && m_attr2 == second) && (m_ds1 == ds1 && m_ds2 == ds2) )
+            || ( (m_attr1 == second && m_attr2 == first && m_ds1 == ds2 && m_ds2 == ds1) );
+    }
+
+    bool sameAttr(Preference& pref)
+    {
+        ReplicationStatus* first = pref.m_attr1;
+        ReplicationStatus* second = pref.m_attr2;
+
+        return ( first == m_attr1 && second == m_attr2 ) || ( first == m_attr2 && second == m_attr1 );
+    }
+
+    void increaseCount()
+    {
+        m_count++;
+    }
+
+    uint64_t getCount()
+    {
+        return m_count;
+    }
+};
+
 class PlacementAdvisor {
 private:
     PlacementAdvisor() {}
@@ -683,6 +762,137 @@ public:
     using Workload = std::vector<SelectivityVector>;
     using ShareWorkload = std::vector<SizeShareSelectivityQoSQoS>;
 
+
+    bool addToPreferences(std::list<Preference>& preferences, ReplicationStatus* attribute1, DataStructure ds1, ReplicationStatus* attribute2, DataStructure ds2)
+    {
+        for (auto & preference : preferences) {
+            if (preference.match(attribute1, ds1, attribute2, ds2)) {
+                preference.increaseCount();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void constructPreferencesFromQueries(std::list<ReplicationStatus*> attributes, std::list<Preference>& preferences, QueryWorkload* wl, double percBoth)
+    {
+        for (auto query : wl->queries) {
+
+            std::list<std::tuple<ReplicationStatus*, DataStructure>> correlation;
+
+            for (auto op : query.operatorDescs) {
+                ReplicationStatus* attribute = std::get<0>(op);
+                double sel = std::get<1>(op);
+                DataStructure ds = (sel < percBoth ? DataStructure::PTREE : DataStructure::PCOLUMN);
+
+                correlation.push_back(std::make_tuple(attribute, ds));
+            }
+
+            for (auto it1 : correlation) {
+                for (auto it2 : correlation) {
+                    ReplicationStatus* attribute1 = std::get<0>(it1);
+                    ReplicationStatus* attribute2 = std::get<0>(it2);
+
+                    bool found1 = (std::find(attributes.begin(), attributes.end(), attribute1) != attributes.end());
+                    if (!found1)
+                        attributes.push_back(attribute1);
+
+                    bool found2 = (std::find(attributes.begin(), attributes.end(), attribute2) != attributes.end());
+                    if (!found2)
+                        attributes.push_back(attribute2);
+
+                    DataStructure ds1 = std::get<1>(it1);
+                    DataStructure ds2 = std::get<1>(it2);
+
+                    if (addToPreferences(preferences, attribute1, ds1, attribute2, ds2)) {
+                        preferences.emplace_back(attribute1, ds1, attribute2, ds2);
+                    }
+                }
+            }
+        }
+    }
+
+    std::list<AttributeReplDecision*> calculatePlacementForCorrelatedWorkload(uint64_t columnSize, QueryWorkload* wl)
+    {
+        Statistic & s = Statistic::getInstance();
+
+        std::tuple<double, double> colParamsLocal = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::LOCAL, columnSize);
+        std::tuple<double, double> treeParamsLocal = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::LOCAL, columnSize);
+
+        //std::tuple<double, double> colParamsRemote = s.getSelSumInterPreComp(DataStructure::PCOLUMN, Remoteness::REMOTE, columnSize);
+        //std::tuple<double, double> treeParamsRemote = s.getSelSumInterPreComp(DataStructure::PTREE, Remoteness::REMOTE, columnSize);
+
+        double percBoth = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) - std::get<1>(colParamsLocal));
+
+        std::list<Preference> preferences;
+        std::list<ReplicationStatus*> attributes;
+
+        constructPreferencesFromQueries(attributes, preferences, wl, percBoth);
+
+        // For now, we will not consider continous path because searching for the best would explode, two attributes must suffice for now
+        // I did not expect this problem to be this complex, I should have done a math major
+        // or at least took graph threory
+        uint64_t heaviest = 0;
+
+        ReplicationStatus* attr1 = nullptr;
+        ReplicationStatus* attr2 = nullptr;
+        ReplicationStatus* secAttr1 = nullptr;
+        ReplicationStatus* secAttr2 = nullptr;
+
+        (void) secAttr2;
+
+        DataStructure ds1, ds2;
+        DataStructure secDs1, secDs2;
+
+        for (auto& preference0 : preferences) {
+            preference0.print();
+
+            if (preference0.getCount() > heaviest) {
+                secAttr1 = attr1;
+                secAttr2 = attr2;
+
+                attr1 = preference0.m_attr1;
+                attr2 = preference0.m_attr2;  
+
+                secDs1 = ds1;
+                secDs2 = ds2;
+
+                ds1 = preference0.m_ds1;
+                ds2 = preference0.m_ds2;
+            }
+        }
+        /*class AttributeReplDecision {
+        public:
+            ReplicationStatus* attribute;
+            std::vector<DataStructure> dsPerNode;
+        };*/
+
+        std::list<AttributeReplDecision*> ret;
+
+        AttributeReplDecision* dec1 = new AttributeReplDecision();
+        AttributeReplDecision* dec2 = new AttributeReplDecision();
+
+        dec1->attribute = attr1;
+        dec1->dsPerNode.push_back(ds1);
+
+        dec2->attribute = attr2;
+        dec2->dsPerNode.push_back(ds2);
+
+        if (secAttr1 == attr1) {
+            dec1->dsPerNode.push_back(secDs1);
+            dec2->dsPerNode.push_back(secDs2);
+        }
+        else {
+            dec2->dsPerNode.push_back(secDs1);
+            dec1->dsPerNode.push_back(secDs2);
+        }
+        
+        ret.push_back(dec1); 
+        ret.push_back(dec2); 
+   
+        return ret;
+    }
 
     ReplicationDecision* calculatePlacementForWorkload(uint64_t columnSize, Workload& wl)
     {
@@ -871,8 +1081,6 @@ public:
         if (sumSecondsDD < sumSecondsDC && sumSecondsDD < sumSecondsCC)
             std::cout << "Tree Tree" << std::endl;
     }
-
-
 
 };
 

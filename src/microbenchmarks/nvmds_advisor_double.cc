@@ -246,6 +246,49 @@ public:
         delete plc;
     }
 
+/*class QueryDesc {
+public:
+    std::vector<std::tuple<ReplicationStatus*,double>> operatorDescs;
+    void add(ReplicationStatus * attr, double selectivity)
+    {
+        operatorDescs.emplace_back(attr, selectivity);
+    }
+}
+
+class QueryWorkload {
+
+    std::vector<QueryDesc> queries;
+
+    void add(QueryDesc desc)
+    {
+        queries.push_back(desc);
+    }
+
+};*/
+    void mainCorrelate() {
+        auto & repl_mgr = ReplicationManager::getInstance();
+        auto yStatus = repl_mgr.getStatus(RELATION, TABLE, Y0);
+        auto zStatus = repl_mgr.getStatus(RELATION, TABLE, Z0);
+
+        std::vector<uint64_t> y_selectVal;
+        std::vector<uint64_t> z_selectVal;
+
+        QueryWorkload wl;
+        for (uint64_t i = 0; i < 5; i++) {
+            QueryDesc desc;
+            desc.add(yStatus, 0.25f);
+            desc.add(zStatus, 0.25f);
+            wl.add(desc);
+        }
+
+        PlacementAdvisor & adv = PlacementAdvisor::getInstance();
+        auto attrReplList = adv.calculatePlacementForCorrelatedWorkload(ARRAY_SIZE, &wl);
+
+        for (auto i : attrReplList)
+            i->print();
+
+    }
+
 };
 
 int main( void ) {
