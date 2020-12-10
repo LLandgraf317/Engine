@@ -171,6 +171,8 @@ public:
                 1, RELATION, TABLE, Y0,
                 6, RELATION, TABLE, Z0);
 
+        plc->print();
+
         delete plc;
     }
    
@@ -198,6 +200,8 @@ public:
         selectivitiesPerAttr.push_back(z_selectivities);
 
         ReplicationDecision * plc = adv.calculatePlacementForWorkload(ARRAY_SIZE, selectivitiesPerAttr);
+
+        plc->print();
 
         auto & optimizer = Optimizer::getInstance();
         optimizer.optimizeDoubleSelectSum(numThreads, plc,

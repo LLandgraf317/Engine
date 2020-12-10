@@ -58,6 +58,18 @@ public:
             replication[i](0);*/
     }
 
+    void print()
+    {
+        for (uint64_t i = 0; i < node_count; i++) {
+            std::cout << "Node: " << i << ", attr ds':;
+            uint64_t attr_nr = 0;
+            for (auto j : replication) {
+                std::cout << "nr: " << attr_nr << " and ds ";
+                std::cout << (j == DataStructure::PTREE ? "TREE" : "COLUMN") << ",";
+            }
+        }
+    }
+
     void pushDecision(std::vector< DataStructure > dss)
     {
         assert(dss.size() == node_count);
