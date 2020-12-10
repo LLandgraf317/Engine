@@ -63,7 +63,7 @@ public:
         for (uint64_t i = 0; i < node_count; i++) {
             std::cout << "Node: " << i << ", attr ds: ";
             uint64_t attr_nr = 0;
-            for (auto j : replication) {
+            for (auto j : replication[i]) {
                 std::cout << "nr: " << attr_nr << " and ds ";
                 std::cout << (j == DataStructure::PTREE ? "TREE" : "COLUMN") << ",";
             }
