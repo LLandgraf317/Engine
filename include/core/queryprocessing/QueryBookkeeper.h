@@ -61,7 +61,7 @@ public:
     void print()
     {
         for (uint64_t i = 0; i < node_count; i++) {
-            std::cout << "Node: " << i << ", attr ds':;
+            std::cout << "Node: " << i << ", attr ds: ";
             uint64_t attr_nr = 0;
             for (auto j : replication) {
                 std::cout << "nr: " << attr_nr << " and ds ";
