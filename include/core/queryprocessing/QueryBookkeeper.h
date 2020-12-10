@@ -477,9 +477,12 @@ public:
             std::cout << "EVAL,";
            
             if (threadCount < node0Threads)
-                std::cout << sel0 << ",";
+                std::cout << "0,";
             else
-                std::cout << sel1 << ",";
+                std::cout << "1,";
+            
+            std::cout << ySel << ",";
+            std::cout << zSel << ",";
 
             if (std::get<0>(execUtil[threadCount]) == DataStructure::PTREE)
                 std::cout << "TREE,";
