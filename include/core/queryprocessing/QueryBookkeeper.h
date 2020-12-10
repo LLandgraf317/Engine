@@ -681,9 +681,9 @@ public:
         for (auto i : wl) {
             // i is vector of selectivities, implicit number of queries utilizing one attribute
 
-            double percTC = (std::get<0>(colParamsRemote) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) / std::get<1>(colParamsRemote));
-            double percCT = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsRemote)) / (std::get<1>(treeParamsRemote) / std::get<1>(colParamsLocal));
-            double percBoth = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) / std::get<1>(colParamsLocal));
+            double percTC = (std::get<0>(colParamsRemote) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) - std::get<1>(colParamsRemote));
+            double percCT = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsRemote)) / (std::get<1>(treeParamsRemote) - std::get<1>(colParamsLocal));
+            double percBoth = (std::get<0>(colParamsLocal) - std::get<0>(treeParamsLocal)) / (std::get<1>(treeParamsLocal) - std::get<1>(colParamsLocal));
 
             trace_l(T_INFO, "Decisionpoint for tree local column remote: ", percTC);
             trace_l(T_INFO, "Decisionpoint for tree remote column local: ", percCT);
