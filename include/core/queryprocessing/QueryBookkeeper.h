@@ -346,7 +346,7 @@ public:
             auto zPCol = zStatus->getPersistentColumn(n);
             zCols.push_back(zPCol->convert());
 
-            zTrees.push_back(yStatus->getMultiValTreeIndex(n));
+            yTrees.push_back(yStatus->getMultiValTreeIndex(n));
             zTrees.push_back(zStatus->getMultiValTreeIndex(n));
         }
 
