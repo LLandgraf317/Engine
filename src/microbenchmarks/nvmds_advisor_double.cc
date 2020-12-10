@@ -171,6 +171,40 @@ public:
                 1, RELATION, TABLE, Y0,
                 6, RELATION, TABLE, Z0);
 
+        delete plc;
+    }
+   
+    void mainHi() {
+        PlacementAdvisor & adv = PlacementAdvisor::getInstance();
+
+        std::vector<double> y_selectivities;
+        std::vector<double> z_selectivities;
+
+        /*sel_distr_0.push_back(sel_and_val(0.015625f, 1));
+        sel_distr_0.push_back(sel_and_val(0.03125f, 2));
+        sel_distr_0.push_back(sel_and_val(0.0625f, 3));
+        sel_distr_0.push_back(sel_and_val(0.125f, 4));
+        sel_distr_0.push_back(sel_and_val(0.25f, 5));
+        sel_distr_0.push_back(sel_and_val(0.5f, 6));*/
+
+        uint64_t numThreads = 10;
+        for (uint64_t i = 0; i < numThreads; i++) {
+            y_selectivities.push_back(0.015625f);
+            z_selectivities.push_back(0.015625f);
+        }
+
+        std::vector<std::vector<double>> selectivitiesPerAttr;
+        selectivitiesPerAttr.push_back(y_selectivities);
+        selectivitiesPerAttr.push_back(z_selectivities);
+
+        ReplicationDecision * plc = adv.calculatePlacementForWorkload(ARRAY_SIZE, selectivitiesPerAttr);
+
+        auto & optimizer = Optimizer::getInstance();
+        optimizer.optimizeDoubleSelectSum(numThreads, plc,
+                1, RELATION, TABLE, Y0,
+                1, RELATION, TABLE, Z0);
+
+        delete plc;
     }
 
 };
@@ -190,6 +224,7 @@ int main( void ) {
     //prog.warmup();
 
     prog.mainBest();
+    prog.mainHi();
 
 
     return 0;
