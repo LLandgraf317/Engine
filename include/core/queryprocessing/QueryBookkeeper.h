@@ -65,8 +65,9 @@ public:
             uint64_t attr_nr = 0;
             for (auto j : replication[i]) {
                 std::cout << "nr: " << attr_nr << " and ds ";
-                std::cout << (j == DataStructure::PTREE ? "TREE" : "COLUMN") << ",";
+                std::cout << (j == DataStructure::PTREE ? "TREE" : "PCOL") << ",";
             }
+            std::cout << std::endl;
         }
     }
 
