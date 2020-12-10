@@ -48,6 +48,12 @@ public:
         > replication;
     uint64_t node_count;
     uint64_t attribute_count;
+    ReplicationDecision(uint64_t nodeCount)
+    {
+        // TODO: For all of your code: use common naming scheme
+        node_count = nodeCount;
+        replication.reserve(nodeCount);
+    }
 
     void pushDecision(std::vector< DataStructure > dss)
     {
@@ -711,7 +717,8 @@ public:
             countVector.emplace_back(countOnlyTree, countBothTTend, countBothCTend, countOnlyColumn);
         }
 
-        ReplicationDecision * repl = new ReplicationDecision();
+        uint64_t nodeCount = 2;
+        ReplicationDecision * repl = new ReplicationDecision(nodeCount);
         uint64_t node0Acum = 0;
         uint64_t node1Acum = 0;
 
