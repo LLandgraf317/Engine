@@ -53,9 +53,9 @@ public:
     {
         // TODO: For all of your code: use common naming scheme
         node_count = nodeCount;
-        replication.reserve(nodeCount);
-        for (uint64_t i = 0; i < nodeCount; i++)
-            replication[i] = std::vector<DataStructure>();
+        replication.resize(nodeCount);
+        /*for (uint64_t i = 0; i < nodeCount; i++)
+            replication[i](0);*/
     }
 
     void pushDecision(std::vector< DataStructure > dss)
