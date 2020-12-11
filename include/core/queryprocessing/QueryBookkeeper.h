@@ -693,9 +693,6 @@ public:
         using ColPtr = const column<uncompr_f>*;
         using TreePtr = pptr<MultiValTreeIndex>;
         DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol0, zSel, zPCol0, 0, query);
-        DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol0, zSel, zTree0, 0, query);
-        DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol0, ySel, yTree0, 0, query);
-        DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree0, zSel, zTree0, 0, query);
 
         for (uint64_t i = 0; i < 10; i++) {
             DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
@@ -705,6 +702,7 @@ public:
             qc.reset();
         }
 
+        DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol0, zSel, zTree0, 0, query);
         for (uint64_t i = 0; i < 10; i++) {
             DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&colTreeArgs);
             std::cout << "ITERAT,";
@@ -713,6 +711,7 @@ public:
             qc.reset();
         }
 
+        DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol0, ySel, yTree0, 0, query);
         for (uint64_t i = 0; i < 10; i++) {
             DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&treeColArgs);
             std::cout << "ITERAT,";
@@ -720,6 +719,8 @@ public:
             std::cout << query->getExecTime().count() << std::endl;
             qc.reset();
         }
+
+        DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree0, zSel, zTree0, 0, query);
         for (uint64_t i = 0; i < 10; i++) {
             DoubleSelectSumQuery::runIndInd<TreePtr, TreePtr>(&treeTreeArgs);
             std::cout << "ITERAT,";
