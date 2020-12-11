@@ -673,9 +673,10 @@ public:
         DataStructure zReplDec;
 
         for (auto i : dec) {
-            if (i->attribute == yStatus)
+            if (i->attribute == yStatus) {
                 yReplDec = i->dsPerNode[0];
-            if (i->attribute == yStatus)
+            }
+            if (i->attribute == zStatus)
                 zReplDec = i->dsPerNode[0]; 
         }
 
