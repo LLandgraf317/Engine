@@ -652,6 +652,14 @@ public:
         std::cout << ",";
     }
 
+    double estimateRuntime(double selectivityY, DataStructure dsY, double selectivityZ, DataStructure dsZ, uint64_t columnSize)
+    {
+        double node0Est = (dsY == DataStructure::PTREE ? execTreeLocal(columnSize, selectivityY) : execColLocal(columnSize, selectivityY) );
+        node0Est += (dsZ == DataStructure::PTREE ? execTreeLocal(columnSize, selectivityZ) : execColLocal(columnSize, selectivityZ) );
+
+        return node0Est;
+    }
+
     void executeAllDoubleSelectSum(
             uint64_t columnSize,
             std::list<AttributeReplDecision*> dec,
@@ -680,13 +688,33 @@ public:
                 zReplDec = i->dsPerNode[0]; 
         }
 
-        double node0Est = (yReplDec == DataStructure::PTREE ? execTreeLocal(columnSize, ySel) : execColLocal(columnSize, ySel) );
-        node0Est += (zReplDec == DataStructure::PTREE ? execTreeLocal(columnSize, zSel) : execColLocal(columnSize, zSel) );
+        auto buckY = yTree0->find(ySel);
+        auto buckZ = zTree0->find(zSel);
+
+        size_t countBuckY = buckY->getCountValues();
+        size_t countBuckZ = buckZ->getCountValues();
+
+        double selectivityY = (double) countBuckY / yPCol0->get_count_values();
+        double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
 
         // Print estimate and chosen data structure for replication
         std::cout << "CHOSEN,";
         coutDs(yReplDec, zReplDec);
-        std::cout << node0Est << std::endl;
+        std::cout << estimateRuntime(selectivityY, yReplDec, selectivityZ, zReplDec, columnSize) << std::endl;
+
+        DataStructure otherY = (yReplDec == DataStructure::PTREE ? DataStructure::PCOLUMN : DataStructure::PTREE);
+        DataStructure otherZ = (zReplDec == DataStructure::PTREE ? DataStructure::PCOLUMN : DataStructure::PTREE);
+        std::cout << "ELSE,";
+        coutDs(otherY, zReplDec);
+        std::cout << estimateRuntime(selectivityY, otherY, selectivityZ, zReplDec, columnSize) << std::endl;
+
+        std::cout << "ELSE,";
+        coutDs(yReplDec, otherZ);
+        std::cout << estimateRuntime(selectivityY, yReplDec, selectivityZ, otherZ, columnSize) << std::endl;
+
+        std::cout << "ELSE,";
+        coutDs(otherY, otherZ);
+        std::cout << estimateRuntime(selectivityY, otherY, selectivityZ, otherZ, columnSize) << std::endl;
 
         QueryCollection qc;
         DoubleSelectSumQuery * query = qc.create<DoubleSelectSumQuery>();
