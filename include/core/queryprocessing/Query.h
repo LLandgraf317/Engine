@@ -331,7 +331,7 @@ public:
         auto index1 = args->datastruct1;
 
         (*args->downVar)--;
-        waitAllReady(*args->downVar);
+        //waitAllReady(*args->downVar);
 
         args->query->start();
         auto select1 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
@@ -369,7 +369,7 @@ public:
         auto index1 = args->datastruct1;
 
         (*args->downVar)--;
-        waitAllReady(*args->downVar);
+        //waitAllReady(*args->downVar);
 
         args->query->start();
         auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
@@ -406,7 +406,7 @@ public:
         auto col1 = args->datastruct1;
 
         (*args->downVar)--;
-        waitAllReady(*args->downVar);
+        //waitAllReady(*args->downVar);
 
         args->query->start();
         auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
