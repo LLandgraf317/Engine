@@ -330,7 +330,7 @@ public:
         auto index0 = args->datastruct0;
         auto index1 = args->datastruct1;
 
-        (*args->downVar)--;
+        //(*args->downVar)--;
         //waitAllReady(*args->downVar);
 
         args->query->start();
@@ -368,7 +368,7 @@ public:
         auto col0 = args->datastruct0;
         auto index1 = args->datastruct1;
 
-        (*args->downVar)--;
+        //(*args->downVar)--;
         //waitAllReady(*args->downVar);
 
         args->query->start();
@@ -405,7 +405,7 @@ public:
         auto col0 = args->datastruct0;
         auto col1 = args->datastruct1;
 
-        (*args->downVar)--;
+        //(*args->downVar)--;
         //waitAllReady(*args->downVar);
 
         args->query->start();
