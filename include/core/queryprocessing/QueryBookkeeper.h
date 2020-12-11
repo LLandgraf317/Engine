@@ -660,6 +660,14 @@ public:
         return node0Est;
     }
 
+    void outLoc(uint64_t yLoc, uint64_t zLoc)
+    {
+        std::cout << (yLoc == 0 ? "LOCAL" : "REMOTE");
+        std::cout << ",";
+        std::cout << (zLoc == 0 ? "LOCAL" : "REMOTE");
+        std::cout << ",";
+    }
+
     void executeAllDoubleSelectSum(
             uint64_t columnSize,
             std::list<AttributeReplDecision*> dec,
@@ -676,6 +684,12 @@ public:
 
         auto zPCol0 = zStatus->getPersistentColumn(0)->convert();
         auto zTree0 = zStatus->getMultiValTreeIndex(0);
+
+        auto yPCol1 = yStatus->getPersistentColumn(1)->convert();
+        auto yTree1 = yStatus->getMultiValTreeIndex(1);
+
+        auto zPCol1 = zStatus->getPersistentColumn(1)->convert();
+        auto zTree1 = zStatus->getMultiValTreeIndex(1);
 
         DataStructure yReplDec;
         DataStructure zReplDec;
@@ -700,19 +714,23 @@ public:
         // Print estimate and chosen data structure for replication
         std::cout << "CHOSEN,";
         coutDs(yReplDec, zReplDec);
+        outLoc(0,0);
         std::cout << estimateRuntime(selectivityY, yReplDec, selectivityZ, zReplDec, columnSize) << std::endl;
 
         DataStructure otherY = (yReplDec == DataStructure::PTREE ? DataStructure::PCOLUMN : DataStructure::PTREE);
         DataStructure otherZ = (zReplDec == DataStructure::PTREE ? DataStructure::PCOLUMN : DataStructure::PTREE);
         std::cout << "ELSE,";
+        outLoc(0,0);
         coutDs(otherY, zReplDec);
         std::cout << estimateRuntime(selectivityY, otherY, selectivityZ, zReplDec, columnSize) << std::endl;
 
         std::cout << "ELSE,";
+        outLoc(0,0);
         coutDs(yReplDec, otherZ);
         std::cout << estimateRuntime(selectivityY, yReplDec, selectivityZ, otherZ, columnSize) << std::endl;
 
         std::cout << "ELSE,";
+        outLoc(0,0);
         coutDs(otherY, otherZ);
         std::cout << estimateRuntime(selectivityY, otherY, selectivityZ, otherZ, columnSize) << std::endl;
 
@@ -721,41 +739,55 @@ public:
 
         using ColPtr = const column<uncompr_f>*;
         using TreePtr = pptr<MultiValTreeIndex>;
-        DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol0, zSel, zPCol0, 0, query);
 
-        for (uint64_t i = 0; i < 10; i++) {
-            DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
-            std::cout << "ITERAT,";
-            coutDs(DataStructure::PCOLUMN, DataStructure::PCOLUMN);
-            std::cout << query->getExecTime().count() << std::endl;
-            qc.reset();
-        }
+        for (uint64_t yRem = 0; yRem < 2; yRem++) {
+            for (uint64_t zRem = 0; zRem < 2; zRem++) {
+                ColPtr& yPCol = (yRem == 0 ? yPCol0 : yPCol1);
+                TreePtr& yTree = (yRem == 0 ? yTree0 : yTree1);
 
-        DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol0, zSel, zTree0, 0, query);
-        for (uint64_t i = 0; i < 10; i++) {
-            DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&colTreeArgs);
-            std::cout << "ITERAT,";
-            coutDs(DataStructure::PCOLUMN, DataStructure::PTREE);
-            std::cout << query->getExecTime().count() << std::endl;
-            qc.reset();
-        }
+                ColPtr& zPCol = (zRem == 0 ? zPCol0 : zPCol1);
+                TreePtr& zTree = (zRem == 0 ? zTree0 : zTree1);
 
-        DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol0, ySel, yTree0, 0, query);
-        for (uint64_t i = 0; i < 10; i++) {
-            DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&treeColArgs);
-            std::cout << "ITERAT,";
-            coutDs(DataStructure::PTREE, DataStructure::PCOLUMN);
-            std::cout << query->getExecTime().count() << std::endl;
-            qc.reset();
-        }
+                DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol, zSel, zPCol, 0, query);
+                for (uint64_t i = 0; i < 10; i++) {
+                    DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
+                    std::cout << "ITERAT,";
+                    coutDs(DataStructure::PCOLUMN, DataStructure::PCOLUMN);
+                    outLoc(yRem,zRem);
+                    std::cout << query->getExecTime().count() << std::endl;
+                    qc.reset();
+                }
 
-        DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree0, zSel, zTree0, 0, query);
-        for (uint64_t i = 0; i < 10; i++) {
-            DoubleSelectSumQuery::runIndInd<TreePtr, TreePtr>(&treeTreeArgs);
-            std::cout << "ITERAT,";
-            coutDs(DataStructure::PTREE, DataStructure::PTREE);
-            std::cout << query->getExecTime().count() << std::endl;
-            qc.reset();
+                DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol, zSel, zTree, 0, query);
+                for (uint64_t i = 0; i < 10; i++) {
+                    DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&colTreeArgs);
+                    std::cout << "ITERAT,";
+                    coutDs(DataStructure::PCOLUMN, DataStructure::PTREE);
+                    outLoc(yRem,zRem);
+                    std::cout << query->getExecTime().count() << std::endl;
+                    qc.reset();
+                }
+
+                DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol, ySel, yTree, 0, query);
+                for (uint64_t i = 0; i < 10; i++) {
+                    DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&treeColArgs);
+                    std::cout << "ITERAT,";
+                    coutDs(DataStructure::PTREE, DataStructure::PCOLUMN);
+                    outLoc(yRem,zRem);
+                    std::cout << query->getExecTime().count() << std::endl;
+                    qc.reset();
+                }
+
+                DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree, zSel, zTree, 0, query);
+                for (uint64_t i = 0; i < 10; i++) {
+                    DoubleSelectSumQuery::runIndInd<TreePtr, TreePtr>(&treeTreeArgs);
+                    std::cout << "ITERAT,";
+                    coutDs(DataStructure::PTREE, DataStructure::PTREE);
+                    outLoc(yRem,zRem);
+                    std::cout << query->getExecTime().count() << std::endl;
+                    qc.reset();
+                }
+            }
         }
     }
 
