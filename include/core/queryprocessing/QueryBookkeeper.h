@@ -921,6 +921,7 @@ public:
         // I did not expect this problem to be this complex, I should have done a math major
         // or at least took graph threory
         uint64_t heaviest = 0;
+        uint64_t secondHeaviest = 0;
 
         ReplicationStatus* attr1 = nullptr;
         ReplicationStatus* attr2 = nullptr;
@@ -948,7 +949,17 @@ public:
                 ds1 = preference0.m_ds1;
                 ds2 = preference0.m_ds2;
 
+                secondHeaviest = heaviest;
                 heaviest = preference0.getCount();
+            }
+            else if (preference0.getCount() > secondHeaviest) {
+                secAttr1 = preference0.m_attr1;
+                secAttr2 = preference0.m_attr2;
+
+                secDs1 = preference0.m_ds1;
+                secDs2 = preference0.m_ds2;
+
+                secondHeaviest = preference0.getCount();
             }
         }
 
