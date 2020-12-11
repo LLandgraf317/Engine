@@ -61,7 +61,7 @@ public:
 
     static void waitAllReady(std::atomic<uint64_t>& down) //std::vector<bool>& queue)
     {
-        while (down != 0ul) {
+        while (down > 0ul) {
         }
     }
 
