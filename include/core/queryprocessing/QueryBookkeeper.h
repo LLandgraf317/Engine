@@ -696,7 +696,6 @@ public:
         DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol0, zSel, zPCol0, 0, query);
 
         for (uint64_t i = 0; i < 10; i++) {
-            *(colcolArgs.downVar) = 0;
             DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
             std::cout << "ITERAT,";
             coutDs(DataStructure::PCOLUMN, DataStructure::PCOLUMN);
