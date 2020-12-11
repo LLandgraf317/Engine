@@ -274,11 +274,18 @@ class QueryWorkload {
         std::vector<uint64_t> z_selectVal;
 
         QueryWorkload wl;
+        for (uint64_t i = 0; i < 10; i++) {
+            QueryDesc desc0;
+            desc0.add(yStatus, 0.125f);
+            desc0.add(zStatus, 0.5f);
+            wl.add(desc0);
+        }
+
         for (uint64_t i = 0; i < 5; i++) {
-            QueryDesc desc;
-            desc.add(yStatus, 0.25f);
-            desc.add(zStatus, 0.25f);
-            wl.add(desc);
+            QueryDesc desc1;
+            desc1.add(yStatus, 0.5f);
+            desc1.add(zStatus, 0.5f);
+            wl.add(desc1);
         }
 
         PlacementAdvisor & adv = PlacementAdvisor::getInstance();
@@ -287,6 +294,13 @@ class QueryWorkload {
         for (auto i : attrReplList)
             i->print();
 
+        auto & optimizer = Optimizer::getInstance();
+
+        optimizer.executeAllDoubleSelectSum(
+            ARRAY_SIZE,
+            attrReplList,
+            4, yStatus,
+            6, zStatus);
     }
 
 };
@@ -304,10 +318,11 @@ int main( void ) {
     Main prog;
     prog.initData();
     //prog.warmup();
-
-    prog.mainBest();
+    
+    prog.mainCorrelate();
+    /*prog.mainBest();
     prog.mainHi();
-    prog.mainMid();
+    prog.mainMid();*/
 
 
     return 0;

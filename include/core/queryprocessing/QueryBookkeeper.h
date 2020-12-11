@@ -106,9 +106,14 @@ public:
 
     void print()
     {
-        trace_l(T_INFO, attribute->getRelation(), attribute->getTable(), attribute->getAttribute());
-        for (auto i : dsPerNode)
-            trace_l(T_INFO, i);
+        trace_l(T_INFO, "AttributeReplDecision for attribute ", attribute->getRelation(), ":",
+                attribute->getTable(), ",", attribute->getAttribute());
+        uint64_t node = 0;
+        for (auto i : dsPerNode) {
+
+            trace_l(T_INFO, " uses DS ", i, " for node ", node);
+            node++;
+        }
     }
 };
 
@@ -640,6 +645,90 @@ public:
             delete i;
     }
 
+    void coutDs(DataStructure ds1, DataStructure ds2)
+    {
+        std::cout << (ds1 == DataStructure::PTREE ? "TRE" : "COL");
+        std::cout << (ds2 == DataStructure::PTREE ? "TRE" : "COL");
+        std::cout << ",";
+    }
+
+    void executeAllDoubleSelectSum(
+            uint64_t columnSize,
+            std::list<AttributeReplDecision*> dec,
+            uint64_t ySel, ReplicationStatus* yStatus,
+            uint64_t zSel, ReplicationStatus* zStatus)
+    {
+
+        auto & repl_mgr = ReplicationManager::getInstance();
+        auto xStatus = repl_mgr.getStatus(yStatus->getRelation(), yStatus->getTable(), "x");
+        auto xCol = xStatus->getPersistentColumn(0)->convert();
+
+        auto yPCol0 = yStatus->getPersistentColumn(0)->convert();
+        auto yTree0 = yStatus->getMultiValTreeIndex(0);
+
+        auto zPCol0 = zStatus->getPersistentColumn(0)->convert();
+        auto zTree0 = zStatus->getMultiValTreeIndex(0);
+
+        DataStructure yReplDec;
+        DataStructure zReplDec;
+
+        for (auto i : dec) {
+            if (i->attribute == yStatus)
+                yReplDec = i->dsPerNode[0];
+            if (i->attribute == yStatus)
+                zReplDec = i->dsPerNode[0]; 
+        }
+
+        double node0Est = (yReplDec == DataStructure::PTREE ? execTreeLocal(columnSize, ySel) : execColLocal(columnSize, ySel) );
+        node0Est += (zReplDec == DataStructure::PTREE ? execTreeLocal(columnSize, zSel) : execColLocal(columnSize, zSel) );
+
+        // Print estimate and chosen data structure for replication
+        std::cout << "CHOSEN,";
+        coutDs(yReplDec, zReplDec);
+        std::cout << node0Est << std::endl;
+
+        QueryCollection qc;
+        DoubleSelectSumQuery * query = qc.create<DoubleSelectSumQuery>();
+
+        using ColPtr = const column<uncompr_f>*;
+        using TreePtr = pptr<MultiValTreeIndex>;
+        DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol0, zSel, zPCol0, 0, query);
+        DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol0, zSel, zTree0, 0, query);
+        DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol0, ySel, yTree0, 0, query);
+        DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree0, zSel, zTree0, 0, query);
+
+        for (uint64_t i = 0; i < 10; i++) {
+            DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
+            std::cout << "ITERAT,";
+            coutDs(DataStructure::PCOLUMN, DataStructure::PCOLUMN);
+            std::cout << query->getExecTime().count() << std::endl;
+            qc.reset();
+        }
+
+        for (uint64_t i = 0; i < 10; i++) {
+            DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&colTreeArgs);
+            std::cout << "ITERAT,";
+            coutDs(DataStructure::PCOLUMN, DataStructure::PTREE);
+            std::cout << query->getExecTime().count() << std::endl;
+            qc.reset();
+        }
+
+        for (uint64_t i = 0; i < 10; i++) {
+            DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&treeColArgs);
+            std::cout << "ITERAT,";
+            coutDs(DataStructure::PTREE, DataStructure::PCOLUMN);
+            std::cout << query->getExecTime().count() << std::endl;
+            qc.reset();
+        }
+        for (uint64_t i = 0; i < 10; i++) {
+            DoubleSelectSumQuery::runIndInd<TreePtr, TreePtr>(&treeTreeArgs);
+            std::cout << "ITERAT,";
+            coutDs(DataStructure::PTREE, DataStructure::PTREE);
+            std::cout << query->getExecTime().count() << std::endl;
+            qc.reset();
+        }
+    }
+
     void executeAllSelectSum(uint64_t sel, std::string relation, std::string table, std::string attribute)
     {
         //trace_l(T_INFO, "Warm up iteration");
@@ -658,36 +747,24 @@ public:
         auto xCol = xStatus->getPersistentColumn(node)->convert();
         auto yPCol0 = yStatus->getPersistentColumn(node)->convert();
         auto yTree0 = yStatus->getMultiValTreeIndex(node);
-        /*auto yHash0 = yStatus->getHashMapIndex(node);
-        auto ySkip0 = yStatus->getSkipListIndex(node);*/
 
         auto yPCol1 = yStatus->getPersistentColumn(node1)->convert();
         auto yTree1 = yStatus->getMultiValTreeIndex(node1);
-        /*auto yHash1 = yStatus->getHashMapIndex(node1);
-        auto ySkip1 = yStatus->getSkipListIndex(node1);*/
 
         uint64_t column_size = yPCol0->get_count_values() * sizeof(uint64_t);
         numa_run_on_node(0);
 
         auto coldur  = query->runCol  (xCol, yPCol0, sel);
         auto treedur = query->runIndex(xCol, yTree0, sel); 
-        /*auto hashdur = query->runIndex(xCol, yHash0, sel);
-        auto skipdur = query->runIndex(xCol, ySkip0, sel);*/
 
         auto coldur1  = query->runCol  (xCol, yPCol1, sel);
         auto treedur1 = query->runIndex(xCol, yTree1, sel); 
-        /*auto hashdur1 = query->runIndex(xCol, yHash1, sel);
-        auto skipdur1 = query->runIndex(xCol, ySkip1, sel);*/
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::LOCAL, coldur, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::LOCAL, treedur, sel, column_size);
-        /*stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::LOCAL, hashdur, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::LOCAL, skipdur, sel, column_size);*/
 
         stat.log(SSELECTSUM, DataStructure::PCOLUMN, Remoteness::REMOTE, coldur1, sel, column_size);
         stat.log(SSELECTSUM, DataStructure::PTREE, Remoteness::REMOTE, treedur1, sel, column_size);
-        /*stat.log(SSELECTSUM, DataStructure::PHASHMAP, Remoteness::REMOTE, hashdur1, sel, column_size);
-        stat.log(SSELECTSUM, DataStructure::PSKIPLIST, Remoteness::REMOTE, skipdur1, sel, column_size);*/
 
         delete xCol;
         delete yPCol0;
@@ -789,8 +866,14 @@ public:
                 correlation.push_back(std::make_tuple(attribute, ds));
             }
 
+            uint64_t it1Count = 0;
             for (auto it1 : correlation) {
+
+                uint64_t it2Count = 0;
                 for (auto it2 : correlation) {
+                    if (it1Count == it2Count)
+                        continue;
+
                     ReplicationStatus* attribute1 = std::get<0>(it1);
                     ReplicationStatus* attribute2 = std::get<0>(it2);
 
@@ -808,7 +891,9 @@ public:
                     if (addToPreferences(preferences, attribute1, ds1, attribute2, ds2)) {
                         preferences.emplace_back(attribute1, ds1, attribute2, ds2);
                     }
+                    it2Count++;
                 }
+                it1Count++;
             }
         }
     }
@@ -861,6 +946,11 @@ public:
                 ds1 = preference0.m_ds1;
                 ds2 = preference0.m_ds2;
             }
+        }
+
+        if (preferences.size() == 1) {
+            secDs1 = ds1;
+            secDs2 = ds2;
         }
         /*class AttributeReplDecision {
         public:

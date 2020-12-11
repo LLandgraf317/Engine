@@ -103,6 +103,11 @@ public:
             delete i;*/
     }
 
+    void reset()
+    {
+        downVar = queries.size();
+    }
+
     void pushQuery(Query * query)
     {
         downVar++;
