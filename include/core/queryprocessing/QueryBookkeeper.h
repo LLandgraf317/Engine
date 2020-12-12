@@ -669,7 +669,6 @@ public:
     }
 
     void executeAllDoubleSelectSum(
-            uint64_t columnSize,
             std::list<AttributeReplDecision*> dec,
             uint64_t ySel, ReplicationStatus* yStatus,
             uint64_t zSel, ReplicationStatus* zStatus)
@@ -710,6 +709,8 @@ public:
 
         double selectivityY = (double) countBuckY / yPCol0->get_count_values();
         double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
+
+        uint64_t columnSize = yPCol0->get_count_values();
 
         trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
         trace_l(T_INFO, "columnSize: ", columnSize);

@@ -289,7 +289,7 @@ class QueryWorkload {
         }
 
         PlacementAdvisor & adv = PlacementAdvisor::getInstance();
-        auto attrReplList = adv.calculatePlacementForCorrelatedWorkload(ARRAY_SIZE, &wl);
+        auto attrReplList = adv.calculatePlacementForCorrelatedWorkload(COLUMN_SIZE, &wl);
 
         for (auto i : attrReplList)
             i->print();
@@ -297,7 +297,6 @@ class QueryWorkload {
         auto & optimizer = Optimizer::getInstance();
 
         optimizer.executeAllDoubleSelectSum(
-            ARRAY_SIZE,
             attrReplList,
             4, yStatus,
             6, zStatus);
