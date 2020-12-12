@@ -296,10 +296,10 @@ class QueryWorkload {
 
         auto & optimizer = Optimizer::getInstance();
 
-        optimizer.executeAllDoubleSelectSum(
+        /*optimizer.executeAllDoubleSelectSum(
             attrReplList,
             4, yStatus,
-            6, zStatus);
+            6, zStatus);*/
         optimizer.executeAllDoubleSelectSum(
             attrReplList,
             6, yStatus,
