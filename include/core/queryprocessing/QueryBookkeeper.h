@@ -711,6 +711,8 @@ public:
         double selectivityY = (double) countBuckY / yPCol0->get_count_values();
         double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
 
+        trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
+
         // Print estimate and chosen data structure for replication
         std::cout << "CHOSEN,";
         coutDs(yReplDec, zReplDec);
