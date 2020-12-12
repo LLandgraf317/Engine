@@ -710,7 +710,7 @@ public:
         double selectivityY = (double) countBuckY / yPCol0->get_count_values();
         double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
 
-        uint64_t columnSize = yPCol0->get_count_values();
+        uint64_t columnSize = yPCol0->get_count_values() * sizeof(uint64_t);
 
         trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
         trace_l(T_INFO, "columnSize: ", columnSize);
