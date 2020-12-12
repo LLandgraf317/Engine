@@ -712,6 +712,7 @@ public:
         double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
 
         trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
+        printParams(yPCol0);
 
         // Print estimate and chosen data structure for replication
         std::cout << "CHOSEN,";
@@ -738,6 +739,7 @@ public:
 
         QueryCollection qc;
         DoubleSelectSumQuery * query = qc.create<DoubleSelectSumQuery>();
+
 
         using ColPtr = const column<uncompr_f>*;
         using TreePtr = pptr<MultiValTreeIndex>;
