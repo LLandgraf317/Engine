@@ -712,6 +712,7 @@ public:
         double selectivityZ = (double) countBuckZ / zPCol0->get_count_values();
 
         trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
+        trace_l(T_INFO, "columnSize: ", columnSize);
         printParams(yPCol0);
 
         // Print estimate and chosen data structure for replication
