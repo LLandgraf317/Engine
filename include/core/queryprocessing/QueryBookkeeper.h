@@ -712,7 +712,7 @@ public:
 
         uint64_t columnSize = yPCol0->get_count_values() * sizeof(uint64_t);
 
-        trace_l(T_INFO, "sel y: ", selectivityY, ", sel z: ", selectivityZ);
+        trace_l(T_INFO, "sel y: attr ySel has ", selectivityY, ", sel z: attr zSel has ", selectivityZ);
         trace_l(T_INFO, "columnSize: ", columnSize);
         printParams(yPCol0);
 
