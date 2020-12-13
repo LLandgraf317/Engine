@@ -158,6 +158,7 @@ struct index_select_wit_t<std::equal_to, t_out_pos_f, t_in_data_f, index_structu
                 value_data++;
             }
 
+
             valueCol->set_meta_data(sum_count_values, sum_count_values * sizeof(uint64_t));
 
             return valueCol;

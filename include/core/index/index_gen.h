@@ -104,18 +104,6 @@ public:
             prev = current;
         }
 
-        auto prev0 = sortVec.begin();
-        for (auto next = sortVec.begin(); next != sortVec.end(); next++) {
-            std::cout << "First: " << std::get<0>(*next);
-            std::cout << " Second: " << std::get<1>(*next) << std::endl;
-            if (std::get<0>(*prev0) > std::get<0>(*next) && std::get<1>(*prev0) > std::get<1>(*next))
-                throw std::exception();
-
-            prev0 = next;
-        }
-
-
-
         //trace_l(T_DEBUG, "Done with sorting");
 
         uint64_t currentKey = std::get<0>(*sortVec.begin());
