@@ -338,9 +338,15 @@ public:
         auto select1 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr0, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
                 ::apply( index0, selection0);
+        uint64_t * const ind1 = select1->get_data();
+        std::sort(ind1, ind1 + select1->get_count_values());
+
         auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr1, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
                 ::apply( index1, selection1);
+        uint64_t * const ind2 = select2->get_data();
+        std::sort(ind2, ind2 + select2->get_count_values());
+
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
@@ -381,9 +387,13 @@ public:
         args->query->start();
         auto select1 = my_select_wit_t<equal, ps, uncompr_f, uncompr_f>
                 ::apply( col0, selection0);
+
         auto select2 = index_select_wit_t<std::equal_to, uncompr_f, uncompr_f,
             index_structure_ptr, persistent_ptr<NodeBucketList<uint64_t, OSP_SIZE>>>
                 ::apply( index1, selection1);
+        uint64_t * const ind2 = select2->get_data();
+        std::sort(ind2, ind2 + select2->get_count_values());
+
         auto intersect = intersect_sorted<ps, uncompr_f, uncompr_f, uncompr_f >(select1, select2);
 
         auto projection = my_project_wit_t<ps, uncompr_f, uncompr_f, uncompr_f >::apply(xCol, intersect);
