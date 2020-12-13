@@ -302,8 +302,8 @@ class QueryWorkload {
             6, zStatus);*/
         optimizer.executeAllDoubleSelectSum(
             attrReplList,
-            4, yStatus,
-            6, zStatus);
+            2, yStatus,
+            2, zStatus);
     }
 
 };
