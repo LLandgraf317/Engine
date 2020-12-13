@@ -745,7 +745,7 @@ public:
 
         using ColPtr = const column<uncompr_f>*;
         using TreePtr = pptr<MultiValTreeIndex>;
-        const uint64_t iter = 5
+        const uint64_t iter = 5;
 
         for (uint64_t yRem = 0; yRem < 2; yRem++) {
             for (uint64_t zRem = 0; zRem < 2; zRem++) {
@@ -756,7 +756,7 @@ public:
                 TreePtr& zTree = (zRem == 0 ? zTree0 : zTree1);
 
                 DoubleArgList<ColPtr, ColPtr> colcolArgs(xCol, ySel, yPCol, zSel, zPCol, 0, query);
-                for (uint64_t i = 0; i < 5; i++) {
+                for (uint64_t i = 0; i < iter; i++) {
                     DoubleSelectSumQuery::runColCol<ColPtr>(&colcolArgs);
                     std::cout << "ITERAT,";
                     coutDs(DataStructure::PCOLUMN, DataStructure::PCOLUMN);
@@ -766,7 +766,7 @@ public:
                 }
 
                 DoubleArgList<ColPtr, TreePtr> colTreeArgs(xCol, ySel, yPCol, zSel, zTree, 0, query);
-                for (uint64_t i = 0; i < 5; i++) {
+                for (uint64_t i = 0; i < iter; i++) {
                     DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&colTreeArgs);
                     std::cout << "ITERAT,";
                     coutDs(DataStructure::PCOLUMN, DataStructure::PTREE);
@@ -776,7 +776,7 @@ public:
                 }
 
                 DoubleArgList<ColPtr, TreePtr> treeColArgs(xCol, zSel, zPCol, ySel, yTree, 0, query);
-                for (uint64_t i = 0; i < 5; i++) {
+                for (uint64_t i = 0; i < iter; i++) {
                     DoubleSelectSumQuery::runColInd<ColPtr, TreePtr>(&treeColArgs);
                     std::cout << "ITERAT,";
                     coutDs(DataStructure::PTREE, DataStructure::PCOLUMN);
@@ -786,7 +786,7 @@ public:
                 }
 
                 DoubleArgList<TreePtr, TreePtr> treeTreeArgs(xCol, ySel, yTree, zSel, zTree, 0, query);
-                for (uint64_t i = 0; i < 5; i++) {
+                for (uint64_t i = 0; i < iter; i++) {
                     DoubleSelectSumQuery::runIndInd<TreePtr, TreePtr>(&treeTreeArgs);
                     std::cout << "ITERAT,";
                     coutDs(DataStructure::PTREE, DataStructure::PTREE);
