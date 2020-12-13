@@ -329,6 +329,7 @@ public:
         auto xCol = args->xCol;
         auto index0 = args->datastruct0;
         auto index1 = args->datastruct1;
+        trace_l(T_INFO, "Col ind ind params ", selection0, " and ", selection1);
 
         //(*args->downVar)--;
         //waitAllReady(*args->downVar);
@@ -346,6 +347,11 @@ public:
         auto res = agg_sum<ps, uncompr_f>(projection);
         args->query->end();
 
+        trace_l(T_INFO, "select1 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "select2 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "intersect has tuples ", intersect->get_count_values());
+        trace_l(T_INFO, "projection has tuples ", projection->get_count_values());
+        trace_l(T_INFO, "res has tuples ", res->get_count_values());
         delete select1;
         delete select2;
         delete intersect;
@@ -367,6 +373,7 @@ public:
         auto xCol = args->xCol;
         auto col0 = args->datastruct0;
         auto index1 = args->datastruct1;
+        trace_l(T_INFO, "Col ind got params ", selection0, " and ", selection1);
 
         //(*args->downVar)--;
         //waitAllReady(*args->downVar);
@@ -383,6 +390,11 @@ public:
         auto res = agg_sum<ps, uncompr_f>(projection);
         args->query->end();
 
+        trace_l(T_INFO, "select1 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "select2 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "intersect has tuples ", intersect->get_count_values());
+        trace_l(T_INFO, "projection has tuples ", projection->get_count_values());
+        trace_l(T_INFO, "res has tuples ", res->get_count_values());
         delete select1;
         delete select2;
         delete intersect;
@@ -404,6 +416,7 @@ public:
         auto xCol = args->xCol;
         auto col0 = args->datastruct0;
         auto col1 = args->datastruct1;
+        trace_l(T_INFO, "Col col got params ", selection0, " and ", selection1);
 
         //(*args->downVar)--;
         //waitAllReady(*args->downVar);
@@ -419,6 +432,11 @@ public:
         auto res = agg_sum<ps, uncompr_f>(projection);
         args->query->end();
 
+        trace_l(T_INFO, "select1 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "select2 has tuples ", select1->get_count_values());
+        trace_l(T_INFO, "intersect has tuples ", intersect->get_count_values());
+        trace_l(T_INFO, "projection has tuples ", projection->get_count_values());
+        trace_l(T_INFO, "res has tuples ", res->get_count_values());
         delete select1;
         delete select2;
         delete intersect;
