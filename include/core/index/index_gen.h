@@ -87,6 +87,35 @@ public:
         std::sort(sortVec.begin(), sortVec.end(), [](std::tuple<uint64_t, uint64_t> a, std::tuple<uint64_t, uint64_t> b) {
                     return std::get<0>(a) < std::get<0>(b);
                 });
+
+        std::vector<std::tuple<uint64_t, uint64_t>> sortVec2;
+
+        auto startIter = sortVec.begin();
+        auto prev = sortVec.begin();
+
+        for (auto current = sortVec.begin(); current != sortVec.end(); current++) {
+            if ( std::get<0>(*current) != std::get<0>(*prev) ) {
+                std::sort(startIter, current, [](std::tuple<uint64_t, uint64_t> a, std::tuple<uint64_t, uint64_t> b) {
+                        return std::get<1>(a) < std::get<1>(b);
+                        });
+                startIter = current;
+            }
+
+            prev = current;
+        }
+
+        auto prev0 = sortVec.begin();
+        for (auto next = sortVec.begin(); next != sortVec.end(); next++) {
+            std::cout << "First: " << std::get<0>(*next);
+            std::cout << " Second: " << std::get<1>(*next) << std::endl;
+            if (std::get<0>(*prev0) > std::get<0>(*next) && std::get<1>(*prev0) > std::get<1>(*next))
+                throw std::exception();
+
+            prev0 = next;
+        }
+
+
+
         //trace_l(T_DEBUG, "Done with sorting");
 
         uint64_t currentKey = std::get<0>(*sortVec.begin());

@@ -306,7 +306,7 @@ struct NodeBucketList {
         }
         else {
             if (last->isFull()) {
-                trace_l(T_DEBUG, "Last bucket is full");
+                //trace_l(T_DEBUG, "Last bucket is full");
                 persistent_ptr<NodeBucket<T, t_bucket_size>> tmp;
                 transaction::run(pop, [&] {
                     tmp = make_persistent<NodeBucket<T, t_bucket_size>>();
